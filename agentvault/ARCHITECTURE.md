@@ -82,7 +82,9 @@ Stop → memory-forge hook stop
   → priority 变化 → 保存
 
 PreCompact → memory-forge hook pre-compact
-  → 生成 top-8 上下文摘要 → 确保压缩前保留关键记忆
+  → 生成 top-8 上下文摘要 → 注入存储指令
+  → Agent 被提醒保存关键决策/偏好/学习
+  → 上下文压缩 → 记忆已固化 → 强制关终端也不丢
 ```
 
 ## 依赖

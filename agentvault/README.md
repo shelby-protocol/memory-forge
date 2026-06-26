@@ -35,7 +35,7 @@ Free 层零依赖外部服务。Pro 层需 `SHELBY_API_KEY` 启用 Shelby 云同
 | autoMerge | 检测 >80% 重叠自动合并 |
 | autoPriority | 基于访问频率 + 时效计算优先级（Ebbinghaus 遗忘曲线） |
 | autoDecay | 90 天未访问自动归档 |
-| autoCapture | 会话结束自动更新优先级 + 清理过期记忆 |
+| autoCapture | 会话结束自动更新优先级 + 清理过期；PreCompact 提醒 Agent 保存关键信息 |
 
 ## 定价
 

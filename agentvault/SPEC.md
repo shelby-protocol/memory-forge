@@ -32,7 +32,7 @@
 | autoMerge | memory_store | >80% Jaccard 重叠自动合并 |
 | autoPriority | hook stop | 基于访问频率 + 时效 + 年龄计算 (1-10) |
 | autoDecay | hook stop | Ebbinghaus 遗忘曲线: 1天→1.0, 7天→0.8, 30天→0.5, 90天→0.2, >90天→归档 |
-| generateContextSummary | hook session-start / pre-compact | 按访问量+优先级排序生成上下文摘要 |
+| generateContextSummary | hook session-start / pre-compact | 按访问量+优先级排序生成上下文摘要 + 存储指令 |
 
 ## Hook 系统 (3 个)
 
@@ -40,7 +40,7 @@
 |---|---|---|
 | SessionStart | `memory-forge hook session-start` | 加载 top-5 记忆注入上下文 |
 | Stop | `memory-forge hook stop` | autoPriority + autoDecay 维护 |
-| PreCompact | `memory-forge hook pre-compact` | 保存 top-8 记忆防压缩丢失 |
+| PreCompact | `memory-forge hook pre-compact` | 保存 top-8 记忆 + **自动捕获指令**（提醒 Agent 存关键信息） |
 
 ## 定价
 
