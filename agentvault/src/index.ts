@@ -17,7 +17,7 @@ import { z } from "zod";
 
 import { MemoryStore } from "./store.js";
 import { embed, preload } from "./embedding.js";
-import { saveMemory, loadAllMemories, deleteMemoryFile } from "./storage/local.js";
+import { saveMemory, loadAllMemories, deleteMemoryFile, cleanupTombstones } from "./storage/local.js";
 import { uploadMemory } from "./storage/shelby.js";
 import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
@@ -66,6 +66,8 @@ if (cmd === "setup") {
     // Auto-capture conversation transcript
     const transcriptResult = captureTranscript();
     console.error(`[MemoryForge] ${transcriptResult}`);
+    // Purge expired tombstones
+    cleanupTombstones();
   } else if (hookType === "pre-compact") {
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);

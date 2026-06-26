@@ -7,7 +7,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadAllMemories, saveMemory } from "./storage/local.js";
+import { loadAllMemories, saveMemory, getTombstonedIds, cleanupTombstones } from "./storage/local.js";
 import {
   initShelby,
   uploadMemory,
@@ -121,11 +121,16 @@ export async function syncAll(): Promise<void> {
     store.add(m);
   }
 
-  // Download and merge blob memories
+  // Load tombstones once for this sync
+  const tombstoned = getTombstonedIds();
+
+  // Download and merge blob memories (skip tombstoned)
   let downloaded = 0;
   for (const blobName of blobs) {
     const memoryId = getMemoryId(blobName);
-    if (!memoryId || store.get(memoryId)) continue; // skip if already local
+    if (!memoryId) continue;
+    if (store.get(memoryId)) continue; // already local
+    if (tombstoned.has(memoryId)) continue; // user deleted this — don't resurrect
 
     const memory = await downloadMemory(blobName);
     if (memory) {
@@ -147,4 +152,7 @@ export async function syncAll(): Promise<void> {
   if (downloaded > 0 || uploaded > 0) {
     console.error(`[MemoryForge] Sync: ↑${uploaded} ↓${downloaded}`);
   }
+
+  // Purge expired tombstones
+  cleanupTombstones();
 }

@@ -119,5 +119,70 @@ function parseMemoryFile(filepath: string): Memory | null {
 
 export function deleteMemoryFile(id: string): void {
   const filepath = path.join(BASE, `${id}.md`);
-  if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+  if (fs.existsSync(filepath)) {
+    fs.unlinkSync(filepath);
+    addTombstone(id);
+  }
+}
+
+// --- Tombstone: prevent deleted memories from resurrecting on Pro sync ---
+
+const TOMBSTONE_DIR = path.join(
+  process.env.MEMORYFORGE_HOME ?? path.join(requireHome(), ".memory-forge")
+);
+const TOMBSTONE_PATH = path.join(TOMBSTONE_DIR, "tombstones.json");
+const TOMBSTONE_TTL_DAYS = 90;
+
+interface Tombstone {
+  id: string;
+  deleted_at: string;
+}
+
+function addTombstone(id: string): void {
+  const tombstones = loadTombstonesRaw();
+  // Dedup: skip if already tombstoned
+  if (tombstones.some((t) => t.id === id)) return;
+  tombstones.push({ id, deleted_at: new Date().toISOString() });
+  ensureDir();
+  try {
+    fs.writeFileSync(TOMBSTONE_PATH, JSON.stringify(tombstones, null, 2));
+  } catch {
+    // Non-fatal — tombstone is best-effort
+  }
+}
+
+function loadTombstonesRaw(): Tombstone[] {
+  try {
+    if (fs.existsSync(TOMBSTONE_PATH)) {
+      const raw = fs.readFileSync(TOMBSTONE_PATH, "utf-8");
+      return JSON.parse(raw);
+    }
+  } catch {
+    // Corrupted — reset
+  }
+  return [];
+}
+
+/** Get set of tombstoned memory IDs (active only, within TTL) */
+export function getTombstonedIds(): Set<string> {
+  const cutoff = new Date(Date.now() - TOMBSTONE_TTL_DAYS * 86400000);
+  return new Set(
+    loadTombstonesRaw()
+      .filter((t) => new Date(t.deleted_at) > cutoff)
+      .map((t) => t.id)
+  );
+}
+
+/** Purge expired tombstones (called from Stop hook / Pro sync) */
+export function cleanupTombstones(): number {
+  const cutoff = new Date(Date.now() - TOMBSTONE_TTL_DAYS * 86400000);
+  const all = loadTombstonesRaw();
+  const valid = all.filter((t) => new Date(t.deleted_at) > cutoff);
+  const removed = all.length - valid.length;
+  if (removed > 0) {
+    try {
+      fs.writeFileSync(TOMBSTONE_PATH, JSON.stringify(valid, null, 2));
+    } catch {}
+  }
+  return removed;
 }
