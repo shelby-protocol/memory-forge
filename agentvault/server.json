@@ -3,7 +3,7 @@
   "name": "github.com/shelby-protocol/memory-forge",
   "title": "MemoryForge",
   "description": "Forge persistent memories for your AI agent. 8 MCP tools + 5 auto-engines. Powered by Shelby decentralized cloud.",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "websiteUrl": "https://github.com/shelby-protocol/memory-forge",
   "repository": {
     "url": "https://github.com/shelby-protocol/memory-forge",
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "memory-forge",
-      "version": "0.1.4",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       },

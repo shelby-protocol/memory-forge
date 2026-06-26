@@ -86,7 +86,7 @@ function startMcpServer() {
 
   preload();
 
-  const server = new McpServer({ name: "memory-forge", version: "0.1.7" });
+  const server = new McpServer({ name: "memory-forge", version: "0.2.0" });
 
   // ── memory_store ──────────────────────────────────────────
   server.registerTool(
