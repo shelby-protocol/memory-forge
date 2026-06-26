@@ -60,12 +60,17 @@ export async function uploadMemory(memory: Memory): Promise<string | null> {
     });
     return blobName;
   } catch (err) {
-    console.error("[MemoryForge] Shelby upload failed:", (err as Error).message);
+    const msg = (err as Error).message;
+    // 400 = blob already exists (immutable) — treat as success
+    if (msg.includes("400") || msg.includes("Bad Request")) {
+      return blobName;
+    }
+    console.error("[MemoryForge] Shelby upload failed:", msg);
     return null;
   }
 }
 
-/** 从 Shelby 下载记忆（30s 超时） */
+/** 从 Shelby 下载记忆（30s 超时，Windows 安全边界） */
 export async function downloadMemory(blobName: string): Promise<Memory | null> {
   if (!client || !account) return null;
 
@@ -75,19 +80,34 @@ export async function downloadMemory(blobName: string): Promise<Memory | null> {
       blobName,
     });
 
-    const streamPromise = (async () => {
+    // Safety: don't await the stream directly — wrap in promise with crash guard
+    const data = await new Promise<string>((resolve, reject) => {
       const chunks: Buffer[] = [];
-      for await (const chunk of blob.readable) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const timer = setTimeout(() => {
+        try { (blob.readable as any)?.destroy?.(); } catch {}
+        reject(new Error(`Download timeout after ${DOWNLOAD_TIMEOUT_MS}ms`));
+      }, DOWNLOAD_TIMEOUT_MS);
+
+      try {
+        // Process stream asynchronously to avoid blocking event loop
+        (async () => {
+          try {
+            for await (const chunk of blob.readable) {
+              chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            }
+            clearTimeout(timer);
+            resolve(Buffer.concat(chunks).toString());
+          } catch (e) {
+            clearTimeout(timer);
+            reject(e);
+          }
+        })();
+      } catch (e) {
+        clearTimeout(timer);
+        reject(e);
       }
-      return Buffer.concat(chunks).toString();
-    })();
+    });
 
-    const timeoutPromise = new Promise<string>((_, reject) =>
-      setTimeout(() => reject(new Error(`Download timeout after ${DOWNLOAD_TIMEOUT_MS}ms`)), DOWNLOAD_TIMEOUT_MS)
-    );
-
-    const data = await Promise.race([streamPromise, timeoutPromise]);
     return JSON.parse(data) as Memory;
   } catch (err) {
     console.error("[MemoryForge] Shelby download failed:", (err as Error).message);
