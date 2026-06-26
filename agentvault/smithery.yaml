@@ -1,0 +1,2 @@
+command:
+  function: node dist/index.js

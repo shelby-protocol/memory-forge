@@ -19,8 +19,7 @@ import { MemoryStore } from "./store.js";
 import { embed, preload } from "./embedding.js";
 import { saveMemory, loadAllMemories, deleteMemoryFile } from "./storage/local.js";
 import { uploadMemory } from "./storage/shelby.js";
-import { autoName, autoMerge } from "./auto/index.js";
-import { generateContextSummary } from "./auto/index.js";
+import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
 import { pro, syncAll } from "./pro.js";
 
@@ -43,6 +42,29 @@ if (cmd === "setup") {
     for (const m of loadAllMemories()) s.add(m);
     const summary = generateContextSummary(s, 5);
     if (summary) console.log(summary);
+  } else if (hookType === "stop") {
+    const s = new MemoryStore();
+    for (const m of loadAllMemories()) s.add(m);
+    let updated = 0, archived = 0;
+    for (const m of loadAllMemories()) {
+      const newPriority = autoPriority(m);
+      const decay = autoDecay(m);
+      if (decay === 0) {
+        deleteMemoryFile(m.id);
+        archived++;
+      } else {
+        let changed = false;
+        if (newPriority !== m.priority) { m.priority = newPriority; changed = true; }
+        if (changed) { saveMemory(m); updated++; }
+      }
+    }
+    console.error(`[MemoryForge] auto-capture: ${updated} updated, ${archived} archived`);
+  } else if (hookType === "pre-compact") {
+    const s = new MemoryStore();
+    for (const m of loadAllMemories()) s.add(m);
+    const summary = generateContextSummary(s, 8);
+    console.error(`[MemoryForge] pre-compact: preserving ${s.size()} memories`);
+    if (summary) console.log(summary);
   }
   process.exit(0);
 } else {
@@ -62,7 +84,7 @@ function startMcpServer() {
 
   preload();
 
-  const server = new McpServer({ name: "memory-forge", version: "0.1.0" });
+  const server = new McpServer({ name: "memory-forge", version: "0.1.4" });
 
   // ── memory_store ──────────────────────────────────────────
   server.registerTool(

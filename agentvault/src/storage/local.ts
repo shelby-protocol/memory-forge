@@ -30,6 +30,7 @@ export function saveMemory(memory: Memory): void {
     `> priority: ${memory.priority}`,
     `> created: ${memory.created_at}`,
     `> access_count: ${memory.access_count}`,
+    `> last_accessed: ${memory.last_accessed ?? ""}`,
     ``,
     memory.content,
   ];
@@ -58,6 +59,7 @@ function parseMemoryFile(filepath: string): Memory | null {
     let priority = 5;
     let created = new Date().toISOString();
     let accessCount = 0;
+    let lastAccessed: string | null = null;
     let bodyStart = 0;
 
     for (let i = 0; i < lines.length; i++) {
@@ -86,6 +88,10 @@ function parseMemoryFile(filepath: string): Memory | null {
         accessCount = parseInt(line.slice(16).trim(), 10) || 0;
         continue;
       }
+      if (line.startsWith("> last_accessed:")) {
+        lastAccessed = line.slice(17).trim() || null;
+        continue;
+      }
       if (line === "" && i + 1 < lines.length) {
         bodyStart = i + 1;
         break;
@@ -104,7 +110,7 @@ function parseMemoryFile(filepath: string): Memory | null {
       vector: [],
       created_at: created,
       access_count: accessCount,
-      last_accessed: null,
+      last_accessed: lastAccessed,
     };
   } catch {
     return null;

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "github.com/shelby-protocol/memory-forge",
+  "title": "MemoryForge",
+  "description": "Forge persistent memories for your AI agent. 8 MCP tools + 5 auto-engines. Powered by Shelby decentralized cloud.",
+  "version": "0.1.4",
+  "websiteUrl": "https://github.com/shelby-protocol/memory-forge",
+  "repository": {
+    "url": "https://github.com/shelby-protocol/memory-forge",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "memory-forge",
+      "version": "0.1.4",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimes": ["node"],
+      "packageArguments": [],
+      "environmentVariables": [
+        {
+          "name": "SHELBY_API_KEY",
+          "description": "Shelby API key for Pro cloud sync (optional — Free tier works without it)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
