@@ -1,0 +1,93 @@
+/**
+ * 后台自动化引擎: 全部用户无感知。
+ */
+
+import type { MemoryStore, Memory } from "../store.js";
+import { saveMemory } from "../storage/local.js";
+import { embed } from "../embedding.js";
+
+/** 自动命名: 从内容中提取前几个字作为名称 */
+export function autoName(content: string): string {
+  // Strip code blocks, trim to ~30 chars
+  const clean = content.replace(/```[\s\S]*?```/g, "").replace(/`/g, "").trim();
+  const name = clean.slice(0, 40).replace(/\n/g, " ").trim();
+  return name || "memory";
+}
+
+/** 自动合并: 检测相似内容并合并（异步，重新计算向量） */
+export async function autoMerge(store: MemoryStore, newMemory: Memory): Promise<Memory | null> {
+  const all = [...store.list({ limit: 100, offset: 0 })];
+  if (all.length === 0) return null;
+
+  for (const existing of all) {
+    if (existing.id === newMemory.id) continue;
+    const similarity = contentOverlap(existing.content, newMemory.content);
+    if (similarity > 0.8) {
+      // Merge: update existing with new content + fresh vector
+      existing.content = newMemory.content;
+      existing.access_count++;
+      existing.last_accessed = new Date().toISOString();
+
+      // Recompute vector for merged content
+      const vec = await embed(existing.content);
+      if (vec) existing.vector = Array.from(vec);
+
+      saveMemory(existing);
+      store.remove(existing.id);
+      store.add(existing);
+      return existing;
+    }
+  }
+  return null;
+}
+
+/** 自动优先级: 基于访问频率 */
+export function autoPriority(memory: Memory): number {
+  const age = Date.now() - new Date(memory.created_at).getTime();
+  const ageDays = age / 86400000;
+  const freqWeight = Math.min(memory.access_count, 50) / 50;
+  const recencyWeight = memory.last_accessed
+    ? Math.max(0, 1 - (Date.now() - new Date(memory.last_accessed).getTime()) / (90 * 86400000))
+    : 0.5;
+  return Math.round(1 + 9 * (freqWeight * 0.4 + recencyWeight * 0.4 + (1 - Math.min(ageDays, 365) / 365) * 0.2));
+}
+
+/** 自动衰减: Ebbinghaus 遗忘曲线 */
+export function autoDecay(memory: Memory): number {
+  const daysSinceAccess = memory.last_accessed
+    ? (Date.now() - new Date(memory.last_accessed).getTime()) / 86400000
+    : (Date.now() - new Date(memory.created_at).getTime()) / 86400000;
+
+  const d = Math.floor(daysSinceAccess);
+  if (d <= 1) return 1.0;
+  if (d <= 7) return 0.8;
+  if (d <= 30) return 0.5;
+  if (d <= 90) return 0.2;
+  return 0; // archive
+}
+
+/** 内容重叠度 (Jaccard 近似) */
+function contentOverlap(a: string, b: string): number {
+  const setA = new Set(a.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
+  const setB = new Set(b.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let intersection = 0;
+  for (const w of setA) {
+    if (setB.has(w)) intersection++;
+  }
+  return intersection / Math.min(setA.size, setB.size);
+}
+
+/** 生成上下文摘要给 Agent 注入 */
+export function generateContextSummary(store: MemoryStore, limit: number = 5): string {
+  const all = store.list({ limit: 100, offset: 0 });
+  const top = all
+    .sort((a, b) => (b.access_count - a.access_count) || ((b.priority || 5) - (a.priority || 5)))
+    .slice(0, limit);
+
+  if (top.length === 0) return "";
+
+  return top
+    .map((m) => `- [${m.name}] ${m.content.slice(0, 150)}${m.content.length > 150 ? "…" : ""}`)
+    .join("\n");
+}
