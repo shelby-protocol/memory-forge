@@ -1,54 +1,100 @@
 # MemoryForge
 
-> 基于 Shelby 去中心化热存储协议的 AI Agent 生态项目
+<p align="center">
+  <b>Forge persistent memories for your AI agent.</b><br>
+  One command. Zero config. 8 MCP tools + 5 auto-engines.<br>
+  Powered by <a href="https://docs.shelby.xyz">Shelby Protocol</a> — decentralized hot storage.
+</p>
 
-## AgentVault
+<p align="center">
+  <a href="https://www.npmjs.com/package/memory-forge"><img src="https://img.shields.io/npm/v/memory-forge" alt="npm"></a>
+  <a href="https://github.com/shelby-protocol/memory-forge/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/memory-forge" alt="license"></a>
+  <a href="https://www.npmjs.com/package/memory-forge"><img src="https://img.shields.io/npm/dm/memory-forge" alt="downloads"></a>
+</p>
 
-**AI Agent 持久记忆引擎。一键安装，自动工作。**
+---
+
+## Why
+
+Your AI agent forgets everything when you close the terminal. Preferences, project context, decisions — all gone. MemoryForge gives it persistent memory that works across sessions, across platforms, and across computers.
+
+**66% of developers** report "almost right, but not quite" outputs from their AI agents. The root cause: missing context. Every session starts from zero.
+
+## Quick Start
 
 ```bash
-claude mcp add agentvault -- npx agentvault
+npx memory-forge setup
 ```
 
-## 两个版本
+Done. Your agent now remembers.
 
-| | 精简版（推荐） | 完整版 |
-|--|-------------|--------|
-| 工具数 | **8** | 20 |
-| 用户安装步骤 | **1 步** | 4 步 |
-| 定价层 | Free / Pro $5 / Team $15 | Free / Pro $7 / Team $19 / Enterprise $149 |
-| 定位 | 简单易用，快速上线 | 企业级全功能 |
-| 文档 | [versions/lean/](agentvault/versions/lean/) | [versions/full/](agentvault/versions/full/) |
+Works with: **Claude Code** | **Cursor** | **Windsurf** | **VS Code**
 
-## 精简版工具（8 个）
+## 8 MCP Tools
+
+| Tool | What it does |
+|------|-------------|
+| `memory_store` | Store a memory with auto-vectorization, auto-naming, and auto-dedup |
+| `memory_search` | Semantic search — vectors first, keyword fallback on failure |
+| `memory_recall` | Fetch exact memory by ID |
+| `memory_list` | Browse memories with category and tag filters |
+| `memory_forget` | Delete a memory + cleanup |
+| `memory_context` | Load session context — top-N by priority × access frequency |
+| `memory_export` | Export all or selected memories as JSON or Markdown |
+| `memory_share` | Package a memory for sharing with teammates or other agents |
+
+## 5 Background Auto-Engines
+
+| Engine | Trigger | What it does |
+|--------|---------|-------------|
+| Auto-Name | Every store | Generates human-readable names from content |
+| Auto-Merge | Every store | Merges 80%+ similar memories to prevent duplicates |
+| Auto-Priority | Every access | Scores 1-10 based on frequency × recency × age |
+| Auto-Decay | Time-based | Ebbinghaus forgetting curve — 90 days → archive |
+| Context Injection | Session start | Loads top-3 relevant memories into each session |
+
+## Free vs Pro
+
+| | Free | Pro ($5/mo) |
+|---|:---:|:---:|
+| Storage | Local Markdown | Shelby decentralized cloud |
+| Memories | 5,000 | Unlimited |
+| Cross-device | Manual export/import | Auto-sync |
+| Encryption | — | AES-256-GCM |
+
+## Architecture
 
 ```
-memory_store    memory_search   memory_recall   memory_list
-memory_forget   memory_context  memory_export   memory_share
+Agent (Claude Code / Cursor / Windsurf / VS Code)
+  ↕  MCP (JSON-RPC over stdio)
+MemoryForge MCP Server (TypeScript, Node 18+)
+  ↕
+Storage layer:
+  Free: ~/.memory-forge/memories/*.md
+  Pro:  @shelby-protocol/sdk → Shelby Protocol (Aptos + DoubleZero)
+Embeddings:
+  Transformers.js (Xenova/all-MiniLM-L6-v2, 23MB, in-process)
 ```
 
-## 当前文档
+## Tech Stack
 
-| 文件 | 内容 |
-|------|------|
-| [agentvault/SPEC.md](agentvault/SPEC.md) | 完整版产品规格 |
-| [agentvault/ARCHITECTURE.md](agentvault/ARCHITECTURE.md) | 完整版系统架构 |
-| [agentvault/MARKET.md](agentvault/MARKET.md) | 市场分析与竞品 |
-| [agentvault/REVENUE.md](agentvault/REVENUE.md) | 完整版收入模型 |
-| [agentvault/ADVANTAGES.md](agentvault/ADVANTAGES.md) | 竞争优势分析 |
-| [agentvault/OPTIMIZATIONS.md](agentvault/OPTIMIZATIONS.md) | 9 轮优化记录 |
-| [agentvault/versions/full/](agentvault/versions/full/) | 完整版归档 |
-| [agentvault/versions/lean/](agentvault/versions/lean/) | 精简版文档 |
+- **MCP**: `@modelcontextprotocol/sdk`
+- **Embeddings**: `@huggingface/transformers` (23MB, zero external API)
+- **Free storage**: Local Markdown files
+- **Pro storage**: `@shelby-protocol/sdk` + `@aptos-labs/ts-sdk`
+- **Validation**: `zod`
+- **Runtime**: Node.js 18+, TypeScript, ESM
 
-## 状态
+## Zero External Dependencies
 
-| 项目 | 阶段 |
-|------|------|
-| AgentVault | 规划完成，待开发 |
+No API keys required. No cloud. No Docker. No Postgres. Embedding model runs in-process. Everything works offline.
 
-## 技术栈
+## Links
 
-- **MCP 协议**: @modelcontextprotocol/sdk
-- **存储**: @shelby-protocol/sdk + @aptos-labs/ts-sdk → Shelby Protocol
-- **嵌入**: Transformers.js (进程内, 23MB, Xenova/all-MiniLM-L6-v2)
-- **运行时**: Node.js 18+, TypeScript
+- [npm](https://www.npmjs.com/package/memory-forge)
+- [Issues](https://github.com/shelby-protocol/memory-forge/issues)
+- [Shelby Protocol](https://docs.shelby.xyz)
+
+## License
+
+MIT — [shelby-protocol](https://github.com/shelby-protocol)
