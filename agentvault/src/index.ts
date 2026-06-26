@@ -198,8 +198,8 @@ function startMcpServer() {
   server.registerTool(
     "memory_list",
     {
-      title: "列出记忆",
-      description: "列出记忆目录，可按分类和标签过滤。",
+      title: "List memories",
+      description: "List memories with category and tag filtering, pagination, and full metadata.",
       inputSchema: {
         category: z.string().optional(),
         tags: z.array(z.string()).optional(),
@@ -214,7 +214,9 @@ function startMcpServer() {
         total: store.size(), count: memories.length,
         memories: memories.map((m) => ({
           memory_id: m.id, name: m.name, category: m.category,
-          tags: m.tags, priority: m.priority, preview: m.content.slice(0, 100),
+          tags: m.tags, priority: m.priority, access_count: m.access_count,
+          created_at: m.created_at, last_accessed: m.last_accessed,
+          preview: m.content.slice(0, 200),
         })),
       }) }] };
     }
