@@ -1,6 +1,6 @@
 # MemoryForge
 
-> Persistent memory engine for AI agents. 8 MCP tools + 5 auto-engines. Free tier runs locally, Pro tier adds Shelby decentralized cloud sync.
+> Persistent memory engine for AI agents. 8 MCP tools + 5 auto-engines. Free tier runs locally. Pro tier adds Shelby decentralized cloud sync.
 
 ## Install
 
