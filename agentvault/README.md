@@ -1,73 +1,94 @@
 # MemoryForge
 
-> 唯一基于去中心化热存储、链上可验证、合规可审计的 AI Agent 记忆引擎。
+> AI Agent 持久记忆引擎。8 个 MCP 工具 + 5 个自动化引擎。Free 层本地运行，Pro 层 Shelby 去中心化云同步。
 
-## 一句话定位
-
-MemoryForge = 基于 Shelby 协议 + MCP 标准的去中心化 AI Agent 持久记忆引擎。一键嵌入 Claude Code / Cursor / Codex / Devin / Windsurf。
-
-## 为什么需要 MemoryForge
-
-现在的 AI Agent 都是**失忆的**——关闭会话就忘记一切。换平台从零开始。无法验证记忆的真伪。
-
-MemoryForge 解决这三个问题：
-1. **持久化**：记忆存 Shelby 去中心化热存储，跨会话、跨平台
-2. **可验证**：每条记忆有 链上哈希证明，无法篡改
-3. **合规**：GDPR 被遗忘权 + 不可篡改审计链
-
-## 快速开始
+## 安装
 
 ```bash
-# 一键自动配置所有 Agent 平台
 npx memory-forge setup
-# → 自动检测 Claude Code / Cursor / Windsurf / VS Code / Codex / Devin
-# → 需要 Shelby API Key（在 docs.shelby.xyz/sdks/typescript/acquire-api-keys 获取）
-
-# 或手动嵌入 Claude Code
-claude mcp add memory-forge -- npx memory-forge
 ```
+
+自动配置 Claude Code hooks（SessionStart / Stop / PreCompact），导入已有规则为记忆。
+
+Free 层零依赖外部服务。Pro 层需 `SHELBY_API_KEY` 启用 Shelby 云同步。
 
 ## 核心能力
 
-| 能力 | 说明 |
-|------|------|
-| 去中心化存储 | Shelby 热存储（亚秒级读取，~70% 比 AWS 便宜） |
-| 链上可验证 | 每条记忆有 Aptos 链上证明 |
-| MCP 标准 | 一键嵌入全部 Agent 平台 |
-| Git 式版本控制 | 分支、回滚、diff、合并 |
-| 自动冲突解决 | 确定性算法，非 LLM 判断 |
-| Token 效率 | slim 模式（73% 减少），universal 模式（98% 减少） |
-| 企业合规 | GDPR / HIPAA / SOC2 审计链 |
-| 记忆市场 | 用户可交易记忆包 |
+**8 个 MCP 工具（Agent 直接调用）：**
+
+| 工具 | 说明 |
+|---|---|
+| `memory_store` | 存储记忆，自动向量化 + 命名 + 去重合并 |
+| `memory_search` | 语义检索（向量 + 关键词双模式） |
+| `memory_recall` | 按 ID 精确获取 |
+| `memory_list` | 列出记忆，支持分类 / 标签过滤 |
+| `memory_forget` | 删除记忆（本地 + Shelby 同步） |
+| `memory_context` | 加载当前会话上下文 |
+| `memory_export` | 导出 JSON 或 Markdown |
+| `memory_share` | 打包记忆供队友导入 |
+
+**5 个自动化引擎（用户无感知）：**
+
+| 引擎 | 说明 |
+|---|---|
+| autoName | 从内容自动提取记忆名称 |
+| autoMerge | 检测 >80% 重叠自动合并 |
+| autoPriority | 基于访问频率 + 时效计算优先级（Ebbinghaus 遗忘曲线） |
+| autoDecay | 90 天未访问自动归档 |
+| autoCapture | 会话结束自动更新优先级 + 清理过期记忆 |
 
 ## 定价
 
-| 方案 | 价格 | 说明 |
-|------|------|------|
-| Free | $0 | 核心层 7 工具，100 条记忆，本地模式 |
-| Pro | $7/月 | + 差异层（链上哈希验证/导出/冲突解决），10K 记忆，Shelby 存储 |
-| Team | $19/月 | 全 15 工具，50K 记忆，SSE 远程，多 Agent 协作 |
-| Enterprise | $149/月 | + 链上哈希审计 + SSO + SLA + 合规报告 |
+| 方案 | 说明 |
+|---|---|
+| **Free** | 8 工具，本地存储，无限制记忆 |
+| **Pro** | + Shelby 去中心化云同步，多设备 |
+
+Pro 当前在测试网阶段。
+
+## 技术栈
+
+- **MCP 协议**: `@modelcontextprotocol/sdk` (stdio transport)
+- **嵌入模型**: Transformers.js / Xenova all-MiniLM-L6-v2（23MB，本地运行，失败自动降级关键词搜索）
+- **云存储 (Pro)**: `@shelby-protocol/sdk` (Shelbynet / Aptos)
+- **运行时**: Node.js 18+, TypeScript
 
 ## 项目结构
 
 ```
-memory-forge/
-├── README.md           # 本文件
-├── SPEC.md             # 完整产品规格
-├── MARKET.md           # 市场分析与竞品
-├── ARCHITECTURE.md     # 系统架构
-├── REVENUE.md          # 收入模型
-├── package.json        # npm 配置
-├── tsconfig.json       # TypeScript 配置
+agentvault/
+├── README.md
+├── package.json
+├── server.json          # MCP Registry manifest
+├── Dockerfile
+├── smithery.yaml
+├── tsconfig.json
 └── src/
-    └── index.ts        # MCP Server 入口
+    ├── index.ts         # MCP Server 入口 + CLI 路由
+    ├── store.ts         # MemoryStore: LRU 缓存 + 向量/关键词搜索
+    ├── embedding.ts     # Transformers.js 嵌入引擎
+    ├── setup.ts         # 一键安装流程
+    ├── pro.ts           # Pro 激活 + Shelby 云同步
+    ├── auto/
+    │   └── index.ts     # 5 个自动化引擎
+    ├── storage/
+    │   ├── local.ts     # 本地 Markdown 存储
+    │   └── shelby.ts    # Shelby 云存储
+    ├── hooks/
+    │   └── install.ts   # Claude Code hooks 配置
+    └── migrate/
+        └── import.ts    # 规则导入 + 去重
 ```
 
-## 技术栈
+## 安全
 
-- **MCP 协议**：`@modelcontextprotocol/sdk`
-- **存储层**：`@shelby-protocol/sdk` (Shelby Protocol)
-- **嵌入**：本地 Ollama / OpenAI 可切换
-- **链上**：Aptos 交易哈希 + 链上存储证明
-- **运行时**：Node.js 18+, TypeScript
+- Free 层全本地，零网络请求（除首次模型下载 23MB）
+- Pro 层记忆上传至 Shelby 链上存储，每条有 Aptos 交易证明
+- API key 通过环境变量注入，不存储密钥明文
+- 支持 GDPR 被遗忘权（`memory_forget` 删除本地 + 链上 tombstone）
+
+## 测试
+
+```bash
+npm test   # 48 tests, 100% pass
+```

@@ -36,8 +36,8 @@ MemoryForge is an MCP memory server that stores your AI agent's memories on **Sh
 # Free: local storage, one command
 npx memory-forge setup
 
-# Pro: $5/mo, cloud storage, works across devices
-npx memory-forge pro
+# Pro: Shelby cloud storage, works across devices
+SHELBY_API_KEY="your-key" npx memory-forge pro
 ```
 
 **Three things make it different:**
@@ -69,13 +69,13 @@ I built MemoryForge over two weeks as a solo developer. The stack is intentional
 - **Embeddings**: Transformers.js running in-process (23MB model, no external service)
 - **Storage (Free)**: Local markdown files (~/.memory-forge/memories/)
 - **Storage (Pro)**: Shelby decentralized cloud via @shelby-protocol/sdk
-- **Auth (Pro)**: Aptos Gas Station (users never touch crypto)
+- **Auth (Pro)**: Shelby API key + on-chain account (testnet faucet for gas)
 
 Zero external SaaS dependencies. Everything runs on your machine.
 
 ## The Hardest Part Wasn't the Code
 
-It was avoiding feature creep. I started with 20 tools, 15 competitive advantages, and 6 revenue engines. I cut it to 6 tools, 2 pricing tiers, and 1 install command.
+It was avoiding feature creep. I started with 20 tools, 15 competitive advantages, and 6 revenue engines. I cut it to 8 tools, 2 tiers (Free + Pro), and 1 install command.
 
 The best product is the one nobody has to think about.
 
@@ -93,6 +93,6 @@ Drop a comment. I'll build whatever you need by next week.
 
 ---
 
-*Try it: `npx memory-forge setup` (coming to npm this week)*
+*Try it: `npx memory-forge setup` (on npm as `memory-forge`)*
 
 *[GitHub: github.com/shelby-protocol/memory-forge](https://github.com/shelby-protocol/memory-forge)*
