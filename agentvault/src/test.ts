@@ -474,6 +474,46 @@ await run("full lifecycle: store → search → export → forget", () => {
   assertEq(s.size(), 0, "gone");
 });
 
+
+  await run("stress: 5000 memories — LRU eviction", () => {
+    const s = new MemoryStore();
+    for (let i = 0; i < 5010; i++) {
+      s.add({ ...mem, id: `stress-${i}`, content: `Memory content ${i} with filler to make it searchable.`, access_count: i % 100, priority: 1 + (i % 10) });
+    }
+    assert(s.size() <= 5000, "LRU capped at 5000");
+    assert(s.size() >= 4000 && s.size() < 5000, `LRU eviction working: ${s.size()} items`);
+  });
+
+  await run("stress: rapid 200 stores + searches — no crash", () => {
+    const s = new MemoryStore();
+    const start = Date.now();
+    for (let i = 0; i < 200; i++) {
+      s.add({ ...mem, id: `rapid-${i}`, content: `Rapid content ${i} unique text.`, priority: 5 + (i % 6) });
+      s.keywordSearch(`content ${i}`, { limit: 5 });
+      if (i % 50 === 0) s.remove(`rapid-${i}`);
+    }
+    assert(Date.now() - start < 5000, `200 ops under 5s: ${Date.now() - start}ms`);
+  });
+
+  await run("stress: 150KB content — no crash", () => {
+    const s = new MemoryStore();
+    const big = "x".repeat(150_000);
+    s.add({ ...mem, id: "big", content: big });
+    assert(s.get("big") !== null, "large content stored");
+    assert(s.get("big")!.content.length === 150_000, "full content preserved");
+  });
+
+  await run("stress: 10 searches across 1000 memories — perf", () => {
+    const s = new MemoryStore();
+    const topics = ["auth","database","deploy","testing","styling","perf","api","config","logging","security"];
+    for (let i = 0; i < 1000; i++) {
+      s.add({ ...mem, id: `perf-${i}`, content: `${topics[i%10]} config for item ${i}.`, access_count: i % 50, priority: 3+(i%8) });
+    }
+    const start = Date.now();
+    for (let i = 0; i < 10; i++) s.keywordSearch(topics[i], { limit: 10 });
+    assert(Date.now() - start < 1000, `10 searches / 1000 memories under 1s: ${Date.now()-start}ms`);
+  });
+
 await run("multi-category store + filtered recall", () => {
   const s = new MemoryStore();
   s.add({ ...mem, id: "c1", category: "user-preference", content: "Dark mode" });
