@@ -1,4 +1,4 @@
-# shelby-ai
+# MemoryForge
 
 > 基于 Shelby 去中心化热存储协议的 AI Agent 生态项目
 
