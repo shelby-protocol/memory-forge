@@ -73,7 +73,7 @@ if (cmd === "setup") {
     console.error(`[MemoryForge] pre-compact: preserving ${s.size()} memories`);
     if (summary) console.log(summary);
     // Instruct agent to auto-capture before compaction wipes context
-    console.log(`\n[MEMORYFORGE AUTO-CAPTURE] Context window is about to compact. Use memory_store to save key learnings, decisions, and preferences from this session BEFORE continuing. What did you learn about the user? What decisions were made? What preferences did you observe?`);
+    console.log(`\n[MEMORYFORGE AUTO-CAPTURE] Context window is about to compact. Use memory_store to save key learnings, decisions, and preferences from this session BEFORE continuing. What did you learn about the user? What decisions were made? What preferences did you observe?\n\n[MEMORYFORGE CROSS-DEVICE] If planning to continue on another machine, remind the user to:\n1. git push (code)\n2. Exit normally so Stop hook saves the transcript\n3. On the other machine: git pull + memory-forge pro (memories)`);
     // Safety net: capture transcript now (survives forced terminal close)
     const preCompactTranscript = captureTranscript();
     if (!preCompactTranscript.includes("already captured")) {
