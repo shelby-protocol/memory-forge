@@ -23,11 +23,21 @@ import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } 
 import { setup } from "./setup.js";
 import { pro, syncAll } from "./pro.js";
 import { cliCaptureTranscript, captureTranscript } from "./transcript.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8")) as { version: string };
 
 // ─── CLI 命令路由 ──────────────────────────────────────────
 const cmd = process.argv[2];
 
-if (cmd === "setup") {
+if (cmd === "--version" || cmd === "-v") {
+  console.log(pkg.version);
+  process.exit(0);
+} else if (cmd === "setup") {
   setup()
     .then(() => process.exit(0))
     .catch((err) => { console.error(err); process.exit(1); });
@@ -103,7 +113,7 @@ function startMcpServer() {
 
   preload();
 
-  const server = new McpServer({ name: "memory-forge", version: "0.2.0" });
+  const server = new McpServer({ name: "memory-forge", version: pkg.version });
 
   // ── memory_store ──────────────────────────────────────────
   server.registerTool(
