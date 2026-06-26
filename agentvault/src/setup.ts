@@ -60,11 +60,3 @@ export async function setup(): Promise<void> {
   └──────────────────────────────────────┘
   `);
 }
-
-// Allow running directly: npx memory-forge setup
-if (process.argv[1]?.endsWith("setup.js") || process.argv[2] === "setup") {
-  setup().catch((err) => {
-    console.error("[MemoryForge] Setup failed:", err);
-    process.exit(1);
-  });
-}

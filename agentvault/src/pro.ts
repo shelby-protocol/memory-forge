@@ -148,11 +148,3 @@ export async function syncAll(): Promise<void> {
     console.error(`[MemoryForge] Sync: ↑${uploaded} ↓${downloaded}`);
   }
 }
-
-// Allow running directly: npx memory-forge pro
-if (process.argv[2] === "pro") {
-  pro().catch((err) => {
-    console.error("[MemoryForge] Pro setup failed:", err);
-    process.exit(1);
-  });
-}
