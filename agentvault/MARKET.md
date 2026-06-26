@@ -1,33 +1,33 @@
-# MemoryForge 市场分析
+# MemoryForge — Market Analysis
 
-> 分析时间: 2026 年 6 月
+> Analysis date: June 2026
 
-## 竞品
+## Competitors
 
-| 产品 | 存储 | 协议 | 定价 | 差异化 |
+| Product | Storage | Protocol | Pricing | Differentiator |
 |---|---|---|---|---|
-| Mem0 | 云端 | REST API | Freemium | 最早入市，Python 生态 |
-| Zep | 云端 | REST API | Freemium | 企业合规，SOC2 |
-| LangMem (LangChain) | 本地 | SDK | 免费 | LangChain 生态绑定 |
-| MemoryPlugin (OpenAI) | 云端 | ChatGPT 专用 | 免费 | 只支持 ChatGPT |
-| Pinecone (vector DB) | 云端 | gRPC | $70/月起 | 纯向量，非 Agent 专用 |
-| **MemoryForge** | **本地 + 去中心化云** | **MCP 标准** | **Free + Pro (测试网)** | **跨 Agent 平台 + 隐私优先** |
+| Mem0 | Cloud | REST API | Freemium | First to market, Python ecosystem |
+| Zep | Cloud | REST API | Freemium | Enterprise compliance, SOC2 |
+| LangMem (LangChain) | Local | SDK | Free | LangChain ecosystem lock-in |
+| MemoryPlugin (OpenAI) | Cloud | ChatGPT-only | Free | ChatGPT only |
+| Pinecone (vector DB) | Cloud | gRPC | $70+/mo | Pure vector, not agent-specific |
+| **MemoryForge** | **Local + Decentralized Cloud** | **MCP Standard** | **Free + Pro (testnet)** | **Cross-platform + privacy-first** |
 
-## MemoryForge 差异化
+## MemoryForge Differentiators
 
-### 已有
-- **MCP 标准**: 一键嵌入 Claude Code / Cursor / Windsurf，不锁定单一平台
-- **本地优先**: Free 层全本地，零持续网络请求
-- **自动化引擎**: 命名 / 去重 / 优先级 / 衰减全自动
-- **8 工具完整 API**: store / search / recall / list / forget / context / export / share
+### Built
+- **MCP Standard**: One-command embed into Claude Code / Cursor / Windsurf. No single-platform lock-in
+- **Local-First**: Free tier is fully local with zero ongoing network requests
+- **Auto-Engines**: Naming / dedup / priority / decay — all automatic
+- **8-Tool Complete API**: store / search / recall / list / forget / context / export / share
 
-### 规划中
-- Shelby 去中心化存储 (Pro 测试网已验证)
-- 链上哈希验证
-- SettleGrid 支付集成
+### Planned
+- Shelby decentralized storage (Pro testnet verified)
+- On-chain hash verification
+- SettleGrid payment integration
 
-## 目标用户
+## Target Users
 
-- Claude Code / Cursor 深度用户
-- 需要跨会话保留偏好的开发者
-- 关注隐私、不想记忆上传第三方云的用户 (Free 层)
+- Deep Claude Code / Cursor users
+- Developers who need cross-session preference retention
+- Privacy-conscious users who don't want memories uploaded to third-party clouds (Free tier)

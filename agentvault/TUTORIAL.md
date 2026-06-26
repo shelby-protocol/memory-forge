@@ -1,353 +1,349 @@
-# MemoryForge 使用教程
+# MemoryForge — Tutorial
 
-> 一条命令。零配置。AI Agent 从此拥有持久记忆。
+> One command. Zero config. Your AI agent now has persistent memory.
 
-## 目录
+## Table of Contents
 
-1. [快速开始](#快速开始)
-2. [工作原理](#工作原理)
-3. [日常使用](#日常使用)
-4. [Pro 版 (云同步)](#pro-版-云同步)
-5. [管理记忆](#管理记忆)
-6. [最佳实践](#最佳实践)
-7. [排错指南](#排错指南)
-8. [卸载](#卸载)
+1. [Quick Start](#quick-start)
+2. [How It Works](#how-it-works)
+3. [Daily Use](#daily-use)
+4. [Pro Tier (Cloud Sync)](#pro-tier-cloud-sync)
+5. [Managing Memories](#managing-memories)
+6. [Best Practices](#best-practices)
+7. [Troubleshooting](#troubleshooting)
+8. [Uninstall](#uninstall)
 
 ---
 
-## 快速开始
+## Quick Start
 
-### 安装
+### Install
 
 ```bash
 npx memory-forge setup
 ```
 
-一步完成:
-- 安装 Claude Code hooks (SessionStart / Stop / PreCompact)
-- 自动导入已有规则 (CLAUDE.md / .cursor/rules / .gitconfig)
-- 预加载嵌入模型 (23MB, 首次, 后续离线)
-- 全局安装 `memory-forge` 命令
+This single command:
+- Installs Claude Code hooks (SessionStart / Stop / PreCompact)
+- Auto-imports existing rules (CLAUDE.md / .cursor/rules / .gitconfig)
+- Preloads the embedding model (23MB, one-time, offline thereafter)
+- Globally installs the `memory-forge` command
 
-**支持平台:** Claude Code (全平台), Cursor (通过 MCP), Windsurf, VS Code。
+**Supported platforms:** Claude Code (all platforms), Cursor (via MCP), Windsurf, VS Code.
 
-### 验证安装
+### Verify
 
-重启 Claude Code，你会看到:
+Restart Claude Code. You should see:
 
 ```
 - [Git User Info] Git user email: xxx
 - [Claude Code Rules] For independent parallel tasks...
 ```
 
-这表示 SessionStart hook 已生效，Agent 加载了你的记忆。
+This means the SessionStart hook is active and the agent has loaded your memories.
 
 ---
 
-## 工作原理
+## How It Works
 
-### 自动化记忆生命周期
+### Automated Memory Lifecycle
 
 ```
-你打开 Claude Code
-  → Agent 自动加载你的偏好和项目上下文
-  
-你工作...
-  → Agent 自动记住你的编码风格、技术决策、项目偏好
-  
-上下文快满时 (PreCompact)
-  → Agent 自动保存关键信息到记忆库
-  → 即使你强制关终端，记忆也不会丢失
+You open Claude Code
+  → Agent auto-loads your preferences and project context
 
-你关闭 Claude Code (Stop)
-  → 自动更新记忆优先级 (常用记忆提高权重)
-  → 自动归档 90 天未用的旧记忆
+You work...
+  → Agent automatically remembers your coding style, technical decisions, project preferences
 
-下次打开
-  → Agent 又什么都记得 ✅
+Context window nearly full (PreCompact)
+  → Agent auto-saves critical information to the memory store
+  → Even if you force-close the terminal, memories survive
+
+You close Claude Code (Stop)
+  → Auto-update memory priorities (frequently-used memories get higher weight)
+  → Auto-archive memories unused for 90+ days
+
+Next session
+  → Agent remembers everything ✅
 ```
 
-### 你什么都不用做
+### You Do Nothing
 
-Agent 自动:
-- **存储**: 你提到偏好、决策、教训 → Agent 调 `memory_store`
-- **搜索**: 需要回忆之前的事 → Agent 调 `memory_search`
-- **维护**: 优先级调整、过期清理 → 自动
+The agent automatically:
+- **Stores**: you mention preferences, decisions, lessons → agent calls `memory_store`
+- **Searches**: needs to recall something → agent calls `memory_search`
+- **Maintains**: priority adjustment, expiry cleanup → fully automatic
 
 ---
 
-## 日常使用
+## Daily Use
 
-### 基本交互
+### Basic Interaction
 
 ```
-你: "我偏好 camelCase 命名，单引号，2 空格缩进"
+You: "I prefer camelCase naming, single quotes, 2-space indent"
 
-Agent 自动调 memory_store → 记忆保存 ✅
-下次写代码，Agent 自动遵循你的偏好。
+Agent auto-calls memory_store → memory saved ✅
+Next time you write code, the agent follows your preferences automatically.
 
 ---
 
-你: "之前那个 token 刷新 bug 怎么修的？"
+You: "How did we fix that token refresh bug?"
 
-Agent 调 memory_search → 找到相关记忆
-"6 月 15 日，你在 auth.ts 修了 token 过期判断从 < 改为 <="
-
----
-
-你: "帮我重构认证模块"
-
-Agent 调 memory_context → 加载上下文
-"好的。根据之前的记录，项目用 React 19 + JWT + refresh token 模式。从 auth.ts 开始？"
-```
-
-### 主动使用
-
-你也可以明确让 Agent 操作记忆:
-
-```
-"存储一条记忆: 生产数据库用 PostgreSQL 16，连接串在 .env.production"
-"搜索关于部署流程的记忆"
-"列出我所有的记忆"
-"导出全部记忆为 Markdown"
-"删除 ID 为 xxx 的旧记忆"
-```
+Agent calls memory_search → finds relevant memory
+"On June 15, you fixed auth.ts — the token expiry check was using < instead of <="
 
 ---
 
-## Pro 版 (云同步)
+You: "Help me refactor the auth module"
 
-### 什么情况需要 Pro
+Agent calls memory_context → loads context
+"Got it. Based on prior records, this project uses React 19 + JWT + refresh token pattern. Start from auth.ts?"
+```
 
-- 你有多台电脑，想在设备间共享记忆
-- 你担心硬盘故障丢失记忆
-- 你想和队友共享项目记忆
+### Explicit Commands
 
-### 开通 Pro
+You can also tell the agent explicitly:
+
+```
+"Store a memory: production database uses PostgreSQL 16, connection string in .env.production"
+"Search for memories about deployment"
+"List all my memories"
+"Export all memories as Markdown"
+"Forget the memory with ID xxx"
+```
+
+---
+
+## Pro Tier (Cloud Sync)
+
+### When You Need Pro
+
+- You use multiple computers and want cross-device memory sync
+- You're worried about disk failure losing your memories
+- You want shared project memories with teammates
+
+### Activating Pro
 
 ```bash
-# 1. 获取 API Key
-# 访问 https://docs.shelby.xyz/sdks/typescript/acquire-api-keys
+# 1. Get an API Key
+# Visit https://docs.shelby.xyz/sdks/typescript/acquire-api-keys
 
-# 2. 激活 Pro
+# 2. Activate Pro
 SHELBY_API_KEY="your-api-key" memory-forge pro
 
-# 3. 第一次需要充值 APT + ShelbyUSD (测试网水龙头)
-# 地址会打印在屏幕上，去 faucet 领取:
+# 3. First time: fund your account with APT + ShelbyUSD (testnet faucet)
+# The address will be printed. Go to the faucet:
 #   APT:       https://docs.shelby.xyz/apis/faucet/aptos
 #   ShelbyUSD: https://docs.shelby.xyz/apis/faucet/shelbyusd
 
-# 4. 领取后重新运行同步
+# 4. After claiming tokens, sync again
 SHELBY_API_KEY="your-api-key" memory-forge pro
 ```
 
-### 多设备同步
+### Cross-Device Sync
 
 ```
-设备 A: 激活 Pro → 工作 → 记忆自动上传
-设备 B: 设置 SHELBY_API_KEY 环境变量 → 安装 → 记忆自动下载
-  → Agent 在设备 B 上也能记住一切 ✅
+Device A: Activate Pro → work → memories auto-upload
+Device B: Set SHELBY_API_KEY env var → install → memories auto-download
+  → Agent on device B remembers everything ✅
 ```
 
-### 环境变量
+### Environment Variable
 
-建议写入 shell 配置文件:
+Add to your shell config for permanent setup:
 
 ```bash
-# ~/.bashrc 或 ~/.zshrc
+# ~/.bashrc or ~/.zshrc
 export SHELBY_API_KEY="your-api-key"
 ```
 
-这样每次 Agent 启动自动启用 Pro 同步，无需手动运行命令。
+The agent will auto-sync on every session start.
 
 ---
 
-## 管理记忆
+## Managing Memories
 
-### 查看记忆
+### Viewing Memories
 
 ```bash
-# 查看记忆文件
+# List memory files
 ls ~/.memory-forge/memories/
 
-# 读某条记忆
+# Read a specific memory
 cat ~/.memory-forge/memories/{id}.md
 ```
 
-记忆文件是人类可读的 Markdown，可以直接编辑。
+Memory files are human-readable Markdown. You can edit them directly.
 
-### 导出
+### Exporting
 
 ```
-# Agent 方式
-"导出全部记忆为 JSON"
-"导出关于认证的记忆为 Markdown"
-
-# 命令行方式
-# JSON 导出在 Agent 调用 memory_export 后获取
+# Via agent
+"Export all memories as JSON"
+"Export auth-related memories as Markdown"
 ```
 
-### 备份
+### Backup
 
 ```bash
-# 本地备份 (Free 层)
+# Local backup (Free tier)
 cp -r ~/.memory-forge/memories/ ~/backup/
 
-# Pro 层自动备份到 Shelby 云
+# Pro tier auto-backs up to Shelby cloud
 ```
 
-### 清理
+### Cleanup
 
 ```bash
-# 删除全部本地记忆
+# Delete all local memories
 rm -rf ~/.memory-forge/memories/*.md
 
-# 删除单条
+# Delete a single memory
 rm ~/.memory-forge/memories/{id}.md
 
-# Pro 账户重置
+# Reset Pro account
 rm ~/.memory-forge/pro.json
 ```
 
 ---
 
-## 最佳实践
+## Best Practices
 
-### 什么值得记
+### What's Worth Remembering
 
-| 值得记 | 不值得记 |
-|--------|---------|
-| 编码风格偏好 | 单次 debug 过程 |
-| 项目架构决策 | 临时实验代码 |
-| 团队约定 | 过时的配置 |
-| 常用命令和流程 | 纯事实性知识 |
-| 踩过的坑和解决方案 | 一次性任务 |
+| Worth It | Not Worth It |
+|----------|--------------|
+| Coding style preferences | One-off debug sessions |
+| Project architecture decisions | Temporary experimental code |
+| Team conventions | Outdated configuration |
+| Frequently-used commands and workflows | Pure factual knowledge |
+| Lessons learned and solutions found | One-time tasks |
 
-### 记忆质量
-
-```
-✅ 好: "项目用 PostgreSQL 16 + Prisma ORM，连接池上限 20"
-❌ 差: "数据库是 pg"
-
-✅ 好: "用户偏好 camelCase，单引号，2 空格，React 19 + TypeScript strict"
-❌ 差: "用 camelCase"
-
-✅ 好: "6/26 决定用 Redis 缓存 token，因为 DB 查询太慢 (>500ms)"
-❌ 差: "用了 Redis"
-```
-
-### 定期维护
-
-每月做一次记忆清理:
+### Memory Quality
 
 ```
-"查看我所有记忆，标记哪些过时了或不再需要"
-"删除 3 个月前关于旧项目的记忆"
+✅ Good: "Project uses PostgreSQL 16 + Prisma ORM, connection pool limit 20"
+❌ Bad:  "database is pg"
+
+✅ Good: "User prefers camelCase, single quotes, 2-space indent, React 19 + TypeScript strict"
+❌ Bad:  "uses camelCase"
+
+✅ Good: "6/26 — decided to cache tokens in Redis because DB queries were >500ms"
+❌ Bad:  "added Redis"
+```
+
+### Periodic Maintenance
+
+Do a memory cleanup once a month:
+
+```
+"Review all my memories and flag anything outdated or no longer needed"
+"Forget memories related to projects I no longer work on"
 ```
 
 ---
 
-## 排错指南
+## Troubleshooting
 
-### Hook 不生效
+### Hooks Not Working
 
-**症状:** 打开 Claude Code 看不到记忆加载。
+**Symptom:** Opening Claude Code shows no memory loading.
 
-**解决:**
 ```bash
-# 1. 检查 hook 配置
+# 1. Check hook configuration
 memory-forge hook session-start
 
-# 2. 重新安装 hooks
+# 2. Reinstall hooks
 memory-forge setup
 
-# 3. 确认 settings.json
+# 3. Verify settings.json
 cat ~/.claude/settings.json | grep memory-forge
 
-# 4. 重启 Claude Code
+# 4. Restart Claude Code
 ```
 
-### Stop hook 报错
+### Stop Hook Error
 
-**症状:** 关闭时显示 "Stop hook error"。
+**Symptom:** "Stop hook error" on session close.
 
 ```bash
-# 确认全局安装
+# Confirm global install
 npm ls -g memory-forge
 
-# 如果不是最新版
+# If not latest
 npm i -g memory-forge@latest
 
-# 检查 hook 命令格式
-# settings.json 中应该是 "memory-forge hook stop"，不是 "npx memory-forge hook stop"
+# Check hook command format
+# settings.json should have "memory-forge hook stop", not "npx memory-forge hook stop"
 ```
 
-### 记忆搜索不准确
+### Inaccurate Search Results
 
-**症状:** memory_search 返回无关结果。
+**Symptom:** `memory_search` returns irrelevant results.
 
 ```bash
-# 检查嵌入模型是否下载成功
-# 如果看到 "[MemoryForge] Falling back to keyword matching"
-# → 模型下载失败，使用关键词模式
+# Check if embedding model downloaded successfully
+# If you see "[MemoryForge] Falling back to keyword matching"
+# → Model download failed; keyword mode is active
 
-# 解决: 等待 5 分钟自动重试，或手动触发重试
-# 模型大小 23MB，确保网络正常
+# Solution: wait 5 minutes for auto-retry, or trigger a retry manually
+# Model size is 23MB — ensure network is working
 ```
 
-### Pro 同步失败
+### Pro Sync Fails
 
-**症状:** "Shelby upload failed: INSUFFICIENT_BALANCE_FOR_TRANSACTION_FEE"
+**Symptom:** "Shelby upload failed: INSUFFICIENT_BALANCE_FOR_TRANSACTION_FEE"
 
 ```bash
-# 检查账户余额
-# 去 faucet 领取 APT + ShelbyUSD
-# 然后重新运行 pro 命令
+# Check account balance
+# Visit the faucet to claim APT + ShelbyUSD
+# Then re-run pro
 
 SHELBY_API_KEY="your-key" memory-forge pro
 ```
 
-### 重复记忆
+### Duplicate Memories
 
-**症状:** memory_list 显示重复的相似记忆。
+**Symptom:** `memory_list` shows repeated similar memories.
 
 ```bash
-# 0.1.6+ 已根因修复。如果仍有:
-# 1. 升级到最新版
+# 0.1.6+ has a root-cause fix. If you still see duplicates:
+# 1. Upgrade to latest
 npm i -g memory-forge@latest
 memory-forge setup
 
-# 2. 手动清理
-# 删除 ~/.memory-forge/memories/ 中的重复 .md 文件
+# 2. Manual cleanup
+# Delete duplicate .md files in ~/.memory-forge/memories/
 ```
 
-### 完全重置
+### Full Reset
 
 ```bash
-# 1. 删记忆
+# 1. Delete memories
 rm -rf ~/.memory-forge/memories/*.md
 
-# 2. 删 Pro 账户 (可选)
+# 2. Delete Pro account (optional)
 rm -f ~/.memory-forge/pro.json
 
-# 3. 清除 hooks
-# 编辑 ~/.claude/settings.json, 删除含 "memory-forge" 的条目
+# 3. Clear hooks
+# Edit ~/.claude/settings.json, remove all entries containing "memory-forge"
 
-# 4. 重装
+# 4. Reinstall
 memory-forge setup
 ```
 
 ---
 
-## 卸载
+## Uninstall
 
 ```bash
-# 删除所有本地数据
+# Remove all local data
 rm -rf ~/.memory-forge/
 
-# 编辑 ~/.claude/settings.json
-# 删除 hooks 中包含 "memory-forge" 的所有条目
+# Edit ~/.claude/settings.json
+# Remove all hook entries containing "memory-forge"
 
-# 卸载全局命令
+# Uninstall global command
 npm uninstall -g memory-forge
 ```

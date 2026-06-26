@@ -1,69 +1,69 @@
-# MemoryForge 产品规格
+# MemoryForge — Product Specification
 
-## 定位
+## Positioning
 
-基于 MCP 标准的 AI Agent 持久记忆引擎。Free 层本地运行，Pro 层 Shelby 去中心化云同步。
+An MCP-standard AI agent persistent memory engine. Free tier runs locally, Pro tier adds Shelby decentralized cloud sync.
 
-## MCP 工具 (8 个)
+## MCP Tools (8)
 
-### 核心层
+### Core Layer
 
-| 工具 | 说明 |
+| Tool | Description |
 |---|---|
-| `memory_store` | 存储记忆，自动向量化 + 命名 + 去重合并 |
-| `memory_search` | 语义检索（向量优先，失败降级关键词） |
-| `memory_recall` | 按 ID 精确获取 |
-| `memory_list` | 列出记忆，支持分类 / 标签过滤 |
-| `memory_forget` | 删除记忆（本地 + Shelby tombstone） |
-| `memory_context` | 加载当前会话 top-N 上下文 |
+| `memory_store` | Store memory with auto-embedding, naming, and dedup merge |
+| `memory_search` | Semantic search (vector-first, keyword fallback) |
+| `memory_recall` | Exact retrieval by memory ID |
+| `memory_list` | List memories with category/tag filtering |
+| `memory_forget` | Delete memory (local + Shelby tombstone) |
+| `memory_context` | Load top-N session context |
 
-### 协作层
+### Collaboration Layer
 
-| 工具 | 说明 |
+| Tool | Description |
 |---|---|
-| `memory_export` | 导出 JSON 或 Markdown |
-| `memory_share` | 打包单条记忆供队友导入 |
+| `memory_export` | Export as JSON or Markdown |
+| `memory_share` | Package single memory for teammate import |
 
-## 自动化引擎 (5 个)
+## Auto-Engines (5)
 
-| 引擎 | 触发时机 | 说明 |
+| Engine | Trigger | Description |
 |---|---|---|
-| autoName | memory_store | 从内容提取前 40 字符为名称 |
-| autoMerge | memory_store | >80% Jaccard 重叠自动合并 |
-| autoPriority | hook stop | 基于访问频率 + 时效 + 年龄计算 (1-10) |
-| autoDecay | hook stop | Ebbinghaus 遗忘曲线: 1天→1.0, 7天→0.8, 30天→0.5, 90天→0.2, >90天→归档 |
-| generateContextSummary | hook session-start / pre-compact | 按访问量+优先级排序生成上下文摘要 + 存储指令 |
+| autoName | memory_store | Extract first 40 chars as name |
+| autoMerge | memory_store | Merge at >80% Jaccard overlap |
+| autoPriority | hook stop | Score based on access frequency + recency + age (1–10) |
+| autoDecay | hook stop | Ebbinghaus curve: 1d→1.0, 7d→0.8, 30d→0.5, 90d→0.2, >90d→archive |
+| generateContextSummary | hook session-start / pre-compact | Top-N context summary + save instruction |
 
-## Hook 系统 (3 个)
+## Hook System (3)
 
-| Hook | 命令 | 行为 |
+| Hook | Command | Behavior |
 |---|---|---|
-| SessionStart | `memory-forge hook session-start` | 加载 top-5 记忆注入上下文 |
-| Stop | `memory-forge hook stop` | autoPriority + autoDecay 维护 |
-| PreCompact | `memory-forge hook pre-compact` | 保存 top-8 记忆 + **自动捕获指令**（提醒 Agent 存关键信息） |
+| SessionStart | `memory-forge hook session-start` | Load top-5 memories into agent context |
+| Stop | `memory-forge hook stop` | autoPriority + autoDecay maintenance |
+| PreCompact | `memory-forge hook pre-compact` | Preserve top-8 memories + **auto-capture instruction** (prompts agent to save key info before compaction) |
 
-## 定价
+## Pricing
 
-| 方案 | 说明 |
+| Tier | Description |
 |---|---|
-| Free | 8 工具，本地存储，无限制记忆 |
-| Pro | + Shelby 去中心化云同步，多设备 |
+| Free | 8 tools, local storage, unlimited memories |
+| Pro | + Shelby decentralized cloud sync, cross-device |
 
-Pro 当前在 Shelbynet 测试网运行。
+Pro currently operates on Shelbynet testnet.
 
-## 技术参数
+## Technical Specs
 
-- **嵌入模型**: Transformers.js / Xenova all-MiniLM-L6-v2 (23MB)
-- **向量维度**: 384
-- **相似度算法**: 余弦相似度
-- **降级策略**: 模型加载失败 → 关键词匹配 + 5 分钟自动重试
-- **存储格式**: 本地 Markdown with YAML frontmatter; Shelby JSON blob
-- **LRU 上限**: 5000 条内存, 超出淘汰最低访问量
-- **去重阈值**: Jaccard > 0.8
+- **Embedding model**: Transformers.js / Xenova all-MiniLM-L6-v2 (23MB)
+- **Vector dimensions**: 384
+- **Similarity algorithm**: Cosine similarity
+- **Degradation**: Model load failure → keyword matching + 5min auto-retry
+- **Storage format**: Local Markdown with YAML frontmatter; Shelby JSON blobs
+- **LRU cap**: 5,000 entries in memory; lowest access evicted first
+- **Dedup threshold**: Jaccard > 0.8
 
-## 未来路线
+## Roadmap
 
-- SettleGrid 支付集成 (Pro → 付费)
-- 链上哈希验证
-- MCP 目录发布 (mcp.so / smithery.ai / glama.ai)
-- 多语言嵌入模型切换
+- SettleGrid payment integration (Pro → paid)
+- On-chain hash verification
+- MCP directory listing (mcp.so / smithery.ai / glama.ai)
+- Multi-language embedding model switching

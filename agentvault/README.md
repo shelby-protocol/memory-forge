@@ -1,93 +1,76 @@
 # MemoryForge
 
-> AI Agent 持久记忆引擎。8 个 MCP 工具 + 5 个自动化引擎。Free 层本地运行，Pro 层 Shelby 去中心化云同步。
+> Persistent memory engine for AI agents. 8 MCP tools + 5 auto-engines. Free tier runs locally, Pro tier adds Shelby decentralized cloud sync.
 
-## 安装
+## Install
 
 ```bash
 npx memory-forge setup
 ```
 
-自动配置 Claude Code hooks（SessionStart / Stop / PreCompact），导入已有规则为记忆。
+Auto-configures Claude Code hooks (SessionStart / Stop / PreCompact) and imports existing rules as memories.
 
-Free 层零依赖外部服务。Pro 层需 `SHELBY_API_KEY` 启用 Shelby 云同步。
+Free tier has no external service dependencies. Pro tier requires a `SHELBY_API_KEY` for Shelby cloud sync.
 
-## 核心能力
+## Core Capabilities
 
-**8 个 MCP 工具（Agent 直接调用）：**
+**8 MCP Tools (invoked by agent directly):**
 
-| 工具 | 说明 |
+| Tool | Description |
 |---|---|
-| `memory_store` | 存储记忆，自动向量化 + 命名 + 去重合并 |
-| `memory_search` | 语义检索（向量 + 关键词双模式） |
-| `memory_recall` | 按 ID 精确获取 |
-| `memory_list` | 列出记忆，支持分类 / 标签过滤 |
-| `memory_forget` | 删除记忆（本地 + Shelby 同步） |
-| `memory_context` | 加载当前会话上下文 |
-| `memory_export` | 导出 JSON 或 Markdown |
-| `memory_share` | 打包记忆供队友导入 |
+| `memory_store` | Store memories with auto-embedding, naming, and dedup merge |
+| `memory_search` | Semantic search (vector + keyword dual-mode) |
+| `memory_recall` | Exact recall by memory ID |
+| `memory_list` | List memories with category/tag filtering |
+| `memory_forget` | Delete a memory (local + Shelby tombstone) |
+| `memory_context` | Load current session context |
+| `memory_export` | Export as JSON or Markdown |
+| `memory_share` | Package a memory for teammate import |
 
-**5 个自动化引擎（用户无感知）：**
+**5 Auto-Engines (zero user awareness):**
 
-| 引擎 | 说明 |
+| Engine | Description |
 |---|---|
-| autoName | 从内容自动提取记忆名称 |
-| autoMerge | 检测 >80% 重叠自动合并 |
-| autoPriority | 基于访问频率 + 时效计算优先级（Ebbinghaus 遗忘曲线） |
-| autoDecay | 90 天未访问自动归档 |
-| autoCapture | 会话结束自动更新优先级 + 清理过期；PreCompact 提醒 Agent 保存关键信息 |
+| autoName | Extract name from content automatically |
+| autoMerge | Detect >80% overlap and merge duplicates |
+| autoPriority | Priority scoring via access frequency + recency (Ebbinghaus curve) |
+| autoDecay | Auto-archive at 90 days of inactivity |
+| autoCapture | Session-end priority recalc + PreCompact save reminders |
 
-## 定价
+## Pricing
 
-| 方案 | 说明 |
+| Tier | Description |
 |---|---|
-| **Free** | 8 工具，本地存储，无限制记忆 |
-| **Pro** | + Shelby 去中心化云同步，多设备 |
+| **Free** | 8 tools, local storage, unlimited memories |
+| **Pro** | + Shelby decentralized cloud sync, cross-device |
 
-Pro 当前在测试网阶段。
+Pro is currently on Shelbynet testnet.
 
-## 技术栈
+## Tech Stack
 
-- **MCP 协议**: `@modelcontextprotocol/sdk` (stdio transport)
-- **嵌入模型**: Transformers.js / Xenova all-MiniLM-L6-v2（23MB，本地运行，失败自动降级关键词搜索）
-- **云存储 (Pro)**: `@shelby-protocol/sdk` (Shelbynet / Aptos)
-- **运行时**: Node.js 18+, TypeScript
+- **MCP Protocol**: `@modelcontextprotocol/sdk` (stdio transport)
+- **Embeddings**: Transformers.js / Xenova all-MiniLM-L6-v2 (23MB, local, auto-fallback to keyword)
+- **Cloud (Pro)**: `@shelby-protocol/sdk` (Shelbynet / Aptos)
+- **Runtime**: Node.js 18+, TypeScript
 
-## 项目结构
+## Docs
 
-```
-agentvault/
-├── README.md
-├── package.json
-├── server.json          # MCP Registry manifest
-├── Dockerfile
-├── smithery.yaml
-├── tsconfig.json
-└── src/
-    ├── index.ts         # MCP Server 入口 + CLI 路由
-    ├── store.ts         # MemoryStore: LRU 缓存 + 向量/关键词搜索
-    ├── embedding.ts     # Transformers.js 嵌入引擎
-    ├── setup.ts         # 一键安装流程
-    ├── pro.ts           # Pro 激活 + Shelby 云同步
-    ├── auto/
-    │   └── index.ts     # 5 个自动化引擎
-    ├── storage/
-    │   ├── local.ts     # 本地 Markdown 存储
-    │   └── shelby.ts    # Shelby 云存储
-    ├── hooks/
-    │   └── install.ts   # Claude Code hooks 配置
-    └── migrate/
-        └── import.ts    # 规则导入 + 去重
-```
+| Document | Content |
+|---|---|
+| [TECHNICAL.md](TECHNICAL.md) | API reference, data model, architecture, security |
+| [TUTORIAL.md](TUTORIAL.md) | Install guide, daily use, Pro setup, troubleshooting |
+| [SPEC.md](SPEC.md) | Product specification and roadmap |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture and data flow |
+| [MARKET.md](MARKET.md) | Competitive analysis |
 
-## 安全
+## Security
 
-- Free 层全本地，零网络请求（除首次模型下载 23MB）
-- Pro 层记忆上传至 Shelby 链上存储，每条有 Aptos 交易证明
-- API key 通过环境变量注入，不存储密钥明文
-- 支持 GDPR 被遗忘权（`memory_forget` 删除本地 + 链上 tombstone）
+- Free tier is fully local — zero network requests (except one-time 23MB model download)
+- Pro tier uploads to Shelby blockchain storage with Aptos transaction proofs
+- API key via environment variable; secrets never stored in plaintext
+- GDPR right-to-erasure via `memory_forget` (local + on-chain tombstone)
 
-## 测试
+## Tests
 
 ```bash
 npm test   # 48 tests, 100% pass

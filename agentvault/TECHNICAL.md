@@ -1,40 +1,40 @@
-# MemoryForge 技术文档
+# MemoryForge — Technical Documentation
 
-> 版本 0.1.8 | 8 MCP 工具 + 5 自动引擎 | Free 本地 + Pro Shelby 云
+> Version 0.1.9 | 8 MCP Tools + 5 Auto-Engines | Free (local) + Pro (Shelby cloud)
 
-## 目录
+## Table of Contents
 
-1. [系统架构](#系统架构)
-2. [数据模型](#数据模型)
-3. [MCP 工具 API 参考](#mcp-工具-api-参考)
-4. [自动引擎](#自动引擎)
-5. [Hook 系统](#hook-系统)
-6. [存储层](#存储层)
-7. [嵌入引擎](#嵌入引擎)
-8. [安全模型](#安全模型)
-9. [Pro 层 (Shelby 云)](#pro-层-shelby-云)
-10. [错误处理与降级](#错误处理与降级)
+1. [System Architecture](#system-architecture)
+2. [Data Model](#data-model)
+3. [MCP Tool API Reference](#mcp-tool-api-reference)
+4. [Auto-Engines](#auto-engines)
+5. [Hook System](#hook-system)
+6. [Storage Layer](#storage-layer)
+7. [Embedding Engine](#embedding-engine)
+8. [Security Model](#security-model)
+9. [Pro Tier (Shelby Cloud)](#pro-tier-shelby-cloud)
+10. [Error Handling & Degradation](#error-handling--degradation)
 
 ---
 
-## 系统架构
+## System Architecture
 
 ```
 ┌─────────────────────────────────────┐
-│  AI Agent (Claude Code / Cursor)    │  MCP stdio 协议
+│  AI Agent (Claude Code / Cursor)    │  MCP stdio protocol
 ├─────────────────────────────────────┤
-│  CLI 路由 (index.ts)                │
+│  CLI Router (index.ts)              │
 │  setup / pro / hook / MCP Server    │
 ├─────────────────────────────────────┤
 │  8 MCP Tools                        │
 │  store / search / recall / list     │
 │  forget / context / export / share  │
 ├──────────────┬──────────────────────┤
-│  Free 层     │  Pro 层               │
-│  memoryStore │  ShelbyNodeClient     │
+│  Free Tier   │  Pro Tier             │
+│  MemoryStore │  ShelbyNodeClient     │
 │  local .md   │  upload/download/list │
 ├──────────────┴──────────────────────┤
-│  5 Auto Engines                     │
+│  5 Auto-Engines                     │
 │  name → merge → priority → decay    │
 │  → contextSummary                   │
 ├─────────────────────────────────────┤
@@ -45,47 +45,47 @@
 └─────────────────────────────────────┘
 ```
 
-### 源文件结构
+### Source File Structure
 
 ```
 agentvault/src/
-├── index.ts           # 入口: CLI 路由 + MCP Server
-├── store.ts           # MemoryStore: 内存索引 + 搜索
-├── embedding.ts       # Transformers.js 延迟加载引擎
-├── setup.ts           # 一键安装流程
-├── pro.ts             # Pro 激活 + 同步
-├── auto/index.ts      # 5 自动引擎
+├── index.ts           # Entry: CLI routing + MCP Server
+├── store.ts           # MemoryStore: in-memory index + search
+├── embedding.ts       # Transformers.js lazy-load engine
+├── setup.ts           # One-command install flow
+├── pro.ts             # Pro activation + bidirectional sync
+├── auto/index.ts      # 5 auto-engines
 ├── storage/
-│   ├── local.ts       # Markdown 文件读写
-│   └── shelby.ts      # Shelby 云 API 封装
-├── hooks/install.ts   # Claude Code hooks 配置
-└── migrate/import.ts  # 规则导入 + 去重
+│   ├── local.ts       # Markdown file read/write
+│   └── shelby.ts      # Shelby cloud API wrapper
+├── hooks/install.ts   # Claude Code hooks configuration
+└── migrate/import.ts  # Rule import + dedup
 ```
 
 ---
 
-## 数据模型
+## Data Model
 
-### Memory 接口
+### Memory Interface
 
 ```typescript
 interface Memory {
   id: string;              // UUID v4
-  name: string;            // 人类可读名称 (autoName 生成, 最长40字符)
-  content: string;         // 原始内容
-  category: string;        // 分类: user-preference | project-context | decision-log | code-pattern
-  tags: string[];          // 标签列表
-  priority: number;        // 1-10, autoPriority 动态调整
-  vector: number[];        // 384-dim 嵌入向量
-  created_at: string;      // ISO-8601 创建时间
-  access_count: number;    // 访问次数 (touch)
-  last_accessed: string | null;  // 最后访问时间
+  name: string;            // Human-readable name (autoName, max 40 chars)
+  content: string;         // Raw content
+  category: string;        // user-preference | project-context | decision-log | code-pattern
+  tags: string[];          // Tag list
+  priority: number;        // 1–10, dynamically adjusted by autoPriority
+  vector: number[];        // 384-dim embedding vector
+  created_at: string;      // ISO-8601 creation timestamp
+  access_count: number;    // Touch count
+  last_accessed: string | null;  // Last access timestamp
 }
 ```
 
-### 本地存储格式
+### Local Storage Format
 
-文件路径: `~/.memory-forge/memories/{id}.md`
+Path: `~/.memory-forge/memories/{id}.md`
 
 ```markdown
 # Memory Name
@@ -99,22 +99,22 @@ interface Memory {
 User prefers camelCase naming, single quotes, and 2-space indent.
 ```
 
-### MemoryStore 索引
+### MemoryStore Index
 
-- `Map<string, Memory>` 主存储
-- `Map<string, Float32Array>` 向量缓存
-- LRU 淘汰: 5000 条上限, 超出淘汰最低访问量×优先级
-- 去重: Jaccard 相似度 > 0.8 自动合并
+- `Map<string, Memory>` primary store
+- `Map<string, Float32Array>` vector cache
+- LRU eviction: 5,000 entry cap, evicts lowest `access_count × priority`
+- Dedup: Jaccard similarity > 0.8 triggers auto-merge
 
 ---
 
-## MCP 工具 API 参考
+## MCP Tool API Reference
 
-所有工具通过 MCP stdio 协议调用。Agent 自动获得，无需手动调用。
+All tools are invoked via the MCP stdio protocol. The agent receives them automatically — no manual invocation required.
 
 ### memory_store
 
-存储一条记忆。自动向量化、命名、去重合并。
+Store a memory. Auto-embeds, names, and dedup-merges.
 
 ```typescript
 // Input
@@ -122,37 +122,37 @@ User prefers camelCase naming, single quotes, and 2-space indent.
   content: string;        // required, min 1 char
   category?: string;      // "general" | "user-preference" | "project-context" | "decision-log" | "code-pattern"
   tags?: string[];        // default: []
-  priority?: number;      // 1-10, default: 5
+  priority?: number;      // 1–10, default: 5
 }
 
 // Output (success)
 {
   success: true;
-  merged?: boolean;       // true if merged with existing memory (>80% overlap)
+  merged?: boolean;       // true if merged with existing (>80% overlap)
   memory_id: string;
   name: string;
   preview: string;        // first 200 chars
 }
 ```
 
-**内部流程:**
-1. `embed(content)` → 384-dim vector (失败则 vector=[])
-2. `autoName(content)` → 从内容提取名称
-3. `autoMerge(store, memory)` → 检查已有记忆, >0.8 Jaccard 则合并
-4. `saveMemory(memory)` → 写本地 Markdown
-5. `store.add(memory)` → 更新 LRU 缓存
-6. Pro: `uploadMemory(memory)` → Shelby 云 (async, fire-and-forget)
+**Internal pipeline:**
+1. `embed(content)` → 384-dim vector (null on failure)
+2. `autoName(content)` → extract name from content
+3. `autoMerge(store, memory)` → check existing, merge if Jaccard > 0.8
+4. `saveMemory(memory)` → write local Markdown
+5. `store.add(memory)` → update LRU cache
+6. Pro: `uploadMemory(memory)` → Shelby cloud (async, fire-and-forget)
 
 ### memory_search
 
-语义检索记忆。向量优先, 失败自动降级关键词。
+Semantic memory search. Vector-first, auto-fallback to keyword.
 
 ```typescript
 // Input
 {
-  query: string;           // required, 自然语言
-  limit?: number;          // 1-20, default: 5
-  min_similarity?: number; // 0-1, default: 0.6
+  query: string;           // required, natural language
+  limit?: number;          // 1–20, default: 5
+  min_similarity?: number; // 0–1, default: 0.6
   category?: string;       // filter by category
   tags?: string[];         // filter by tags (OR match)
 }
@@ -172,21 +172,21 @@ User prefers camelCase naming, single quotes, and 2-space indent.
 }
 ```
 
-**评分公式 (向量模式):**
+**Scoring formula (vector mode):**
 ```
 score = cosineSimilarity(queryVec, memoryVec)
       × (priority / 5)
       × (1 + min(access_count, 10) × 0.05)
 ```
 
-**评分公式 (关键词模式):**
+**Scoring formula (keyword mode):**
 ```
 score = (contentHits × 2 + nameHits × 3) + priority
 ```
 
 ### memory_recall
 
-按 ID 精确获取一条记忆。
+Exact retrieval by memory ID.
 
 ```typescript
 // Input
@@ -204,21 +204,21 @@ score = (contentHits × 2 + nameHits × 3) + priority
 
 ### memory_list
 
-列出记忆目录，支持分页和过滤。
+List memories with pagination and filtering.
 
 ```typescript
 // Input
 {
   category?: string;    // filter
   tags?: string[];      // filter (OR match)
-  limit?: number;       // 1-100, default: 20
+  limit?: number;       // 1–100, default: 20
   offset?: number;      // default: 0
 }
 
 // Output
 {
-  total: number;        // 总记忆数
-  count: number;        // 当前页数量
+  total: number;        // total memory count
+  count: number;        // current page count
   memories: [{
     memory_id, name, category,
     tags, priority,
@@ -229,7 +229,7 @@ score = (contentHits × 2 + nameHits × 3) + priority
 
 ### memory_forget
 
-删除一条记忆（本地文件 + 内存缓存）。
+Delete a memory (local file + in-memory cache).
 
 ```typescript
 // Input
@@ -245,30 +245,30 @@ score = (contentHits × 2 + nameHits × 3) + priority
 
 ### memory_context
 
-加载当前会话上下文，返回最近访问的高优先级记忆摘要。
+Load current session context — returns top recently-accessed, high-priority memory summaries.
 
 ```typescript
 // Input
-{ limit?: number;  // 1-20, default: 5 }
+{ limit?: number;  // 1–20, default: 5 }
 
 // Output
 {
   context_loaded: true;
   memory_count: number;
-  context: string;  // 格式: "- [name] preview..."
+  context: string;  // format: "- [name] preview..."
 }
 ```
 
-**排序:** `access_count` DESC, 同分则 `priority` DESC。
+**Sort order:** `access_count` DESC, ties broken by `priority` DESC.
 
 ### memory_export
 
-导出记忆为 JSON 或 Markdown。
+Export memories as JSON or Markdown.
 
 ```typescript
 // Input
 {
-  memory_ids?: string[];  // 不指定则导出全部
+  memory_ids?: string[];  // omit to export all
   format?: "json" | "markdown";  // default: "json"
 }
 
@@ -289,7 +289,7 @@ score = (contentHits × 2 + nameHits × 3) + priority
 
 ### memory_share
 
-打包单条记忆供队友导入。
+Package a single memory for import by teammates.
 
 ```typescript
 // Input
@@ -313,78 +313,78 @@ score = (contentHits × 2 + nameHits × 3) + priority
 
 ---
 
-## 自动引擎
+## Auto-Engines
 
-所有引擎位于 `src/auto/index.ts`。
+All engines are located in `src/auto/index.ts`.
 
 ### autoName
 
-从内容提取人类可读名称。
+Extracts a human-readable name from content.
 
 ```
-算法:
-1. 移除代码块 (```...```)
-2. 取前 40 字符
-3. 换行替换为空格
-4. 空内容 → "memory"
+Algorithm:
+1. Strip code blocks (```...```)
+2. Take first 40 chars
+3. Replace newlines with spaces
+4. Empty content → "memory"
 ```
 
 ### autoMerge
 
-检测并合并重复记忆。
+Detects and merges duplicate memories.
 
 ```
-算法:
-1. Jaccard 相似度: |setA ∩ setB| / min(|setA|, |setB|)
-2. 单词长度 ≥ 3
-3. 阈值: > 0.8 → 合并
-4. 合并后重新计算向量
+Algorithm:
+1. Jaccard similarity: |setA ∩ setB| / min(|setA|, |setB|)
+2. Minimum word length: 3 chars
+3. Threshold: > 0.8 → merge
+4. Recompute embedding vector after merge
 ```
 
 ### autoPriority
 
-基于 Ebbinghaus 遗忘曲线计算优先级 (1-10)。
+Computes priority score (1–10) based on the Ebbinghaus forgetting curve.
 
 ```
-公式:
-freqWeight   = min(access_count, 50) / 50
-recencyWeight = 1 - (daysSinceLastAccess / 90)  // clamp 0-1
-ageWeight    = 1 - min(ageDays, 365) / 365
+Formula:
+freqWeight    = min(access_count, 50) / 50
+recencyWeight = 1 - (daysSinceLastAccess / 90)  // clamp 0–1
+ageWeight     = 1 - min(ageDays, 365) / 365
 
 priority = 1 + 9 × (freqWeight × 0.4 + recencyWeight × 0.4 + ageWeight × 0.2)
 ```
 
 ### autoDecay
 
-Ebbinghaus 遗忘曲线判定记忆是否归档。
+Determines whether a memory should be archived.
 
 ```
-| 天数 | 衰减值 | 含义 |
-|------|--------|------|
-| ≤1   | 1.0    | 活跃 |
-| ≤7   | 0.8    | 近期 |
-| ≤30  | 0.5    | 衰减中 |
-| ≤90  | 0.2    | 弱记忆 |
-| >90  | 0      | 归档 (删除) |
+| Days     | Decay Value | Status            |
+|----------|-------------|-------------------|
+| ≤1       | 1.0         | Active            |
+| ≤7       | 0.8         | Recent            |
+| ≤30      | 0.5         | Decaying          |
+| ≤90      | 0.2         | Weak              |
+| >90      | 0           | Archived (deleted) |
 ```
 
 ### generateContextSummary
 
-生成 Agent 上下文摘要。
+Generates a context summary for agent injection.
 
 ```
-算法:
-1. 取全部记忆, 按 access_count DESC, priority DESC 排序
-2. 截取 top-N
-3. 每条截断 150 字符
-4. 格式: "- [name] content..."
+Algorithm:
+1. Sort all memories by access_count DESC, priority DESC
+2. Truncate to top-N
+3. Truncate each to 150 chars
+4. Format: "- [name] content..."
 ```
 
 ---
 
-## Hook 系统
+## Hook System
 
-配置位置: `~/.claude/settings.json`
+Configuration location: `~/.claude/settings.json`
 
 ```json
 {
@@ -402,125 +402,126 @@ Ebbinghaus 遗忘曲线判定记忆是否归档。
 }
 ```
 
-### 生命周期
+### Lifecycle
 
 ```
-SessionStart  → 加载 top-5 记忆 → 注入 Agent 上下文 (stdout)
+SessionStart  → Load top-5 memories → Inject into agent context (stdout)
    ↓
-Agent 工作    → 调 memory_store / memory_search / ...
+Agent works   → Calls memory_store / memory_search / etc.
    ↓
-PreCompact    → 加载 top-8 记忆 + 注入存储指令 → Agent 自动保存
+PreCompact    → Load top-8 memories + inject save instruction → Agent auto-saves
    ↓
-Stop          → autoPriority 重算 + autoDecay 检查 + 归档过期记忆
+Stop          → autoPriority recalc + autoDecay check + archive expired
    ↓
-(下次) SessionStart → 记忆已保留 ✅
+(next) SessionStart → Memories preserved ✅
 ```
 
-### 关键设计决策
+### Key Design Decision
 
-**为什么 PreCompact 而非 Stop 做 auto-capture？**
-Stop hook 只在正常退出时触发。`kill` / 关终端窗口 / 崩溃 → Stop 不跑。PreCompact 在上下文快满时一定触发，此时进程还活着，Agent 能执行存储指令。
+**Why PreCompact instead of Stop for auto-capture?**
+
+The Stop hook only fires on graceful exit. `kill`, closing the terminal window, or crashes will skip it. PreCompact always fires when the context window approaches its limit — the process is still alive and the agent can execute the save instruction.
 
 ---
 
-## 存储层
+## Storage Layer
 
-### Free 层 (本地 Markdown)
+### Free Tier (Local Markdown)
 
-- 路径: `~/.memory-forge/memories/{id}.md`
-- 格式: 类 YAML frontmatter + Markdown body
-- 编码: UTF-8
-- 权限: 用户文件系统控制
-- 网络: 零
+- Path: `~/.memory-forge/memories/{id}.md`
+- Format: YAML-like frontmatter + Markdown body
+- Encoding: UTF-8
+- Permissions: user filesystem control
+- Network: zero
 
-### Pro 层 (Shelby 云)
+### Pro Tier (Shelby Cloud)
 
-- SDK: `@shelby-protocol/sdk` ^0.3.1 (optionalDep)
-- 网络: Shelbynet 测试网
-- 认证: API Key + Ed25519 链上账户
-- Blob 格式: `memories/{id}.json` (JSON)
-- 过期: 365 天
-- 数据流: 双向同步 (session 启动时 ↓↑, memory_store 时 ↑)
+- SDK: `@shelby-protocol/sdk` ^0.3.1 (optionalDependency)
+- Network: Shelbynet testnet
+- Auth: API Key + Ed25519 on-chain account
+- Blob format: `memories/{id}.json` (JSON)
+- Expiry: 365 days
+- Data flow: bidirectional sync (↓↑ on session start, ↑ on memory_store)
 
-**Pro 数据流:**
+**Pro data flow:**
 ```
 SessionStart:
   syncAll():
-    ↓ listBlobs() → 获取远程记忆列表
-    ↓ downloadMemory() → 下载本地不存在的 (30s timeout)
-    ↑ uploadMemory() → 上传本地有而远程无的
-    → 双向同步完成
+    ↓ listBlobs() → fetch remote memory list
+    ↓ downloadMemory() → download anything not local (30s timeout)
+    ↑ uploadMemory() → upload local-only memories
+    → Bidirectional sync complete
 
 memory_store:
-  saveMemory() → 本地
-  uploadMemory() → Shelby (fire-and-forget, 失败不阻塞)
+  saveMemory() → local
+  uploadMemory() → Shelby (fire-and-forget, failure is non-blocking)
 ```
 
 ---
 
-## 嵌入引擎
+## Embedding Engine
 
-### 技术栈
+### Tech Stack
 
-- 库: `@huggingface/transformers` ^3.0.0
-- 模型: Xenova/all-MiniLM-L6-v2
-- 大小: ~23MB (首次下载, 后续缓存)
-- 维度: 384
-- 池化: mean pooling + L2 normalize
+- Library: `@huggingface/transformers` ^3.0.0
+- Model: Xenova/all-MiniLM-L6-v2
+- Size: ~23MB (one-time download, cached thereafter)
+- Dimensions: 384
+- Pooling: mean pooling + L2 normalization
 
-### 降级策略
+### Degradation Strategy
 
 ```
-加载模型
-  → 成功: cos similarity search
-  → 失败: keyword matching (Jaccard)
-     + 5 分钟自动重试
-     + sleep(300s) 防止请求风暴
+Load model
+  → Success: cosine similarity search
+  → Failure: keyword matching (Jaccard)
+     + 5-minute auto-retry
+     + sleep(300s) to prevent request storms
 ```
 
-### 性能
+### Performance
 
-- 首次加载: 3-10s (取决于网络, 23MB 下载)
-- 后续推理: < 100ms
-- 降级关键词: < 10ms
-- 模型缓存: Transformers.js 内置缓存
+- First load: 3–10s (depends on network; 23MB download)
+- Subsequent inference: < 100ms
+- Keyword fallback: < 10ms
+- Model caching: Transformers.js built-in cache
 
 ---
 
-## 安全模型
+## Security Model
 
-### Free 层
+### Free Tier
 
-- 全部数据在 `~/.memory-forge/` 目录
-- 零持续网络请求
-- 唯一网络: 首次模型下载 (HuggingFace CDN, 23MB)
-- 模型下载失败 → 关键词降级, 零功能损失
+- All data in `~/.memory-forge/` directory
+- Zero ongoing network requests
+- Only network: one-time model download (HuggingFace CDN, 23MB)
+- Model download failure → keyword fallback, zero functionality loss
 
-### Pro 层
+### Pro Tier
 
-- API Key: 环境变量 `SHELBY_API_KEY` 注入, 不落盘
-- 私钥: `~/.memory-forge/pro.json`, Ed25519 格式
-- 传输: HTTPS (Shelbynet API)
-- 链上: 每条记忆 → Aptos blob upload transaction
-- 删除: tombstone blob (标记删除, 链上不可篡改)
+- API Key: `SHELBY_API_KEY` environment variable only — never written to disk
+- Private Key: `~/.memory-forge/pro.json`, Ed25519 format
+- Transport: HTTPS (Shelbynet API)
+- On-chain: each memory → Aptos blob upload transaction
+- Deletion: tombstone blob (marks deletion; chain is immutable)
 
-### 记忆权限
+### Memory Permissions
 
-- 文件系统权限 = 记忆权限 (Free)
-- 链上账户签名 = 记忆权限 (Pro)
-- 无内置认证/授权层 (Agent 已通过 Claude Code 认证)
+- Filesystem permissions = memory permissions (Free)
+- On-chain account signature = memory permissions (Pro)
+- No built-in auth layer (agent is already authenticated by Claude Code)
 
 ---
 
-## 错误处理与降级
+## Error Handling & Degradation
 
-| 场景 | 行为 | 影响 |
-|------|------|------|
-| 嵌入模型下载失败 | 关键词搜索, 5min 重试 | 搜索精度下降, 功能可用 |
-| 嵌入模型推理失败 | 返回 null, 关键词降级 | 单次查询降级 |
-| Shelby 上传失败 | console.error, 不阻塞 | Pro 同步不同步, 本地完好 |
-| Shelby 下载超时 | 30s timeout, 返回 null | 该条不同步, 其他正常 |
-| Shelby 链上 gas 不足 | 上传失败 + 错误消息 | Pro 不可用, Free 完好 |
-| parseMemoryFile 损坏 | 跳过该文件, 返回 null | 损坏文件被忽略 |
-| 磁盘写失败 | 静默失败 | 记忆丢失 (极罕见) |
-| LRU 满 5000 | 淘汰最低 access_count × priority | 旧记忆清出内存, 磁盘保留 |
+| Scenario | Behavior | Impact |
+|----------|----------|--------|
+| Embedding model download fails | Keyword search, 5min retry | Lower search precision, functional |
+| Embedding model inference fails | Return null, keyword fallback | Single query degraded |
+| Shelby upload fails | console.error, non-blocking | Pro sync delayed, local intact |
+| Shelby download timeout | 30s timeout, return null | That memory skipped, others OK |
+| Shelby on-chain gas insufficient | Upload fails + error message | Pro unavailable, Free intact |
+| parseMemoryFile corrupt | Skip file, return null | Corrupt file ignored |
+| Disk write fails | Silent failure | Memory lost (extremely rare) |
+| LRU at 5,000 limit | Evict lowest access_count × priority | Old memories evicted from cache, disk preserved |
