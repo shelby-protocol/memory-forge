@@ -123,7 +123,7 @@ export async function listBlobs(): Promise<string[]> {
     const metadata = await client.coordination.getAccountBlobs({
       account: account.accountAddress,
     });
-    return metadata.map((m) => m.name).filter((n) => n.startsWith("memories/"));
+    return metadata.map((m) => m.name).filter((n) => n.includes("/memories/"));
   } catch {
     return [];
   }
@@ -153,6 +153,6 @@ export function getBlobName(memoryId: string): string {
 
 /** 从 blob 名称解析 memory_id */
 export function getMemoryId(blobName: string): string | null {
-  const match = blobName.match(/^memories\/(.+)\.json$/);
+  const match = blobName.match(/memories\/(.+)\.json$/);
   return match ? match[1] : null;
 }
