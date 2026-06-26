@@ -8,6 +8,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Memory } from "../store.js";
 import { autoName } from "../auto/index.js";
+import { MemoryStore } from "../store.js";
+import { loadAllMemories } from "../storage/local.js";
 
 export interface ImportedRule {
   source: string;
@@ -47,8 +49,13 @@ const SOURCES: { path: string; category: string; extract: (content: string, file
       const rules: ImportedRule[] = [];
       const name = content.match(/name\s*=\s*(.+)/)?.[1];
       const email = content.match(/email\s*=\s*(.+)/)?.[1];
-      if (name) rules.push({ source: "~/.gitconfig", key: "git-user-name", content: `Git user name: ${name.trim()}` });
-      if (email) rules.push({ source: "~/.gitconfig", key: "git-user-email", content: `Git user email: ${email.trim()}` });
+      if (name || email) {
+        // Merge into single memory — avoids duplicate single-line memories
+        const parts: string[] = [];
+        if (email) parts.push(`Git user email: ${email.trim()}`);
+        if (name) parts.push(`Git user name: ${name.trim()}`);
+        rules.push({ source: "~/.gitconfig", key: "git-user-info", content: parts.join("\n") });
+      }
       return rules;
     },
   },
@@ -80,16 +87,48 @@ export function importRules(): ImportedRule[] {
 }
 
 export function rulesToMemories(rules: ImportedRule[]): Memory[] {
-  return rules.map((r) => ({
-    id: randomUUID(),
-    name: autoName(r.content),
-    content: r.content,
-    category: r.source.includes(".cursor") ? "cursor-rules" : r.source.includes(".gitconfig") ? "user-info" : "claude-rules",
-    tags: [r.source.split("/").pop()?.replace(/\..*/, "") ?? "imported"],
-    priority: 7,
-    vector: [],
-    created_at: new Date().toISOString(),
-    access_count: 0,
-    last_accessed: null,
-  }));
+  // Load existing memories to dedup before import
+  const store = new MemoryStore();
+  for (const m of loadAllMemories()) store.add(m);
+
+  const result: Memory[] = [];
+  for (const r of rules) {
+    const memory: Memory = {
+      id: randomUUID(),
+      name: autoName(r.content),
+      content: r.content,
+      category: r.source.includes(".cursor") ? "cursor-rules" : r.source.includes(".gitconfig") ? "user-info" : "claude-rules",
+      tags: [r.source.split("/").pop()?.replace(/\..*/, "") ?? "imported"],
+      priority: 7,
+      vector: [],
+      created_at: new Date().toISOString(),
+      access_count: 0,
+      last_accessed: null,
+    };
+    // Check existing memories for near-duplicate content
+    let isDuplicate = false;
+    for (const existing of store.list({ limit: 500, offset: 0 })) {
+      if (contentOverlap(existing.content, memory.content) > 0.8) {
+        isDuplicate = true;
+        break;
+      }
+    }
+    if (!isDuplicate) {
+      result.push(memory);
+      store.add(memory); // track across this batch too
+    }
+  }
+  return result;
+}
+
+/** Quick in-memory overlap check (no embedding needed) */
+function contentOverlap(a: string, b: string): number {
+  const setA = new Set(a.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
+  const setB = new Set(b.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let intersection = 0;
+  for (const w of setA) {
+    if (setB.has(w)) intersection++;
+  }
+  return intersection / Math.min(setA.size, setB.size);
 }
