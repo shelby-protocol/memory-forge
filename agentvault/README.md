@@ -73,5 +73,5 @@ Pro is currently on Shelbynet testnet.
 ## Tests
 
 ```bash
-npm test   # 48 tests, 100% pass
+npm test   # 52 tests, 100% pass
 ```
