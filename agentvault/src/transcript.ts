@@ -6,7 +6,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import { saveMemory } from "./storage/local.js";
+import { saveMemory, loadAllMemories, deleteMemoryFile } from "./storage/local.js";
 import type { Memory } from "./store.js";
 
 const PROJECTS_DIR = path.join(
@@ -15,11 +15,15 @@ const PROJECTS_DIR = path.join(
   "projects"
 );
 
-const MAX_MEMORY_CHARS = 100_000; // cap transcript at 100KB to avoid giant memories
+const MAX_MEMORY_CHARS = 100_000;
+const DEDUP_WINDOW_MINUTES = 30; // skip if transcript already captured in this window
 
 export function captureTranscript(): string {
   const filePath = findRecentTranscript();
   if (!filePath) return "No recent transcript found.";
+
+  // Skip if we already captured this session's transcript recently
+  if (alreadyCaptured()) return "Transcript already captured (dedup).";
 
   const messages = readTranscript(filePath);
   if (messages.length === 0) return "Transcript empty.";
@@ -31,15 +35,32 @@ export function captureTranscript(): string {
     content,
     category: "session-transcript",
     tags: ["transcript", "auto-capture", "claude-code"],
-    priority: 9,
+    priority: 7, // lower priority — transcript is backup, not primary memory
     vector: [],
     created_at: new Date().toISOString(),
     access_count: 0,
     last_accessed: null,
   };
 
+  // Delete old transcripts from this session (keep only latest)
+  for (const m of loadAllMemories()) {
+    if (m.category === "session-transcript" && m.id !== memory.id) {
+      deleteMemoryFile(m.id);
+    }
+  }
+
   saveMemory(memory);
   return `Transcript saved: ${memory.name} (${memory.content.length} chars, ${messages.length} messages)`;
+}
+
+/** Avoid duplicate captures within DEDUP_WINDOW_MINUTES */
+function alreadyCaptured(): boolean {
+  for (const m of loadAllMemories()) {
+    if (m.category !== "session-transcript") continue;
+    const age = Date.now() - new Date(m.created_at).getTime();
+    if (age < DEDUP_WINDOW_MINUTES * 60000) return true;
+  }
+  return false;
 }
 
 /** Find the most recently modified JSONL in any project directory */
