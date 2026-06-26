@@ -95,4 +95,4 @@ MemoryForge 是真实的产品——MCP 服务器已运行，Shelby 云已验证
 
 *立即体验：`npx memory-forge setup`（本周内上线 npm）*
 
-*[GitHub: github.com/shelby-ai/memory-forge](https://github.com/shelby-ai/memory-forge)*
+*[GitHub: github.com/shelby-protocol/memory-forge](https://github.com/shelby-protocol/memory-forge)*

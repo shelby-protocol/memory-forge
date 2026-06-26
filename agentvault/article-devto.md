@@ -95,4 +95,4 @@ Drop a comment. I'll build whatever you need by next week.
 
 *Try it: `npx memory-forge setup` (coming to npm this week)*
 
-*[GitHub: github.com/shelby-ai/memory-forge](https://github.com/shelby-ai/memory-forge)*
+*[GitHub: github.com/shelby-protocol/memory-forge](https://github.com/shelby-protocol/memory-forge)*
