@@ -75,6 +75,54 @@ Unlocks Shelby decentralized cloud storage. Switch computers, your memories foll
 
 ---
 
+## How to Use
+
+### Install (one-time)
+
+```bash
+npx memory-forge setup
+```
+
+Auto-detects Claude Code / Cursor / Windsurf / VS Code. Configures hooks and MCP server in one pass.
+
+### Daily Use — Nothing Needed
+
+- **Session start** → context auto-injected. Your agent already knows your preferences.
+- **During conversation** → just talk. The agent calls `memory_store` and `memory_search` automatically when relevant._
+- **Session end** → hook triggers auto-capture _(coming in v0.1.4)_.
+
+### Talk to Your Agent Naturally
+
+```
+"帮我记住：我们项目用 pnpm 管理依赖，不要用 npm"
+"搜索之前关于认证的记忆"
+"列出我所有的记忆"
+"把这条记忆分享给前端团队"
+"导出所有记忆备份到 JSON"
+```
+
+Your agent calls the right MCP tool automatically. You never type `memory_*` commands.
+
+### Manual Use (optional)
+
+```bash
+# View context summary
+npx memory-forge hook session-start
+
+# Re-import rules after editing CLAUDE.md
+npx memory-forge setup
+```
+
+### Upgrade to Pro
+
+```bash
+SHELBY_API_KEY="aptoslabs_***" npx memory-forge pro
+```
+
+Memories sync to Shelby decentralized cloud. Switch computers — auto-restore.
+
+---
+
 ## 8 MCP Tools
 
 | Tool | What it does |
