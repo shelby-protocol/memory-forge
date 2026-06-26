@@ -123,7 +123,10 @@ export async function listBlobs(): Promise<string[]> {
     const metadata = await client.coordination.getAccountBlobs({
       account: account.accountAddress,
     });
-    return metadata.map((m) => m.name).filter((n) => n.includes("/memories/"));
+    return metadata
+      .map((m) => m.name)
+      .filter((n) => n.includes("/memories/"))
+      .map((n) => n.replace(/^@[^/]+\//, "")); // strip @address/ prefix for download
   } catch {
     return [];
   }
