@@ -22,28 +22,22 @@ const SOURCES: { path: string; category: string; extract: (content: string, file
     path: path.join(HOME, ".claude", "CLAUDE.md"),
     category: "claude-rules",
     extract: (content, filepath) => {
-      const rules: ImportedRule[] = [];
-      for (const line of content.split("\n")) {
-        const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith("#") && trimmed.length > 10) {
-          rules.push({ source: filepath, key: `claude-rule-${rules.length}`, content: trimmed });
-        }
+      // Import entire CLAUDE.md as one memory (not line-by-line)
+      if (content.trim().length > 10) {
+        return [{ source: filepath, key: "claude-rules", content: content.trim() }];
       }
-      return rules.slice(0, 20);
+      return [];
     },
   },
   {
     path: path.join(HOME, ".cursor", "rules"),
     category: "cursor-rules",
     extract: (content, filepath) => {
-      const rules: ImportedRule[] = [];
-      for (const line of content.split("\n")) {
-        const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith("#") && trimmed.length > 10) {
-          rules.push({ source: filepath, key: `cursor-${path.basename(filepath)}-${rules.length}`, content: trimmed });
-        }
+      // Import entire rule file as one memory (not line-by-line)
+      if (content.trim().length > 10) {
+        return [{ source: filepath, key: `cursor-${path.basename(filepath)}`, content: content.trim() }];
       }
-      return rules.slice(0, 20);
+      return [];
     },
   },
   {
