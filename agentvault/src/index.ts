@@ -74,6 +74,11 @@ if (cmd === "setup") {
     if (summary) console.log(summary);
     // Instruct agent to auto-capture before compaction wipes context
     console.log(`\n[MEMORYFORGE AUTO-CAPTURE] Context window is about to compact. Use memory_store to save key learnings, decisions, and preferences from this session BEFORE continuing. What did you learn about the user? What decisions were made? What preferences did you observe?`);
+    // Safety net: capture transcript now (survives forced terminal close)
+    const preCompactTranscript = captureTranscript();
+    if (!preCompactTranscript.includes("already captured")) {
+      console.error(`[MemoryForge] ${preCompactTranscript}`);
+    }
   } else if (hookType === "capture-transcript") {
     const result = captureTranscript();
     console.error(`[MemoryForge] ${result}`);
