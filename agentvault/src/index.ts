@@ -22,6 +22,7 @@ import { uploadMemory } from "./storage/shelby.js";
 import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
 import { pro, syncAll } from "./pro.js";
+import { cliCaptureTranscript, captureTranscript } from "./transcript.js";
 
 // ─── CLI 命令路由 ──────────────────────────────────────────
 const cmd = process.argv[2];
@@ -35,6 +36,9 @@ if (cmd === "setup") {
   pro()
     .then(() => process.exit(0))
     .catch((err) => { console.error(err); process.exit(1); });
+} else if (cmd === "capture-transcript") {
+  cliCaptureTranscript();
+  process.exit(0);
 } else if (cmd === "hook") {
   const hookType = process.argv[3];
   if (hookType === "session-start") {
@@ -59,6 +63,9 @@ if (cmd === "setup") {
       }
     }
     console.error(`[MemoryForge] auto-capture: ${updated} updated, ${archived} archived`);
+    // Auto-capture conversation transcript
+    const transcriptResult = captureTranscript();
+    console.error(`[MemoryForge] ${transcriptResult}`);
   } else if (hookType === "pre-compact") {
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);
@@ -67,6 +74,9 @@ if (cmd === "setup") {
     if (summary) console.log(summary);
     // Instruct agent to auto-capture before compaction wipes context
     console.log(`\n[MEMORYFORGE AUTO-CAPTURE] Context window is about to compact. Use memory_store to save key learnings, decisions, and preferences from this session BEFORE continuing. What did you learn about the user? What decisions were made? What preferences did you observe?`);
+  } else if (hookType === "capture-transcript") {
+    const result = captureTranscript();
+    console.error(`[MemoryForge] ${result}`);
   }
   process.exit(0);
 } else {
