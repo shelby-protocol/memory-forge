@@ -3,3 +3,4 @@ dist/
 *.tsbuildinfo
 .memory-forge/
 article-early-access.md
+shelby-application.md
