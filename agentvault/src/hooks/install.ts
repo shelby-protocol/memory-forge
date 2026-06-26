@@ -25,7 +25,7 @@ export function installHooks(): boolean {
 
     if (!config.hooks) config.hooks = {};
 
-    const mfCmd = "npx memory-forge";
+    const mfCmd = "memory-forge";
 
     config.hooks.SessionStart = config.hooks.SessionStart || [];
     if (!hasHook(config.hooks.SessionStart, "memory-forge")) {

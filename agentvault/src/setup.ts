@@ -7,6 +7,7 @@ import { installHooks, getHooksStatus } from "./hooks/install.js";
 import { importRules, rulesToMemories } from "./migrate/import.js";
 import { preload } from "./embedding.js";
 import { saveMemory } from "./storage/local.js";
+import { execSync } from "node:child_process";
 
 export async function setup(): Promise<void> {
   console.log(`
@@ -15,8 +16,17 @@ export async function setup(): Promise<void> {
   ╚══════════════════════════╝
   `);
 
+  // 0. Install globally (so hooks can find the command)
+  console.log("📦 Installing memory-forge globally…");
+  try {
+    execSync("npm i -g memory-forge@latest", { stdio: "pipe", timeout: 60000 });
+    console.log("   ✅ Global install complete");
+  } catch {
+    console.log("   ⚠️  Global install skipped (run `npm i -g memory-forge` manually if hooks fail)");
+  }
+
   // 1. Install Claude Code hooks
-  console.log("🪝  Installing Claude Code hooks…");
+  console.log("\n🪝  Installing Claude Code hooks…");
   const hooksOk = installHooks();
   console.log(hooksOk ? "   ✅ Hooks installed (SessionStart / Stop / PreCompact)" : "   ⚠️  Hooks skipped (Claude Code not found)");
 
