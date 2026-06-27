@@ -82,12 +82,28 @@ function contentOverlap(a: string, b: string): number {
 export function generateContextSummary(store: MemoryStore, limit: number = 5): string {
   const all = store.list({ limit: 100, offset: 0 });
 
-  // Recency-first sort: most recently accessed/created memories first, priority as tiebreaker
+  // Category boost: decision-log and project-context are more useful as quick context
+  // than raw session transcripts or generic memories
+  const CATEGORY_BOOST: Record<string, number> = {
+    "decision-log": 2.0,
+    "project-context": 1.8,
+    "user-preference": 1.2,
+    "code-pattern": 1.1,
+    "session-transcript": 0.3,
+    "general": 1.0,
+  };
+
+  // Recency-first with category boost, priority as final tiebreaker
   const top = all
     .sort((a, b) => {
       const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
       const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
-      if (bTime !== aTime) return bTime - aTime;
+      const aBoost = CATEGORY_BOOST[a.category] ?? 1.0;
+      const bBoost = CATEGORY_BOOST[b.category] ?? 1.0;
+      // Weighted recency score: time * category_boost
+      const aScore = aTime * aBoost;
+      const bScore = bTime * bBoost;
+      if (bScore !== aScore) return bScore - aScore;
       return (b.priority || 5) - (a.priority || 5);
     })
     .slice(0, limit);
@@ -95,7 +111,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   if (top.length === 0) return "";
 
   const lines: string[] = [
-    "[MemoryForge] 📋 Recent context (most recent first):",
+    "[MemoryForge] 📋 Recent context from previous sessions:",
   ];
   for (const m of top) {
     const time = m.last_accessed || m.created_at;
@@ -106,8 +122,16 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
       ? m.content.slice(0, 300).replace(/\n/g, " ").trim() + "…"
       : m.content;
 
-    lines.push(`- [${m.name}] ${dateStr} | p${m.priority} | ${m.category}\n  ${preview}`);
+    lines.push(`- [${m.name}] ${dateStr} | ${m.category}\n  ${preview}`);
   }
+
+  // Agent instruction: actively reference this context
+  lines.push(
+    "",
+    "[MemoryForge] When the user asks about previous work, \"what we were doing\", " +
+    "\"continue yesterday\", or similar — reference the context above. " +
+    "Briefly summarize what was happening last session before asking what to do next."
+  );
 
   return lines.join("\n\n");
 }

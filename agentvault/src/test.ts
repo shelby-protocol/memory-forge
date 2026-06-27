@@ -309,11 +309,35 @@ await run("generateContextSummary limits count", () => {
   assertEq(entryCount, 3, "entry count");
 });
 
-await run("generateContextSummary truncates long content", () => {
+await run("generateContextSummary includes agent instruction", () => {
   const s = new MemoryStore();
-  s.add({ ...mem, id: "g1", content: "X".repeat(400), priority: 9, access_count: 10 });
+  s.add({ ...mem, id: "a", content: "Some content", priority: 9 });
   const summary = generateContextSummary(s, 1);
-  assert(summary.includes("…"), "should truncate with …");
+  assert(summary.includes("[MemoryForge] When the user asks"), "should include agent instruction");
+});
+
+await run("generateContextSummary category boost: decision-log beats user-preference at same time", () => {
+  const s = new MemoryStore();
+  const now = new Date().toISOString();
+  s.add({ ...mem, id: "dl", name: "Decision", content: "Decision log entry",
+    category: "decision-log", priority: 1, created_at: now, access_count: 0 });
+  s.add({ ...mem, id: "up", name: "Preference", content: "User preference entry",
+    category: "user-preference", priority: 9, created_at: now, access_count: 0 });
+  const summary = generateContextSummary(s, 1);
+  assert(summary.includes("Decision"), "decision-log should beat user-preference with same recency");
+});
+
+await run("generateContextSummary session-transcript demoted", () => {
+  const s = new MemoryStore();
+  const ts = new Date("2026-06-27T00:00:00.000Z").toISOString();
+  s.add({ ...mem, id: "t1", name: "Older decision", content: "Decision",
+    category: "decision-log", priority: 5, created_at: ts, access_count: 0 });
+  s.add({ ...mem, id: "t2", name: "Newer transcript", content: "Transcript dump",
+    category: "session-transcript", priority: 9, created_at: new Date().toISOString(), access_count: 0 });
+  const summary = generateContextSummary(s, 2);
+  const lines = summary.split("\n").filter((l) => l.startsWith("- ["));
+  // Older decision-log (boost 2.0) should beat newer session-transcript (boost 0.3)
+  assert(lines[0].includes("decision-log"), "older decision-log should appear before newer transcript");
 });
 
 // ═══════════════════════════════════════════════════════════════
