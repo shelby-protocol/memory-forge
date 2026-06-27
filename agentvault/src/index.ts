@@ -18,7 +18,7 @@ import { z } from "zod";
 import { MemoryStore, safeTruncate } from "./store.js";
 import { embed, preload } from "./embedding.js";
 import { saveMemory, loadAllMemories, deleteMemoryFile, cleanupTombstones } from "./storage/local.js";
-import { uploadMemory, deleteBlob, getBlobName } from "./storage/shelby.js";
+import { uploadMemory, deleteBlob, getBlobName, getShelbyConfig } from "./storage/shelby.js";
 import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
 import { pro, syncAll, proStatus, proAutoActivate } from "./pro.js";
@@ -298,7 +298,7 @@ if (cmd === "--version" || cmd === "-v") {
       },
     }));
 
-    // Safety net: capture transcript now (survives forced terminal close)
+    // Safety net: capture transcript + sync to cloud (survives forced close / VS Code panel close)
     try {
       const preCompactTranscript = captureTranscript();
       if (!preCompactTranscript.includes("already captured")) {
@@ -306,6 +306,14 @@ if (cmd === "--version" || cmd === "-v") {
       }
     } catch (err) {
       console.error(`[MemoryForge] pre-compact transcript capture failed: ${(err as Error).message}`);
+    }
+    // Pro: push to cloud now — VS Code panel close may skip Stop hook
+    if (process.env.SHELBY_API_KEY) {
+      try {
+        const { proAutoActivate } = await import("./pro.js");
+        await proAutoActivate();
+        console.error("[MemoryForge] Pre-compact sync complete — memories safe on cloud.");
+      } catch { /* non-fatal */ }
     }
   } else if (hookType === "capture-transcript") {
     try {
@@ -346,7 +354,7 @@ function startMcpServer() {
   preload();
 
   const server = new McpServer({ name: "memory-forge", version: pkg.version });
-  const hasPro = !!process.env.SHELBY_API_KEY;
+  const hasPro = !!(process.env.SHELBY_API_KEY || getShelbyConfig().apiKey);
 
   // ── memory_store ──────────────────────────────────────────
   server.registerTool(
