@@ -84,7 +84,11 @@ export class MemoryStore {
     }
 
     return results
-      .sort((a, b) => b.access_count - a.access_count)
+      .sort((a, b) => {
+        const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
+        const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
+        return bTime - aTime;
+      })
       .slice(opts.offset, opts.offset + opts.limit);
   }
 

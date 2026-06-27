@@ -128,9 +128,11 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     const dateStr = new Date(time).toLocaleDateString("en-US", {
       month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
-    const preview = m.content.length > 300
-      ? m.content.slice(0, 300).replace(/\n/g, " ").trim() + "…"
-      : m.content;
+    // Redact BEFORE flattening newlines (line-anchored regex needs real newlines)
+    const sanitized = redactSecrets(m.content);
+    const preview = sanitized.length > 300
+      ? sanitized.slice(0, 300).replace(/\n/g, " ").trim() + "…"
+      : sanitized;
 
     lines.push(`- [${m.name}] ${dateStr} | ${m.category}\n  ${preview}`);
   }
@@ -144,4 +146,19 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   );
 
   return lines.join("\n\n");
+}
+
+/** Redact sensitive patterns from context preview to prevent key leakage to LLM APIs */
+function redactSecrets(text: string): string {
+  return text
+    // Private key hex strings (ed25519, secp256k1, etc.)
+    .replace(/(?:ed25519|secp256k1|ecdsa)-priv-\S+/gi, "[REDACTED-KEY]")
+    // PEM private key blocks
+    .replace(/-----BEGIN\s.*PRIVATE\sKEY-----[\s\S]*?-----END\s.*PRIVATE\sKEY-----/gi, "[REDACTED-PEM]")
+    // Lines with "Private Key:", "Secret:", "Password:", "API Key:" patterns
+    .replace(/^(.*(?:Private\s*Key|Secret\s*Key|API\s*Key|Password|passwd)\s*[=:]\s*)\S+$/gim, "$1[REDACTED]")
+    // Standalone API tokens like "AG-..." (Shelbynet format)
+    .replace(/\bAG-[A-Z0-9]{20,}\b/g, "[REDACTED-TOKEN]")
+    // BIP39 mnemonics: 12-24 word phrases
+    .replace(/\b(?:\w+\s+){11,23}\w+\s*(?:mnemonic|seed phrase|recovery phrase)/gi, "[REDACTED-MNEMONIC]");
 }

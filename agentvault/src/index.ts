@@ -57,9 +57,7 @@ if (cmd === "--version" || cmd === "-v") {
     const summary = generateContextSummary(s, 5);
     if (summary) console.log(summary);
   } else if (hookType === "stop") {
-    const s = new MemoryStore();
     const all = loadAllMemories();
-    for (const m of all) s.add(m);
     let updated = 0, archived = 0;
     for (const m of all) {
       const newPriority = autoPriority(m);

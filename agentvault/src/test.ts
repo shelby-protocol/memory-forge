@@ -352,6 +352,17 @@ await run("generateContextSummary all-transcript store shows welcome", () => {
   assert(summary.includes("Welcome"), "should show welcome when no context-eligible memories");
 });
 
+await run("generateContextSummary redacts private keys", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "sk", name: "Secrets", content: "Account info\nPrivate Key: ed25519-priv-0x745b30cf6ed6ab8584d0de1316be81f952aad9ccaf621b32655a644e0ecf6500\nAPI Key: AG-DB9VDTVMTAM2FYMAGVQFZP9AC7TTGN7DU",
+    category: "project-context", priority: 9, access_count: 100,
+    created_at: new Date().toISOString(), last_accessed: new Date().toISOString() });
+  const summary = generateContextSummary(s, 1);
+  assert(!summary.includes("ed25519-priv-0x745b"), "private key should be redacted");
+  assert(!summary.includes("AG-DB9VDTVMTAM2FYMAGVQFZP9AC7TTGN7DU"), "API token should be redacted");
+  assert(summary.includes("[REDACTED"), "should contain redaction markers");
+});
+
 // ═══════════════════════════════════════════════════════════════
 console.log("\n🧠 Embedding");
 
