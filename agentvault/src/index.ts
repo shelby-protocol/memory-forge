@@ -266,6 +266,13 @@ if (cmd === "--version" || cmd === "-v") {
     }
     // Purge expired tombstones
     try { cleanupTombstones(); } catch {}
+    // Pro: push any new local memories (e.g. just-captured transcript) to cloud
+    if (process.env.SHELBY_API_KEY) {
+      try {
+        const { proAutoActivate } = await import("./pro.js");
+        await proAutoActivate();
+      } catch {}
+    }
   } else if (hookType === "pre-compact") {
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);
