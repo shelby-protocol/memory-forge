@@ -49,8 +49,13 @@ export async function pro(): Promise<void> {
   // Load or generate Aptos account
   let privateKey = process.env.APTOS_PRIVATE_KEY;
   if (!privateKey && fs.existsSync(PROFILE_PATH)) {
-    const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
-    privateKey = profile.privateKey;
+    try {
+      const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+      privateKey = profile.privateKey;
+    } catch {
+      console.error("[MemoryForge] Corrupted profile — run `memory-forge pro` to repair");
+      return;
+    }
   }
 
   console.log("🔄 Initializing Shelby storage...");
@@ -106,9 +111,18 @@ export async function syncAll(): Promise<void> {
   if (!fs.existsSync(PROFILE_PATH)) return;
 
   const apiKey = process.env.SHELBY_API_KEY;
-  if (!apiKey) return;
+  if (!apiKey) {
+    console.error("[MemoryForge] Pro sync skipped: SHELBY_API_KEY not set");
+    return;
+  }
 
-  const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+  let profile: { address: string; privateKey: string };
+  try {
+    profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+  } catch (err) {
+    console.error("[MemoryForge] Pro sync skipped: corrupted profile (run `memory-forge pro` to repair)");
+    return;
+  }
   const privateKey = process.env.APTOS_PRIVATE_KEY || profile.privateKey;
 
   initShelby(apiKey, privateKey);

@@ -142,7 +142,7 @@ export async function deleteBlob(blobName: string): Promise<void> {
       signer: account,
       blobData: Buffer.from("{}"),
       blobName: blobName + ".deleted",
-      expirationMicros: Date.now() * 1000 + 86400000,
+      expirationMicros: (Date.now() + 86400000) * 1000,
     });
   } catch {
     // ignore

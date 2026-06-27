@@ -65,21 +65,31 @@ export function importRules(): ImportedRule[] {
   const allRules: ImportedRule[] = [];
 
   for (const source of SOURCES) {
+    let stat: fs.Stats;
     try {
-      const stat = fs.statSync(source.path);
-      if (stat.isDirectory()) {
-        const files = fs.readdirSync(source.path).filter((f) => f.endsWith(".md") || f.endsWith(".mdc"));
-        for (const file of files) {
-          const filepath = path.join(source.path, file);
+      stat = fs.statSync(source.path);
+    } catch {
+      continue; // Source doesn't exist or inaccessible — skip
+    }
+
+    if (stat.isDirectory()) {
+      const files = fs.readdirSync(source.path).filter((f) => f.endsWith(".md") || f.endsWith(".mdc"));
+      for (const file of files) {
+        const filepath = path.join(source.path, file);
+        try {
           const content = fs.readFileSync(filepath, "utf-8");
           allRules.push(...source.extract(content, filepath));
+        } catch {
+          // Individual file read failed — skip this file, continue with others
         }
-      } else if (stat.isFile()) {
+      }
+    } else if (stat.isFile()) {
+      try {
         const content = fs.readFileSync(source.path, "utf-8");
         allRules.push(...source.extract(content, source.path));
+      } catch {
+        // Source file read failed — skip
       }
-    } catch {
-      // File doesn't exist — skip
     }
   }
 

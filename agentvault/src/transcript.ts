@@ -43,7 +43,7 @@ export function captureTranscript(): string {
   const messages = readTranscript(filePath);
   if (messages.length === 0) return "Transcript empty.";
 
-  const content = formatTranscript(messages);
+  const content = formatTranscript(messages, sessionId);
   const memory: Memory = {
     id: randomUUID(),
     name: `Session ${new Date().toISOString().slice(0, 16).replace("T", " ")}`,
@@ -58,13 +58,10 @@ export function captureTranscript(): string {
   };
 
   // Delete old transcripts for THIS session only (keep transcripts from other sessions)
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   for (const m of loadAllMemories()) {
     if (m.category !== "session-transcript") continue;
     if (m.id === memory.id) continue;
-    // Only delete if same day AND session ID matches (not blanket wipe)
-    const mDate = m.created_at?.slice(0, 10);
-    if (mDate === today) {
+    if (m.content?.includes(sessionId)) {
       deleteMemoryFile(m.id);
     }
   }
@@ -159,8 +156,8 @@ function readTranscript(filePath: string): Array<{ role: string; text: string }>
 }
 
 /** Format transcript messages into a readable memory */
-function formatTranscript(messages: Array<{ role: string; text: string }>): string {
-  const lines: string[] = [`Session transcript — ${new Date().toISOString()}\n`];
+function formatTranscript(messages: Array<{ role: string; text: string }>, sessionId: string): string {
+  const lines: string[] = [`Session transcript — ${new Date().toISOString()} | session:${sessionId}\n`];
   let charCount = 0;
 
   for (const msg of messages) {
