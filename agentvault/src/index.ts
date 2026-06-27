@@ -294,10 +294,17 @@ if (cmd === "setup") {
     console.error(`[MemoryForge] pre-compact: preserving ${s.size()} memories`);
     const preCompactContext =
       summary +
-      "\n\n[MEMORYFORGE AUTO-CAPTURE] Context window is about to compact. " +
-      "Use memory_store to save key learnings, decisions, and preferences from this session " +
-      "BEFORE continuing. What did you learn about the user? What decisions were made? " +
-      "What preferences did you observe?" +
+      "\n\n[MEMORYFORGE HANDOFF] Create a session handoff summary BEFORE the context compacts. " +
+      "Use memory_store with category=\"session-handoff\" and priority=10. Include:\n" +
+      "1. What we worked on this session\n" +
+      "2. Key decisions made and why\n" +
+      "3. File paths modified (for git context)\n" +
+      "4. What's blocked or pending for next time\n" +
+      "5. Any user preferences or patterns observed\n" +
+      "This handoff will appear FIRST on the next SessionStart so you can resume instantly." +
+      "\n\n[MEMORYFORGE AUTO-CAPTURE] Also use memory_store to save individual learnings, decisions, " +
+      "and preferences as separate memories. What did you learn about the user? " +
+      "What decisions were made? What preferences did you observe?" +
       "\n\n[MEMORYFORGE CROSS-DEVICE] If planning to continue on another machine, remind the user to:\n" +
       "1. git push (code)\n2. Exit normally so Stop hook saves the transcript\n" +
       "3. On the other machine: git pull + memory-forge pro (memories)";

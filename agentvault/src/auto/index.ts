@@ -111,12 +111,13 @@ export function autoDecay(memory: Memory): number {
   return 0; // archive
 }
 
-/** 生成上下文摘要给 Agent 注入。
- *  Recency 主导排序（最近使用的优先），分类衰减作 tiebreaker，priority=10 常青保护。 */
+/** Generate context summary for agent injection.
+ *  Recency-first sort, category decay as tiebreaker, priority=10 evergreen protection.
+ *  session-handoff memories are force-included at the very top. */
 export function generateContextSummary(store: MemoryStore, limit: number = 5): string {
-  // Category half-life (days) — YourMemory-style decay rates.
-  // Strategic decisions decay slowly, casual notes decay fast.
+  // Category half-life (days). session-transcript excluded, session-handoff force-included.
   const CATEGORY_HALFLIFE: Record<string, number> = {
+    "session-handoff": Infinity, // always force-included, top position
     "decision-log": 38,
     "project-context": 30,
     "user-preference": 24,
@@ -136,9 +137,17 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     return hl === undefined || hl > 0;
   });
 
-  // Split: evergreen (priority=10, force-include) vs normal
-  const evergreen = eligible.filter((m) => m.priority >= 10);
-  const normal = eligible.filter((m) => m.priority < 10);
+  // Split: handoff (always first, most recent only) → evergreen (priority=10) → normal
+  const handoff = eligible
+    .filter((m) => m.category === "session-handoff")
+    .sort((a, b) => {
+      const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
+      const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, 1); // only the most recent handoff
+  const evergreen = eligible.filter((m) => m.priority >= 10 && m.category !== "session-handoff");
+  const normal = eligible.filter((m) => m.priority < 10 && m.category !== "session-handoff");
 
   // Sort normal: recency first (last_accessed > created_at), decay as tiebreaker
   normal.sort((a, b) => {
@@ -159,9 +168,9 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     return bScore - aScore;
   });
 
-  // Merge: evergreen first (priority desc), then recency-sorted normal
+  // Merge: handoff first → evergreen (priority desc) → recency-sorted normal
   evergreen.sort((a, b) => (b.priority || 10) - (a.priority || 10));
-  const ranked = [...evergreen, ...normal];
+  const ranked = [...handoff, ...evergreen, ...normal];
 
   // Dedup: skip entries too similar to ones already selected
   const top: typeof ranked = [];
@@ -183,6 +192,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   }
 
   const lines: string[] = ["[MemoryForge] 📋 Recent context from previous sessions:"];
+  let hasHandoff = false;
   for (const m of top) {
     const time = m.last_accessed || m.created_at;
     const dateStr = new Date(time).toLocaleDateString("en-US", {
@@ -191,9 +201,28 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
       hour: "2-digit",
       minute: "2-digit",
     });
-    const preview = smartPreview(redactSecrets(m.content), 300);
 
-    lines.push(`- [${m.name}] ${dateStr} | ${m.category}\n  ${preview}`);
+    if (m.category === "session-handoff") {
+      hasHandoff = true;
+      // Handoff: show full content (not truncated preview) with distinct header
+      const body = redactSecrets(m.content);
+      lines.push(
+        "",
+        `## 📋 Last session (${dateStr})`,
+        body,
+        "---",
+        "",
+        "Other recent memories:",
+      );
+    } else {
+      const preview = smartPreview(redactSecrets(m.content), 300);
+      lines.push(`- [${m.name}] ${dateStr} | ${m.category}\n  ${preview}`);
+    }
+  }
+
+  // Remove trailing "Other recent memories:" if no handoff
+  if (!hasHandoff) {
+    lines[0] = "[MemoryForge] 📋 Recent context from previous sessions:";
   }
 
   // Token budget note: tell agent if context is truncated
