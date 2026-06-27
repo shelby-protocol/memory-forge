@@ -1,0 +1,70 @@
+{
+  "benchmark": "LongMemEval retrieval",
+  "tool": "memory-forge",
+  "method": "hybrid",
+  "embed": true,
+  "questions": 500,
+  "elapsed_seconds": 239.2,
+  "recall": {
+    "@1": {
+      "count": 449,
+      "pct": 89.8
+    },
+    "@3": {
+      "count": 466,
+      "pct": 93.2
+    },
+    "@5": {
+      "count": 479,
+      "pct": 95.8
+    },
+    "@10": {
+      "count": 490,
+      "pct": 98
+    }
+  },
+  "by_task": {
+    "single-session-user": {
+      "total": 70,
+      "recall_at_5": {
+        "count": 67,
+        "pct": 95.71
+      }
+    },
+    "multi-session": {
+      "total": 133,
+      "recall_at_5": {
+        "count": 127,
+        "pct": 95.49
+      }
+    },
+    "single-session-preference": {
+      "total": 30,
+      "recall_at_5": {
+        "count": 27,
+        "pct": 90
+      }
+    },
+    "temporal-reasoning": {
+      "total": 133,
+      "recall_at_5": {
+        "count": 126,
+        "pct": 94.74
+      }
+    },
+    "knowledge-update": {
+      "total": 78,
+      "recall_at_5": {
+        "count": 76,
+        "pct": 97.44
+      }
+    },
+    "single-session-assistant": {
+      "total": 56,
+      "recall_at_5": {
+        "count": 56,
+        "pct": 100
+      }
+    }
+  }
+}

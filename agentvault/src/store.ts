@@ -154,8 +154,8 @@ export class MemoryStore {
       const bmRaw = bm25Results.get(m.id) ?? 0;
       const bmNorm = bm25Max > 0 ? bmRaw / bm25Max : 0;
 
-      // Recommendation/preference queries: boost vector weight.
-      // These queries need semantic matching (e.g. "video editing" → "Premiere Pro")
+      // Preference/recommendation queries: boost vector for semantic matching
+      // (e.g. "video editing" → "Premiere Pro" needs vector, not keyword)
       const q = rawQuery.toLowerCase();
       const isRecQuery =
         /\b(recommend|suggest|suggestion|advice|tips?|ideas?|what should|which one|trying to decide|do you think|do you have any|i('m| am) (thinking|planning|trying|looking)|what('s| is) (a |the )?(good|best)|how (can|do|should) i|could there be)\b/i.test(q);
@@ -174,7 +174,7 @@ export class MemoryStore {
           ...s.memory,
           similarity: s.similarity,
           _score: s.score,
-          _fallback: alpha < 0.01 ? "bm25" : "hybrid",
+          _fallback: "hybrid",
         }),
       );
   }
