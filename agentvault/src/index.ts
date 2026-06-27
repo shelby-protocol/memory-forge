@@ -21,7 +21,7 @@ import { saveMemory, loadAllMemories, deleteMemoryFile, cleanupTombstones } from
 import { uploadMemory, deleteBlob, getBlobName } from "./storage/shelby.js";
 import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
-import { pro, syncAll } from "./pro.js";
+import { pro, syncAll, proStatus } from "./pro.js";
 import { cliCaptureTranscript, captureTranscript } from "./transcript.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -55,8 +55,20 @@ if (cmd === "--version" || cmd === "-v") {
     .catch((err) => { console.error(err); process.exit(1); });
   // Don't start MCP server — rely on setup's process.exit
 } else if (cmd === "pro") {
+  const sub = process.argv[3];
+  if (sub === "status") {
+    const s = proStatus();
+    if (!s.active) {
+      console.log("Pro: not active. Run memory-forge pro to set up.");
+    } else {
+      console.log("Pro: active");
+      console.log(`  Address:  ${s.address}`);
+      if (s.lastSync) console.log(`  Last sync: ${s.lastSync}`);
+    }
+    process.exit(0);
+  }
   pro()
-    .then(() => process.exit(0))
+    .then(() => process.exit(process.exitCode ?? 0))
     .catch((err) => { console.error(err); process.exit(1); });
 } else if (cmd === "list") {
   // CLI: memory-forge list [category]
@@ -220,7 +232,7 @@ if (cmd === "--version" || cmd === "-v") {
   // Unknown command — show help
   console.error(`Unknown command: ${cmd}`);
   console.error("Usage: memory-forge <command>");
-  console.error("Commands: setup, pro, list [category], search <query>, stats, hook <type>, capture-transcript, --version");
+  console.error("Commands: setup, pro [status], list [category], search <query>, stats, hook <type>, capture-transcript, --version");
   console.error("Default (no command): start MCP server (for Claude Code / Cursor integration)");
   process.exit(1);
 } else {

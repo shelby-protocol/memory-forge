@@ -11,8 +11,12 @@ const DOWNLOAD_TIMEOUT_MS = 30_000; // 30s
 
 let client: ShelbyNodeClient | null = null;
 let account: Account | null = null;
+let authFailed = false;
+let uploadWarned = false; // only warn once per session for generic failures
 
 export function initShelby(apiKey: string, privateKey?: string): { address: string; generatedKey?: string } {
+  authFailed = false;
+  uploadWarned = false;
   client = new ShelbyNodeClient({
     network: Network.SHELBYNET,
     apiKey,
@@ -47,6 +51,7 @@ export function getShelbyAccount(): Account | null {
 /** 上传记忆到 Shelby */
 export async function uploadMemory(memory: Memory): Promise<string | null> {
   if (!client || !account) return null;
+  if (authFailed) return null; // fail fast after 401
 
   const blobData = Buffer.from(JSON.stringify(memory));
   const blobName = `memories/${memory.id}.json`;
@@ -65,7 +70,16 @@ export async function uploadMemory(memory: Memory): Promise<string | null> {
     if (msg.includes("400") || msg.includes("Bad Request")) {
       return blobName;
     }
-    console.error("[MemoryForge] Shelby upload failed:", msg);
+    // 401/403 = auth failure — stop trying this session
+    if (msg.includes("401") || msg.includes("403") || msg.includes("Unauthorized")) {
+      authFailed = true;
+      console.error("[MemoryForge] Pro sync: authentication failed. Check SHELBY_API_KEY.");
+      return null;
+    }
+    if (!uploadWarned) {
+      uploadWarned = true;
+      console.error("[MemoryForge] Pro sync: upload failed (network/storage issue). Will retry next sync.");
+    }
     return null;
   }
 }

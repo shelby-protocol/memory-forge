@@ -22,9 +22,16 @@ const MEMORYFORGE_DIR = path.join(HOME, ".memory-forge");
 const PROFILE_PATH = path.join(MEMORYFORGE_DIR, "pro.json");
 
 export async function pro(): Promise<void> {
+  const apiKey = process.env.SHELBY_API_KEY;
+
   // Check if already initialized
   if (fs.existsSync(PROFILE_PATH)) {
-    console.log("✅ Pro is already active. Syncing memories...");
+    if (!apiKey) {
+      console.log("✅ Pro profile exists but SHELBY_API_KEY not set.");
+      console.log("   Set SHELBY_API_KEY and re-run to sync.");
+      return;
+    }
+    console.log("✅ Pro is active. Syncing memories...");
     await syncAll();
     return;
   }
@@ -35,7 +42,6 @@ export async function pro(): Promise<void> {
   ╚══════════════════════════╝
   `);
 
-  const apiKey = process.env.SHELBY_API_KEY;
   if (!apiKey) {
     console.log("Pro requires a Shelby API Key.");
     console.log("");
@@ -43,6 +49,7 @@ export async function pro(): Promise<void> {
     console.log('  Then run: SHELBY_API_KEY="aptoslabs_***" npx memory-forge pro');
     console.log("");
     console.log("💡 Free tier: npx memory-forge setup (local storage only)");
+    process.exitCode = 1;
     return;
   }
 
@@ -95,13 +102,16 @@ export async function pro(): Promise<void> {
     }, null, 2)
   );
 
+  const syncIcon = uploaded > 0 ? "✅" : "⚠️";
   console.log(`
   ┌──────────────────────────────────────┐
   │  MemoryForge Pro is active!           │
   │                                      │
-  │  ✅ ${uploaded} memories synced to Shelby  │
+  │  ${syncIcon} ${uploaded} memories synced to Shelby  │
   │  ✅ Auto-sync on every session       │
   │  ✅ Memories survive across devices  │
+  │                                      │
+  │  ${uploaded === 0 ? "⚠️  Check SHELBY_API_KEY if sync didn't work" : " "}   │
   └──────────────────────────────────────┘
   `);
 }
@@ -138,35 +148,73 @@ export async function syncAll(): Promise<void> {
   // Load tombstones once for this sync
   const tombstoned = getTombstonedIds();
 
-  // Download and merge blob memories (skip tombstoned)
+  // Download and merge blob memories (skip tombstoned, prefer newer remote)
   let downloaded = 0;
   for (const blobName of blobs) {
     const memoryId = getMemoryId(blobName);
     if (!memoryId) continue;
-    if (store.get(memoryId)) continue; // already local
     if (tombstoned.has(memoryId)) continue; // user deleted this — don't resurrect
 
-    const memory = await downloadMemory(blobName);
-    if (memory) {
-      store.add(memory);
-      saveMemory(memory);
-      downloaded++;
+    const local = store.get(memoryId);
+    const remote = await downloadMemory(blobName);
+    if (!remote) continue;
+
+    if (local) {
+      // Both exist — prefer newer (remote wins tie)
+      const localTime = new Date(local.created_at).getTime();
+      const remoteTime = new Date(remote.created_at).getTime();
+      if (remoteTime <= localTime) continue; // local is same age or newer
     }
+
+    store.add(remote);
+    saveMemory(remote);
+    downloaded++;
   }
 
-  // Upload any local-only memories
+  // Upload any local-only memories (batch: log summary, not per-memory spam)
   let uploaded = 0;
+  let uploadFailed = 0;
   for (const m of loadAllMemories()) {
     const blobName = `memories/${m.id}.json`;
-    if (blobs.includes(blobName)) continue; // already on Shelby
+    if (blobs.includes(blobName)) continue;
     const result = await uploadMemory(m);
-    if (result) uploaded++;
+    if (result) uploaded++; else uploadFailed++;
   }
 
-  if (downloaded > 0 || uploaded > 0) {
-    console.error(`[MemoryForge] Sync: ↑${uploaded} ↓${downloaded}`);
+  if (downloaded > 0 || uploaded > 0 || uploadFailed > 0) {
+    const parts: string[] = [];
+    if (uploaded > 0) parts.push(`↑${uploaded}`);
+    if (downloaded > 0) parts.push(`↓${downloaded}`);
+    if (uploadFailed > 0) parts.push(`✗${uploadFailed}`);
+    console.error(`[MemoryForge] Sync: ${parts.join(" ")}`);
   }
+
+  // Touch last-sync timestamp
+  updateSyncStamp();
 
   // Purge expired tombstones
   cleanupTombstones();
+}
+
+function updateSyncStamp(): void {
+  try {
+    const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+    profile.lastSync = new Date().toISOString();
+    fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
+  } catch { /* best-effort */ }
+}
+
+/** Return Pro status for CLI display. */
+export function proStatus(): { active: boolean; address?: string; lastSync?: string } {
+  if (!fs.existsSync(PROFILE_PATH)) return { active: false };
+  try {
+    const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+    return {
+      active: true,
+      address: profile.address,
+      lastSync: profile.lastSync ?? null,
+    };
+  } catch {
+    return { active: false };
+  }
 }
