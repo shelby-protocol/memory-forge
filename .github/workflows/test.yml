@@ -26,12 +26,13 @@ jobs:
           cache-dependency-path: agentvault/package-lock.json
       - run: npm ci
       - run: npm run format:check
+        if: matrix.os == 'ubuntu-latest'
       - run: npm run lint
       - run: npx tsc -p tsconfig.build.json --noEmit
       - run: npm run test:coverage
       - name: Upload coverage
         uses: actions/upload-artifact@v4
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '22'
+        if: matrix.os == 'ubuntu-latest'
         with:
           name: coverage
           path: agentvault/coverage/
