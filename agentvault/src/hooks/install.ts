@@ -30,6 +30,7 @@ export function installHooks(): boolean {
     config.hooks.SessionStart = config.hooks.SessionStart || [];
     if (!hasHook(config.hooks.SessionStart, "memory-forge")) {
       config.hooks.SessionStart.push({
+        matcher: "startup", // only fire on new session, not resume/clear/compact
         hooks: [{ type: "command", command: `${mfCmd} hook session-start` }],
       });
     }

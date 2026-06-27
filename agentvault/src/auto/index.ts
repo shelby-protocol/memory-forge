@@ -137,6 +137,19 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     lines.push(`- [${m.name}] ${dateStr} | ${m.category}\n  ${preview}`);
   }
 
+  // Token budget note: tell agent if context is truncated
+  const eligibleTotal = all.filter((m) => {
+    const boost = CATEGORY_BOOST[m.category];
+    return boost !== undefined ? boost > 0 : true;
+  }).length;
+  if (eligibleTotal > limit) {
+    lines.push(
+      "",
+      `[MemoryForge] Showing top ${limit} of ${eligibleTotal} eligible memories. ` +
+      `Use memory_search or memory_recall to find more.`
+    );
+  }
+
   // Agent instruction: actively reference this context
   lines.push(
     "",

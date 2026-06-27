@@ -55,7 +55,15 @@ if (cmd === "--version" || cmd === "-v") {
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);
     const summary = generateContextSummary(s, 5);
-    if (summary) console.log(summary);
+    // Output as hookSpecificOutput for silent, token-efficient context injection
+    // Falls back to plain text if Claude Code version doesn't support JSON hooks
+    const output = JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "SessionStart",
+        additionalContext: summary || "[MemoryForge] No memories yet. Start building context by storing decisions and preferences.",
+      },
+    });
+    console.log(output);
   } else if (hookType === "stop") {
     const all = loadAllMemories();
     let updated = 0, archived = 0;
@@ -86,9 +94,25 @@ if (cmd === "--version" || cmd === "-v") {
     for (const m of loadAllMemories()) s.add(m);
     const summary = generateContextSummary(s, 8);
     console.error(`[MemoryForge] pre-compact: preserving ${s.size()} memories`);
-    if (summary) console.log(summary);
-    // Instruct agent to auto-capture before compaction wipes context
-    console.log(`\n[MEMORYFORGE AUTO-CAPTURE] Context window is about to compact. Use memory_store to save key learnings, decisions, and preferences from this session BEFORE continuing. What did you learn about the user? What decisions were made? What preferences did you observe?\n\n[MEMORYFORGE CROSS-DEVICE] If planning to continue on another machine, remind the user to:\n1. git push (code)\n2. Exit normally so Stop hook saves the transcript\n3. On the other machine: git pull + memory-forge pro (memories)`);
+
+    const preCompactContext = summary +
+      "\n\n[MEMORYFORGE AUTO-CAPTURE] Context window is about to compact. " +
+      "Use memory_store to save key learnings, decisions, and preferences from this session " +
+      "BEFORE continuing. What did you learn about the user? What decisions were made? " +
+      "What preferences did you observe?" +
+      "\n\n[MEMORYFORGE CROSS-DEVICE] If planning to continue on another machine, remind the user to:\n" +
+      "1. git push (code)\n" +
+      "2. Exit normally so Stop hook saves the transcript\n" +
+      "3. On the other machine: git pull + memory-forge pro (memories)";
+
+    // Silent context injection via hookSpecificOutput
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "PreCompact",
+        additionalContext: preCompactContext,
+      },
+    }));
+
     // Safety net: capture transcript now (survives forced terminal close)
     try {
       const preCompactTranscript = captureTranscript();
