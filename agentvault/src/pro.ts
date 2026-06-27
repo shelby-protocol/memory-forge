@@ -25,14 +25,33 @@ const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
 const MEMORYFORGE_DIR = path.join(HOME, ".memory-forge");
 const PROFILE_PATH = path.join(MEMORYFORGE_DIR, "pro.json");
 
-export async function pro(): Promise<void> {
-  const apiKey = process.env.SHELBY_API_KEY;
+/** Prompt user for API key via stdin if not in environment. */
+async function promptApiKey(): Promise<string | null> {
+  const key = process.env.SHELBY_API_KEY;
+  if (key) return key;
 
+  console.log("");
+  console.log("  Get your free API key at:");
+  console.log("  https://docs.shelby.xyz/sdks/typescript/acquire-api-keys");
+  console.log("");
+  console.log("  Paste your key (or press Enter to cancel):");
+
+  const { createInterface } = await import("node:readline");
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  return new Promise((resolve) => {
+    rl.question("  ", (answer) => {
+      rl.close();
+      resolve(answer.trim() || null);
+    });
+  });
+}
+
+export async function pro(): Promise<void> {
   // Check if already initialized
   if (fs.existsSync(PROFILE_PATH)) {
+    const apiKey = await promptApiKey();
     if (!apiKey) {
-      console.log("✅ Pro profile exists but SHELBY_API_KEY not set.");
-      console.log("   Set SHELBY_API_KEY and re-run to sync.");
+      console.log("   No key provided. Sync skipped.");
       return;
     }
     console.log("✅ Pro is active. Syncing memories...");
@@ -46,11 +65,8 @@ export async function pro(): Promise<void> {
   ╚══════════════════════════╝
   `);
 
+  const apiKey = await promptApiKey();
   if (!apiKey) {
-    console.log("Pro requires a Shelby API Key.");
-    console.log("");
-    console.log("  Get your key at: https://docs.shelby.xyz/sdks/typescript/acquire-api-keys");
-    console.log('  Then run: SHELBY_API_KEY="aptoslabs_***" npx memory-forge pro');
     console.log("");
     console.log("💡 Free tier: npx memory-forge setup (local storage only)");
     process.exitCode = 1;

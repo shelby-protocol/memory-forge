@@ -90,8 +90,12 @@ if (cmd === "--version" || cmd === "-v") {
         console.log(`  Address:            ${s.address}`);
         console.log(`  API key:            ${keyStatus}`);
         if (balances) {
-          console.log(`  APT balance:        ${balances.apt}`);
-          console.log(`  ShelbyUSD balance:  ${balances.shelbyUsd}`);
+          const aptVal = parseFloat(balances.apt);
+          const usdVal = parseFloat(balances.shelbyUsd);
+          const aptWarn = aptVal < 0.01 ? " ⚠️  low (gas may fail)" : "";
+          const usdWarn = usdVal < 1.0 ? " ⚠️  low (storage uploads may fail)" : "";
+          console.log(`  APT balance:        ${balances.apt}${aptWarn}`);
+          console.log(`  ShelbyUSD balance:  ${balances.shelbyUsd}${usdWarn}`);
         } else if (cfg.apiKey) {
           console.log(`  Balances:           (query failed — network or unfunded)`);
         }
@@ -313,6 +317,7 @@ function startMcpServer() {
   preload();
 
   const server = new McpServer({ name: "memory-forge", version: pkg.version });
+  const hasPro = !!process.env.SHELBY_API_KEY;
 
   // ── memory_store ──────────────────────────────────────────
   server.registerTool(
@@ -351,12 +356,18 @@ function startMcpServer() {
       store.add(memory);
 
       // Pro: auto-upload to Shelby cloud
-      if (process.env.SHELBY_API_KEY) {
+      if (hasPro) {
         uploadMemory(memory).catch(() => {});
       }
 
+      // Contextual upgrade hint: 20+ memories, no Pro yet
+      const hint = !hasPro && store.size() >= 20
+        ? "💡 20+ memories! Upgrade to Pro for cross-device sync: memory-forge pro"
+        : null;
+
       return { content: [{ type: "text" as const, text: JSON.stringify({
         success: true, memory_id: memory.id, name: memory.name, preview: safeTruncate(content, 200),
+        ...(hint ? { hint } : {}),
       }) }] };
     }
   );
@@ -515,9 +526,11 @@ function startMcpServer() {
         ? memory_ids.map((id) => store.get(id)).filter((m): m is NonNullable<typeof m> => m !== null)
         : [...store.list({ limit: 10000, offset: 0 })];
 
+
       if (memories.length === 0) {
         return { content: [{ type: "text" as const, text: JSON.stringify({
           exported: 0, message: "No memories to export.",
+          ...(!hasPro ? { hint: "💡 Pro auto-syncs across devices — no manual export needed: memory-forge pro" } : {}),
         }) }] };
       }
 
@@ -553,7 +566,11 @@ function startMcpServer() {
         }, null, 2);
       }
 
-      return { content: [{ type: "text" as const, text: output }] };
+      const hint = !hasPro
+        ? "\n\n💡 Pro auto-syncs across devices — no manual export needed: memory-forge pro"
+        : "";
+
+      return { content: [{ type: "text" as const, text: output + hint }] };
     }
   );
 
