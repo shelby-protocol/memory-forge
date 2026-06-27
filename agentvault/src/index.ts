@@ -35,7 +35,9 @@ import { register as registerUpdate } from "./tools/update.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8")) as { version: string };
+const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8")) as {
+  version: string;
+};
 
 function readStdinSync(): string | null {
   try {
@@ -64,7 +66,12 @@ if (cmd === "setup") {
   const sub = process.argv[3];
   if (sub === "status") {
     (async () => {
-      const { getBalances, getStorageUsage, initShelby, getShelbyConfig: getCfg } = await import("./storage/shelby.js");
+      const {
+        getBalances,
+        getStorageUsage,
+        initShelby,
+        getShelbyConfig: getCfg,
+      } = await import("./storage/shelby.js");
       const s = proStatus();
       if (!s.active) {
         console.log(
@@ -90,7 +97,12 @@ if (cmd === "setup") {
             storage = await getStorageUsage();
           }
         }
-        const keyStatus = s.apiKeyValid === false ? "❌ invalid" : s.apiKeyValid ? "✅ valid" : "⚠️  not set (sync paused)";
+        const keyStatus =
+          s.apiKeyValid === false
+            ? "❌ invalid"
+            : s.apiKeyValid
+              ? "✅ valid"
+              : "⚠️  not set (sync paused)";
         console.log(`Pro: ${s.apiKeyValid ? "active ✅" : "paused ⚠️"}\n`);
         console.log("  ── Account ──");
         console.log(`  Address:            ${s.address}`);
@@ -98,8 +110,10 @@ if (cmd === "setup") {
         if (balances) {
           const aptVal = parseFloat(balances.apt),
             usdVal = parseFloat(balances.shelbyUsd);
-          const aptWarn = aptVal < 0.01 ? " ⚠️  low — faucet: https://docs.shelby.xyz/apis/faucet/aptos" : "";
-          const usdWarn = usdVal < 1.0 ? " ⚠️  low — faucet: https://docs.shelby.xyz/apis/faucet/shelbyusd" : "";
+          const aptWarn =
+            aptVal < 0.01 ? " ⚠️  low — faucet: https://docs.shelby.xyz/apis/faucet/aptos" : "";
+          const usdWarn =
+            usdVal < 1.0 ? " ⚠️  low — faucet: https://docs.shelby.xyz/apis/faucet/shelbyusd" : "";
           console.log(`  APT balance:        ${balances.apt}${aptWarn}`);
           console.log(`  ShelbyUSD balance:  ${balances.shelbyUsd}${usdWarn}`);
         } else if (cfg.apiKey) {
@@ -108,7 +122,10 @@ if (cmd === "setup") {
         console.log("");
         console.log("  ── Storage ──");
         console.log(`  Local memories:     ${s.localCount}`);
-        if (storage) console.log(`  Shelby blobs:       ${storage.blobCount} (${(storage.totalBytes / 1024).toFixed(1)} KB)`);
+        if (storage)
+          console.log(
+            `  Shelby blobs:       ${storage.blobCount} (${(storage.totalBytes / 1024).toFixed(1)} KB)`,
+          );
         else if (cfg.apiKey) console.log(`  Shelby usage:       (query failed)`);
         console.log("");
         console.log("  ── Sync stats ──");
@@ -125,7 +142,9 @@ if (cmd === "setup") {
             if (entry.down > 0) parts.push(`↓${entry.down}`);
             if (entry.failed > 0) parts.push(`✗${entry.failed}`);
             if (entry.conflicts && entry.conflicts > 0) parts.push(`⚡${entry.conflicts}`);
-            console.log(`    ${entry.time.slice(0, 19).replace("T", " ")}  ${parts.join(" ") || "—"}`);
+            console.log(
+              `    ${entry.time.slice(0, 19).replace("T", " ")}  ${parts.join(" ") || "—"}`,
+            );
           }
         }
       }
@@ -146,11 +165,18 @@ if (cmd === "setup") {
   let memories = s.list({ limit: 100, offset: 0 });
   if (cat) memories = memories.filter((m) => m.category === cat);
   if (memories.length === 0) {
-    console.log(cat ? `No memories in category "${cat}".` : "No memories yet. Use memory_store to create one.");
+    console.log(
+      cat
+        ? `No memories in category "${cat}".`
+        : "No memories yet. Use memory_store to create one.",
+    );
   } else {
     console.log(`${memories.length} memories${cat ? ` (category: ${cat})` : ""}:`);
     for (const m of memories) {
-      const date = new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const date = new Date(m.created_at).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
       console.log(`  ${m.id.slice(0, 8)}  ${date}  [${m.category}]  ${m.name}`);
     }
   }
@@ -187,7 +213,8 @@ if (cmd === "setup") {
       .map(([k, v]) => `${k}(${v})`)
       .join("  "),
   );
-  if (st.top_tags.length) console.log("Top tags:", st.top_tags.map(([t, n]) => `${t}(${n})`).join("  "));
+  if (st.top_tags.length)
+    console.log("Top tags:", st.top_tags.map(([t, n]) => `${t}(${n})`).join("  "));
   console.log(
     "Decay:",
     `active=${st.decay_distribution.active} fading=${st.decay_distribution.fading} stale=${st.decay_distribution.stale} archived=${st.decay_distribution.archived}`,
@@ -200,7 +227,8 @@ if (cmd === "setup") {
         .join("  "),
     );
   if (st.with_relations > 0) console.log(`Relations: ${st.with_relations} memories linked`);
-  if (st.top_accessed.length) console.log("Top accessed:", st.top_accessed.map((a) => `${a.name}(${a.count})`).join("  "));
+  if (st.top_accessed.length)
+    console.log("Top accessed:", st.top_accessed.map((a) => `${a.name}(${a.count})`).join("  "));
   process.exit(0);
 } else if (cmd === "capture-transcript") {
   cliCaptureTranscript();
@@ -232,7 +260,9 @@ if (cmd === "setup") {
         const profile = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
         if (profile.address) {
           const localCount = loadAllMemories().length;
-          const syncAge = profile.lastSync ? Math.round((Date.now() - new Date(profile.lastSync).getTime()) / 60000) : null;
+          const syncAge = profile.lastSync
+            ? Math.round((Date.now() - new Date(profile.lastSync).getTime()) / 60000)
+            : null;
           const ageStr =
             syncAge === null
               ? ""
@@ -245,7 +275,9 @@ if (cmd === "setup") {
         }
       } catch {}
     }
-    const sessionTitle = projectSlug ? `${projectSlug} (${memoryCount} memories)` : `MemoryForge (${memoryCount} memories)`;
+    const sessionTitle = projectSlug
+      ? `${projectSlug} (${memoryCount} memories)`
+      : `MemoryForge (${memoryCount} memories)`;
     const systemMsgBase =
       memoryCount > 0
         ? `MemoryForge: ${memoryCount} memories loaded from previous sessions`
@@ -271,7 +303,8 @@ if (cmd === "setup") {
         try {
           deleteMemoryFile(m.id);
         } catch {}
-        if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) deleteBlob(getBlobName(m.id)).catch(() => {});
+        if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey)
+          deleteBlob(getBlobName(m.id)).catch(() => {});
         archived++;
       } else {
         let changed = false;
@@ -287,7 +320,9 @@ if (cmd === "setup") {
         }
       }
     }
-    console.error(`[MemoryForge] ${all.length} memories maintained, ${updated} saved, ${archived} archived`);
+    console.error(
+      `[MemoryForge] ${all.length} memories maintained, ${updated} saved, ${archived} archived`,
+    );
     try {
       console.error(`[MemoryForge] ${captureTranscript()}`);
     } catch (err) {
@@ -309,7 +344,8 @@ if (cmd === "setup") {
       JSON.stringify({
         hookSpecificOutput: {
           hookEventName: "PostToolUse",
-          additionalContext: "[MemoryForge] 💡 Consider saving key changes or decisions with memory_store.",
+          additionalContext:
+            "[MemoryForge] 💡 Consider saving key changes or decisions with memory_store.",
         },
       }),
     );
@@ -334,12 +370,19 @@ if (cmd === "setup") {
       "\n\n[MEMORYFORGE CROSS-DEVICE] If planning to continue on another machine, remind the user to:\n" +
       "1. git push (code)\n2. Exit normally so Stop hook saves the transcript\n" +
       "3. On the other machine: git pull + memory-forge pro (memories)";
-    console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreCompact", additionalContext: preCompactContext } }));
+    console.log(
+      JSON.stringify({
+        hookSpecificOutput: { hookEventName: "PreCompact", additionalContext: preCompactContext },
+      }),
+    );
     try {
       const preCompactTranscript = captureTranscript();
-      if (!preCompactTranscript.includes("already captured")) console.error(`[MemoryForge] ${preCompactTranscript}`);
+      if (!preCompactTranscript.includes("already captured"))
+        console.error(`[MemoryForge] ${preCompactTranscript}`);
     } catch (err) {
-      console.error(`[MemoryForge] pre-compact transcript capture failed: ${(err as Error).message}`);
+      console.error(
+        `[MemoryForge] pre-compact transcript capture failed: ${(err as Error).message}`,
+      );
     }
     if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
       try {
@@ -356,14 +399,18 @@ if (cmd === "setup") {
     }
   } else {
     console.error(`Unknown hook type: ${hookType || "(none)"}`);
-    console.error("Hook types: session-start, stop, pre-compact, capture-transcript, post-tool-use");
+    console.error(
+      "Hook types: session-start, stop, pre-compact, capture-transcript, post-tool-use",
+    );
     process.exit(1);
   }
   process.exit(0);
 } else if (cmd && cmd !== "serve" && cmd !== "start") {
   console.error(`Unknown command: ${cmd}`);
   console.error("Usage: memory-forge <command>");
-  console.error("Commands: setup, pro [status], list [category], search <query>, stats, hook <type>, capture-transcript, --version");
+  console.error(
+    "Commands: setup, pro [status], list [category], search <query>, stats, hook <type>, capture-transcript, --version",
+  );
   console.error("Default (no command): start MCP server (for Claude Code / Cursor integration)");
   process.exit(1);
 } else {
@@ -398,7 +445,10 @@ function startMcpServer() {
         await proAutoActivate();
         for (const m of loadAllMemories()) store.add(m);
       } catch (err) {
-        console.error("[MemoryForge] Pro sync failed (server still available):", (err as Error).message);
+        console.error(
+          "[MemoryForge] Pro sync failed (server still available):",
+          (err as Error).message,
+        );
       }
     }
     const transport = new StdioServerTransport();
@@ -407,7 +457,9 @@ function startMcpServer() {
       `[MemoryForge] MCP Server started — ${store.size()} memories loaded` +
         (hasPro ? " (Pro: cross-device sync)" : " (Free: local storage)"),
     );
-    console.error("[MemoryForge] 9 tools: store / search / recall / list / forget / context / export / share / update");
+    console.error(
+      "[MemoryForge] 9 tools: store / search / recall / list / forget / context / export / share / update",
+    );
   }
 
   main().catch((err) => {

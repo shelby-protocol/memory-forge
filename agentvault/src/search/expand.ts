@@ -74,7 +74,11 @@ const SYNONYMS: Record<string, string[]> = {
  * Expand a query string with related synonyms.
  * Returns original query + expanded tokens appended, weighted at 0.3.
  */
-export function expandQuery(query: string): { original: string; expanded: string; tokens: string[] } {
+export function expandQuery(query: string): {
+  original: string;
+  expanded: string;
+  tokens: string[];
+} {
   const originalTokens = query
     .toLowerCase()
     .split(/\s+/)

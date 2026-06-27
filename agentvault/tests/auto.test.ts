@@ -53,8 +53,16 @@ describe("autoMerge", () => {
 
   it("detects overlap with short tech terms", async () => {
     const s = new MemoryStore();
-    s.add({ ...mem, id: "old", content: "API JWT SSL DNS auth tokens web security deploy layer prod" });
-    const merged = await autoMerge(s, { ...mem, id: "new", content: "API JWT SSL DNS auth tokens web security deploy layer staging" });
+    s.add({
+      ...mem,
+      id: "old",
+      content: "API JWT SSL DNS auth tokens web security deploy layer prod",
+    });
+    const merged = await autoMerge(s, {
+      ...mem,
+      id: "new",
+      content: "API JWT SSL DNS auth tokens web security deploy layer staging",
+    });
     expect(merged).not.toBeNull();
   });
 });

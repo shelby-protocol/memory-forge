@@ -86,7 +86,13 @@ describe("stress", () => {
   it("5000 memories — LRU eviction", () => {
     const s = new MemoryStore();
     for (let i = 0; i < 5010; i++) {
-      s.add({ ...mem, id: `stress-${i}`, content: `Memory content ${i}`, access_count: i % 100, priority: 1 + (i % 10) });
+      s.add({
+        ...mem,
+        id: `stress-${i}`,
+        content: `Memory content ${i}`,
+        access_count: i % 100,
+        priority: 1 + (i % 10),
+      });
     }
     expect(s.size()).toBeLessThanOrEqual(5000);
     expect(s.size()).toBe(5000);
@@ -96,7 +102,12 @@ describe("stress", () => {
     const s = new MemoryStore();
     const start = Date.now();
     for (let i = 0; i < 200; i++) {
-      s.add({ ...mem, id: `rapid-${i}`, content: `Rapid content ${i} unique text.`, priority: 5 + (i % 6) });
+      s.add({
+        ...mem,
+        id: `rapid-${i}`,
+        content: `Rapid content ${i} unique text.`,
+        priority: 5 + (i % 6),
+      });
       s.keywordSearch(`content ${i}`, { limit: 5 });
       if (i % 50 === 0) s.remove(`rapid-${i}`);
     }
@@ -113,9 +124,26 @@ describe("stress", () => {
 
   it("10 searches across 1000 memories — perf", () => {
     const s = new MemoryStore();
-    const topics = ["auth", "database", "deploy", "testing", "styling", "perf", "api", "config", "logging", "security"];
+    const topics = [
+      "auth",
+      "database",
+      "deploy",
+      "testing",
+      "styling",
+      "perf",
+      "api",
+      "config",
+      "logging",
+      "security",
+    ];
     for (let i = 0; i < 1000; i++) {
-      s.add({ ...mem, id: `perf-${i}`, content: `${topics[i % 10]} config for item ${i}.`, access_count: i % 50, priority: 3 + (i % 8) });
+      s.add({
+        ...mem,
+        id: `perf-${i}`,
+        content: `${topics[i % 10]} config for item ${i}.`,
+        access_count: i % 50,
+        priority: 3 + (i % 8),
+      });
     }
     const start = Date.now();
     for (let i = 0; i < 10; i++) s.keywordSearch(topics[i], { limit: 10 });

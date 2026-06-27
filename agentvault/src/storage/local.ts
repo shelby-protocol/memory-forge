@@ -9,7 +9,10 @@ import { randomUUID } from "node:crypto";
 import type { Memory } from "../store.js";
 
 const HOMEDIR = os.homedir();
-const BASEDIR = path.join(process.env.MEMORYFORGE_HOME ?? path.join(HOMEDIR, ".memory-forge"), "memories");
+const BASEDIR = path.join(
+  process.env.MEMORYFORGE_HOME ?? path.join(HOMEDIR, ".memory-forge"),
+  "memories",
+);
 
 /** Atomic write: write to temp file, sync, rename (rename is atomic on all major FS). */
 function atomicWriteSync(filepath: string, content: string): void {
@@ -156,7 +159,9 @@ export function deleteMemoryFile(id: string): void {
 
 // --- Tombstone: prevent deleted memories from resurrecting on Pro sync ---
 
-const TOMBSTONE_DIR = path.join(process.env.MEMORYFORGE_HOME ?? path.join(HOMEDIR, ".memory-forge"));
+const TOMBSTONE_DIR = path.join(
+  process.env.MEMORYFORGE_HOME ?? path.join(HOMEDIR, ".memory-forge"),
+);
 const TOMBSTONE_PATH = path.join(TOMBSTONE_DIR, "tombstones.json");
 const TOMBSTONE_TTL_DAYS = 90;
 

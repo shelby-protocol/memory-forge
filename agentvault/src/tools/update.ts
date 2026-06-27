@@ -14,7 +14,8 @@ export function register(server: McpServer, opts: ToolOptions) {
     "memory_update",
     {
       title: "Update memory",
-      description: "Partially update a memory by ID. Only provided fields are changed — unset fields stay untouched.",
+      description:
+        "Partially update a memory by ID. Only provided fields are changed — unset fields stay untouched.",
       inputSchema: {
         memory_id: z.string().describe("Memory ID to update."),
         content: z
@@ -25,18 +26,45 @@ export function register(server: McpServer, opts: ToolOptions) {
           .optional()
           .describe("New content (optional)."),
         category: z.string().optional().describe("New category (optional)."),
-        tags: z.array(z.string()).optional().describe("New tags list (optional, replaces all existing tags)."),
+        tags: z
+          .array(z.string())
+          .optional()
+          .describe("New tags list (optional, replaces all existing tags)."),
         priority: z.number().min(1).max(10).optional().describe("New priority 1-10 (optional)."),
-        name: z.string().min(1).max(120).optional().describe("New name (optional — auto-generated if not provided)."),
+        name: z
+          .string()
+          .min(1)
+          .max(120)
+          .optional()
+          .describe("New name (optional — auto-generated if not provided)."),
         branch: z.string().max(120).optional().describe("Git branch (auto-detected if omitted)."),
         related_to: z.array(z.string()).optional().describe("Related memory IDs."),
-        auto_tag: z.boolean().default(true).describe("Auto-suggest tags and category when updating content."),
+        auto_tag: z
+          .boolean()
+          .default(true)
+          .describe("Auto-suggest tags and category when updating content."),
       },
     },
     async (params) => {
-      const { memory_id, content, category, tags, priority, name: customName, branch: newBranch, related_to, auto_tag } = params;
+      const {
+        memory_id,
+        content,
+        category,
+        tags,
+        priority,
+        name: customName,
+        branch: newBranch,
+        related_to,
+        auto_tag,
+      } = params;
 
-      if (content === undefined && category === undefined && tags === undefined && priority === undefined && customName === undefined) {
+      if (
+        content === undefined &&
+        category === undefined &&
+        tags === undefined &&
+        priority === undefined &&
+        customName === undefined
+      ) {
         return {
           content: [
             {
@@ -103,7 +131,9 @@ export function register(server: McpServer, opts: ToolOptions) {
       store.add(memory);
 
       if (process.env.SHELBY_API_KEY)
-        uploadMemory(memory).catch((err) => console.error("[MemoryForge] Pro upload failed:", (err as Error).message));
+        uploadMemory(memory).catch((err) =>
+          console.error("[MemoryForge] Pro upload failed:", (err as Error).message),
+        );
 
       return {
         content: [
@@ -116,7 +146,9 @@ export function register(server: McpServer, opts: ToolOptions) {
               preview: safeTruncate(memory.content, 200),
               inferred_category: inferredCategory ? inferredCategory : undefined,
               suggested_tags: suggested_tags.length > 0 ? suggested_tags : undefined,
-              updated_fields: Object.keys(params).filter((k) => k !== "memory_id" && params[k as keyof typeof params] !== undefined),
+              updated_fields: Object.keys(params).filter(
+                (k) => k !== "memory_id" && params[k as keyof typeof params] !== undefined,
+              ),
             }),
           },
         ],

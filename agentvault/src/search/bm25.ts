@@ -31,7 +31,8 @@ export class Bm25 {
   /** Add documents to the corpus and recompute IDF. */
   index(docs: Bm25Doc[]): void {
     this.docs = docs;
-    this.avgDocLen = docs.length > 0 ? docs.reduce((s, d) => s + d.tokens.length, 0) / docs.length : 0;
+    this.avgDocLen =
+      docs.length > 0 ? docs.reduce((s, d) => s + d.tokens.length, 0) / docs.length : 0;
 
     // IDF: log((N - df + 0.5) / (df + 0.5) + 1)
     const N = docs.length;

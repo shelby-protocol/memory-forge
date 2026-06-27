@@ -9,10 +9,14 @@ export function register(server: McpServer, opts: ToolOptions) {
     "memory_share",
     {
       title: "Share memory",
-      description: "Package a single memory into a shareable JSON bundle for teammates or other agents to import via memory_store.",
+      description:
+        "Package a single memory into a shareable JSON bundle for teammates or other agents to import via memory_store.",
       inputSchema: {
         memory_id: z.string().describe("Memory ID to share."),
-        recipient: z.string().optional().describe("Recipient name (optional, written to share metadata)."),
+        recipient: z
+          .string()
+          .optional()
+          .describe("Recipient name (optional, written to share metadata)."),
         note: z.string().optional().describe("Optional note attached to the share package."),
       },
     },
@@ -40,7 +44,12 @@ export function register(server: McpServer, opts: ToolOptions) {
         shared_at: new Date().toISOString(),
         recipient: recipient ?? null,
         note: note ?? null,
-        memory: { name: memory.name, content: memory.content, category: memory.category, tags: memory.tags },
+        memory: {
+          name: memory.name,
+          content: memory.content,
+          category: memory.category,
+          tags: memory.tags,
+        },
         import_instruction: "Use memory_store with this content to import.",
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(sharePackage, null, 2) }] };

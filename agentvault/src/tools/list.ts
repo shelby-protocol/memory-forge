@@ -21,9 +21,15 @@ export function register(server: McpServer, opts: ToolOptions) {
     async (params) => {
       const { category, tags, limit, offset } = params;
       const isFiltered = !!(category || (tags && tags.length > 0));
-      const memories = store.list({ category: category ?? null, tags: tags ?? null, limit, offset });
+      const memories = store.list({
+        category: category ?? null,
+        tags: tags ?? null,
+        limit,
+        offset,
+      });
       const matchingTotal = isFiltered
-        ? store.list({ category: category ?? null, tags: tags ?? null, limit: 10000, offset: 0 }).length
+        ? store.list({ category: category ?? null, tags: tags ?? null, limit: 10000, offset: 0 })
+            .length
         : store.size();
       return {
         content: [

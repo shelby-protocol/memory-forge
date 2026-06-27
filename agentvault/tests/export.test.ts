@@ -116,7 +116,8 @@ describe("export & share", () => {
   });
 
   it("share preserves special characters", () => {
-    const content = "API endpoint: https://api.example.com/v1?token=abc&mode=strict\n\n`curl -X POST`";
+    const content =
+      "API endpoint: https://api.example.com/v1?token=abc&mode=strict\n\n`curl -X POST`";
     const share = {
       type: "memory-forge-share",
       version: "1.0",

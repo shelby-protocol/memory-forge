@@ -16,7 +16,10 @@ export function makeMemory(overrides: Partial<Memory> = {}): Memory {
   };
 }
 
-export function makeStore(count: number, opts: { prefix?: string; category?: string; tags?: string[] } = {}): MemoryStore {
+export function makeStore(
+  count: number,
+  opts: { prefix?: string; category?: string; tags?: string[] } = {},
+): MemoryStore {
   const s = new MemoryStore();
   const prefix = opts.prefix ?? "m";
   for (let i = 0; i < count; i++) {

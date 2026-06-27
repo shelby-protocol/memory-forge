@@ -10,7 +10,11 @@ import { saveMemory, loadAllMemories, deleteMemoryFile } from "./storage/local.j
 import type { Memory } from "./store.js";
 import { safeTruncate } from "./store.js";
 
-const PROJECTS_DIR = path.join(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".claude", "projects");
+const PROJECTS_DIR = path.join(
+  process.env.HOME ?? process.env.USERPROFILE ?? "/tmp",
+  ".claude",
+  "projects",
+);
 
 const MAX_MEMORY_CHARS = 100_000;
 const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24h — ignore stale JSONL files
@@ -153,8 +157,13 @@ function readTranscript(filePath: string): Array<{ role: string; text: string }>
 }
 
 /** Format transcript messages into a readable memory */
-function formatTranscript(messages: Array<{ role: string; text: string }>, sessionId: string): string {
-  const lines: string[] = [`Session transcript — ${new Date().toISOString()} | session:${sessionId}\n`];
+function formatTranscript(
+  messages: Array<{ role: string; text: string }>,
+  sessionId: string,
+): string {
+  const lines: string[] = [
+    `Session transcript — ${new Date().toISOString()} | session:${sessionId}\n`,
+  ];
   let charCount = 0;
 
   for (const msg of messages) {

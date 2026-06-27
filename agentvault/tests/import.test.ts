@@ -41,7 +41,9 @@ describe("rulesToMemories", () => {
       {
         source: "/home/.claude/CLAUDE.md",
         key: "test",
-        content: content("Use Biome instead of ESLint for all new TypeScript projects with strict formatting rules"),
+        content: content(
+          "Use Biome instead of ESLint for all new TypeScript projects with strict formatting rules",
+        ),
       },
     ];
     expect(rulesToMemories(rules)[0].category).toBe("claude-rules");
@@ -52,7 +54,9 @@ describe("rulesToMemories", () => {
       {
         source: "/home/.claude/CLAUDE.md",
         key: "test",
-        content: content("Prefer tabs over spaces for Rust and Go indentation in all new repositories and projects"),
+        content: content(
+          "Prefer tabs over spaces for Rust and Go indentation in all new repositories and projects",
+        ),
       },
     ];
     const m = rulesToMemories(rules)[0];
@@ -66,7 +70,9 @@ describe("rulesToMemories", () => {
       {
         source: "/home/.claude/CLAUDE.md",
         key: "test",
-        content: content("All microservices must expose health check endpoints on port 9090 with proper readiness probes"),
+        content: content(
+          "All microservices must expose health check endpoints on port 9090 with proper readiness probes",
+        ),
       },
     ];
     expect(rulesToMemories(rules)[0].priority).toBe(7);
@@ -114,12 +120,16 @@ describe("rulesToMemories", () => {
       {
         source: "/home/.claude/CLAUDE.md",
         key: "a",
-        content: content("React 19 with Tailwind v5 and shadcn/ui v3 component architecture patterns for scalable dashboard UI design"),
+        content: content(
+          "React 19 with Tailwind v5 and shadcn/ui v3 component architecture patterns for scalable dashboard UI design",
+        ),
       },
       {
         source: "/home/.claude/CLAUDE.md",
         key: "b",
-        content: content("FastAPI with PostgreSQL v17 and Redis v8 caching layer orchestration for high-throughput microservice APIs"),
+        content: content(
+          "FastAPI with PostgreSQL v17 and Redis v8 caching layer orchestration for high-throughput microservice APIs",
+        ),
       },
     ];
     expect(rulesToMemories(rules)).toHaveLength(2);
@@ -144,7 +154,9 @@ describe("rulesToMemories", () => {
     saveMemory(mem);
     cleanIds.push("existing-rule-test-001");
 
-    const rules: ImportedRule[] = [{ source: "/home/.claude/CLAUDE.md", key: "test", content: dedupContent }];
+    const rules: ImportedRule[] = [
+      { source: "/home/.claude/CLAUDE.md", key: "test", content: dedupContent },
+    ];
     expect(rulesToMemories(rules)).toHaveLength(0);
   });
 

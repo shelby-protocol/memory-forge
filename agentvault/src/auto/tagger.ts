@@ -22,7 +22,10 @@ export function inferCategory(content: string): string | null {
   const c = content.toLowerCase();
 
   // Strong signals → return immediately
-  if (/^[#*]{1,4}\s|```|import\s|export\s|function\s|const\s|class\s|interface\s/.test(c) && c.split(/\s+/).length >= 10) {
+  if (
+    /^[#*]{1,4}\s|```|import\s|export\s|function\s|const\s|class\s|interface\s/.test(c) &&
+    c.split(/\s+/).length >= 10
+  ) {
     return "code-pattern";
   }
 
@@ -32,12 +35,16 @@ export function inferCategory(content: string): string | null {
   }
 
   // Preference markers
-  if (/\b(prefer|always|never|should (?!fail)|like to|want to|recommend|rule|convention)\b/.test(c)) {
+  if (
+    /\b(prefer|always|never|should (?!fail)|like to|want to|recommend|rule|convention)\b/.test(c)
+  ) {
     return "user-preference";
   }
 
   // Project context markers
-  if (/\b(project|repo|monorepo|workspace|stack|architecture|pipeline|deploy|build|ci|cd)\b/.test(c)) {
+  if (
+    /\b(project|repo|monorepo|workspace|stack|architecture|pipeline|deploy|build|ci|cd)\b/.test(c)
+  ) {
     return "project-context";
   }
 
@@ -80,19 +87,45 @@ const TAG_RULES: TagRule[] = [
   },
   {
     tag: "docker",
-    patterns: [/\bdocker\b/, /\bcontainer\b/, /\bDockerfile\b/, /\bdocker-compose\b/, /\bk8s\b/, /\bkubernetes\b/],
+    patterns: [
+      /\bdocker\b/,
+      /\bcontainer\b/,
+      /\bDockerfile\b/,
+      /\bdocker-compose\b/,
+      /\bk8s\b/,
+      /\bkubernetes\b/,
+    ],
   },
   {
     tag: "git",
-    patterns: [/\bgit\b/, /\bgithub\b/, /\bgitlab\b/, /\bcommit\b.*\bmessage\b/, /\bbranch\b\s+\bstrategy\b/],
+    patterns: [
+      /\bgit\b/,
+      /\bgithub\b/,
+      /\bgitlab\b/,
+      /\bcommit\b.*\bmessage\b/,
+      /\bbranch\b\s+\bstrategy\b/,
+    ],
   },
   {
     tag: "ci-cd",
-    patterns: [/\bci\b/, /\bcd\b/, /\bpipeline\b/, /\bgithub actions\b/, /\bjenkins\b/, /\bgitlab ci\b/],
+    patterns: [
+      /\bci\b/,
+      /\bcd\b/,
+      /\bpipeline\b/,
+      /\bgithub actions\b/,
+      /\bjenkins\b/,
+      /\bgitlab ci\b/,
+    ],
   },
   {
     tag: "testing",
-    patterns: [/\btest(s|ing)?\b/, /\bcoverage\b/, /\bunit test\b/, /\be2e\b/, /\bintegration test\b/],
+    patterns: [
+      /\btest(s|ing)?\b/,
+      /\bcoverage\b/,
+      /\bunit test\b/,
+      /\be2e\b/,
+      /\bintegration test\b/,
+    ],
   },
   {
     tag: "api",
@@ -104,11 +137,26 @@ const TAG_RULES: TagRule[] = [
   },
   {
     tag: "security",
-    patterns: [/\bsecurity\b/, /\bvulnerability\b/, /\bxss\b/, /\bcsrf\b/, /\bsql injection\b/, /\bencrypt\b/],
+    patterns: [
+      /\bsecurity\b/,
+      /\bvulnerability\b/,
+      /\bxss\b/,
+      /\bcsrf\b/,
+      /\bsql injection\b/,
+      /\bencrypt\b/,
+    ],
   },
   {
     tag: "deployment",
-    patterns: [/\bdeploy\b/, /\brelease\b/, /\bship\b/, /\bstaging\b/, /\bproduction\b/, /\bvercel\b/, /\bnetlify\b/],
+    patterns: [
+      /\bdeploy\b/,
+      /\brelease\b/,
+      /\bship\b/,
+      /\bstaging\b/,
+      /\bproduction\b/,
+      /\bvercel\b/,
+      /\bnetlify\b/,
+    ],
   },
   {
     tag: "css",
@@ -124,17 +172,36 @@ const TAG_RULES: TagRule[] = [
   },
   {
     tag: "database",
-    patterns: [/\bdatabase\b/, /\bdb\b/, /\bmysql\b/, /\bmongodb\b/, /\bsqlite\b/, /\borm\b/, /\bprisma\b/],
+    patterns: [
+      /\bdatabase\b/,
+      /\bdb\b/,
+      /\bmysql\b/,
+      /\bmongodb\b/,
+      /\bsqlite\b/,
+      /\borm\b/,
+      /\bprisma\b/,
+    ],
   },
   {
     tag: "llm",
-    patterns: [/\bllm\b/, /\bopenai\b/, /\banthropic\b/, /\bgpt\b/, /\bclaude\b/, /\bprompt\b/, /\bembedding\b/],
+    patterns: [
+      /\bllm\b/,
+      /\bopenai\b/,
+      /\banthropic\b/,
+      /\bgpt\b/,
+      /\bclaude\b/,
+      /\bprompt\b/,
+      /\bembedding\b/,
+    ],
   },
 ];
 
 /** Detect code blocks in content. */
 function hasCodeBlocks(content: string): boolean {
-  return /```[\s\S]*?```/.test(content) || content.split("\n").filter((l) => /^(\s{2,}|\t)/.test(l)).length >= 5;
+  return (
+    /```[\s\S]*?```/.test(content) ||
+    content.split("\n").filter((l) => /^(\s{2,}|\t)/.test(l)).length >= 5
+  );
 }
 
 /** Detect URLs in content. */

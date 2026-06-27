@@ -12,14 +12,22 @@ export function register(server: McpServer, opts: ToolOptions) {
       description:
         "Export memories to portable JSON or Markdown. Free users can move between machines; Pro users can backup. Exports all if no memory_ids specified.",
       inputSchema: {
-        memory_ids: z.array(z.string()).optional().describe("Memory IDs to export. Exports all if not specified."),
-        format: z.enum(["json", "markdown"]).default("json").describe("Export format: json (structured) or markdown (human-readable)."),
+        memory_ids: z
+          .array(z.string())
+          .optional()
+          .describe("Memory IDs to export. Exports all if not specified."),
+        format: z
+          .enum(["json", "markdown"])
+          .default("json")
+          .describe("Export format: json (structured) or markdown (human-readable)."),
       },
     },
     async (params) => {
       const { memory_ids, format } = params;
       const memories = memory_ids
-        ? memory_ids.map((id) => store.get(id)).filter((m): m is NonNullable<typeof m> => m !== null)
+        ? memory_ids
+            .map((id) => store.get(id))
+            .filter((m): m is NonNullable<typeof m> => m !== null)
         : [...store.list({ limit: 10000, offset: 0 })];
 
       if (memories.length === 0) {
@@ -30,7 +38,11 @@ export function register(server: McpServer, opts: ToolOptions) {
               text: JSON.stringify({
                 exported: 0,
                 message: "No memories to export.",
-                ...(!hasPro ? { hint: "💡 Pro auto-syncs across devices — no manual export needed: memory-forge pro" } : {}),
+                ...(!hasPro
+                  ? {
+                      hint: "💡 Pro auto-syncs across devices — no manual export needed: memory-forge pro",
+                    }
+                  : {}),
               }),
             },
           ],
@@ -74,7 +86,9 @@ export function register(server: McpServer, opts: ToolOptions) {
         );
       }
 
-      const hint = !hasPro ? "\n\n💡 Pro auto-syncs across devices — no manual export needed: memory-forge pro" : "";
+      const hint = !hasPro
+        ? "\n\n💡 Pro auto-syncs across devices — no manual export needed: memory-forge pro"
+        : "";
       return { content: [{ type: "text" as const, text: output + hint }] };
     },
   );

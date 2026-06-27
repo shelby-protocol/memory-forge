@@ -9,7 +9,9 @@ describe("contentOverlap (char 3-gram Jaccard)", () => {
   });
 
   it("identical strings = 1.0", () => {
-    expect(contentOverlap("React 19 TypeScript hooks pattern", "React 19 TypeScript hooks pattern")).toBe(1.0);
+    expect(
+      contentOverlap("React 19 TypeScript hooks pattern", "React 19 TypeScript hooks pattern"),
+    ).toBe(1.0);
   });
 
   it("completely different = near 0", () => {
@@ -17,7 +19,9 @@ describe("contentOverlap (char 3-gram Jaccard)", () => {
   });
 
   it("typo tolerance for near-duplicate", () => {
-    expect(contentOverlap("database migration failed", "database migration faild")).toBeGreaterThan(0.7);
+    expect(contentOverlap("database migration failed", "database migration faild")).toBeGreaterThan(
+      0.7,
+    );
   });
 });
 

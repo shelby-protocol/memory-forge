@@ -43,7 +43,9 @@ async function getEmbedder(): Promise<EmbedFn> {
       return embedFn;
     } catch (err) {
       console.error("[MemoryForge] Failed to load embedding model:", (err as Error).message);
-      console.error(`[MemoryForge] Falling back to keyword matching (retry in ${RETRY_MS / 1000}s).`);
+      console.error(
+        `[MemoryForge] Falling back to keyword matching (retry in ${RETRY_MS / 1000}s).`,
+      );
       lastAttempt = Date.now();
       embedFn = async () => null;
       return embedFn;

@@ -7,7 +7,13 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadAllMemories, saveMemory, deleteMemoryFile, getTombstonedIds, cleanupTombstones } from "./storage/local.js";
+import {
+  loadAllMemories,
+  saveMemory,
+  deleteMemoryFile,
+  getTombstonedIds,
+  cleanupTombstones,
+} from "./storage/local.js";
 import {
   initShelby,
   uploadMemory,
@@ -110,7 +116,9 @@ export async function pro(): Promise<void> {
   console.log("🔄 Initializing Shelby storage...");
   const initResult = await initShelby(apiKey, privateKey);
   if (!initResult) {
-    console.log("\n❌ Shelby SDK not available. Install with:\n   npm install @shelby-protocol/sdk @aptos-labs/ts-sdk");
+    console.log(
+      "\n❌ Shelby SDK not available. Install with:\n   npm install @shelby-protocol/sdk @aptos-labs/ts-sdk",
+    );
     process.exitCode = 1;
     return;
   }
@@ -189,7 +197,9 @@ export async function syncAll(): Promise<void> {
   try {
     profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
   } catch {
-    console.error("[MemoryForge] Pro sync skipped: corrupted profile (run `memory-forge pro` to repair)");
+    console.error(
+      "[MemoryForge] Pro sync skipped: corrupted profile (run `memory-forge pro` to repair)",
+    );
     return;
   }
   const privateKey = process.env.APTOS_PRIVATE_KEY || profile.privateKey;
@@ -262,7 +272,9 @@ export async function syncAll(): Promise<void> {
 
       if (fieldConflicts.length > 0) {
         mergeConflicts++;
-        console.error(`[MemoryForge] Merge conflict on "${merged.name}": ${fieldConflicts.join(", ")} — remote won`);
+        console.error(
+          `[MemoryForge] Merge conflict on "${merged.name}": ${fieldConflicts.join(", ")} — remote won`,
+        );
       }
 
       store.add(merged);
@@ -342,10 +354,18 @@ interface SyncEntry {
 
 function updateSyncStamp(up: number, down: number, failed: number, conflicts?: number): void {
   try {
-    const profile = fs.existsSync(PROFILE_PATH) ? JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8")) : { version: 1 };
+    const profile = fs.existsSync(PROFILE_PATH)
+      ? JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"))
+      : { version: 1 };
     profile.lastSync = new Date().toISOString();
     profile.syncHistory = profile.syncHistory || [];
-    profile.syncHistory.push({ time: profile.lastSync, up, down, failed, conflicts: conflicts ?? 0 });
+    profile.syncHistory.push({
+      time: profile.lastSync,
+      up,
+      down,
+      failed,
+      conflicts: conflicts ?? 0,
+    });
     if (profile.syncHistory.length > 10) profile.syncHistory = profile.syncHistory.slice(-10);
     profile.totalUploaded = (profile.totalUploaded || 0) + up;
     profile.totalDownloaded = (profile.totalDownloaded || 0) + down;
@@ -408,7 +428,9 @@ export async function proAutoActivate(): Promise<void> {
 
   console.error(`[MemoryForge] Pro activated — Shelby account ${address.slice(0, 10)}…`);
   if (generatedKey) {
-    console.error(`[MemoryForge] ⚠️  Fund this account with APT + ShelbyUSD for storage transactions:`);
+    console.error(
+      `[MemoryForge] ⚠️  Fund this account with APT + ShelbyUSD for storage transactions:`,
+    );
     console.error(`[MemoryForge]    APT:       https://docs.shelby.xyz/apis/faucet/aptos`);
     console.error(`[MemoryForge]    ShelbyUSD: https://docs.shelby.xyz/apis/faucet/shelbyusd`);
   }

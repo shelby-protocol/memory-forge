@@ -32,21 +32,23 @@ const testMem: Memory = {
 
 describe("getMemoryId", () => {
   it("new format: users/ns/memories/uuid-ts.json", () => {
-    expect(getMemoryId("users/0xabc/memories/550e8400-e29b-41d4-a716-446655440000-1719000000000.json")).toBe(
-      "550e8400-e29b-41d4-a716-446655440000",
-    );
+    expect(
+      getMemoryId("users/0xabc/memories/550e8400-e29b-41d4-a716-446655440000-1719000000000.json"),
+    ).toBe("550e8400-e29b-41d4-a716-446655440000");
   });
 
   it("new format with .deleted suffix", () => {
-    expect(getMemoryId("users/0xabc/memories/550e8400-e29b-41d4-a716-446655440000-1719000000000.json.deleted")).toBe(
-      "550e8400-e29b-41d4-a716-446655440000",
-    );
+    expect(
+      getMemoryId(
+        "users/0xabc/memories/550e8400-e29b-41d4-a716-446655440000-1719000000000.json.deleted",
+      ),
+    ).toBe("550e8400-e29b-41d4-a716-446655440000");
   });
 
   it("new format with @address prefix", () => {
-    expect(getMemoryId("@0xabc/users/ns/memories/660e8400-e29b-41d4-a716-446655440001-100.json")).toBe(
-      "660e8400-e29b-41d4-a716-446655440001",
-    );
+    expect(
+      getMemoryId("@0xabc/users/ns/memories/660e8400-e29b-41d4-a716-446655440001-100.json"),
+    ).toBe("660e8400-e29b-41d4-a716-446655440001");
   });
 
   it("old format: memories/id.json", () => {
@@ -66,11 +68,15 @@ describe("getMemoryId", () => {
   });
 
   it("rejects uppercase UUID", () => {
-    expect(getMemoryId("users/0xabc/memories/ABCD1234-ABCD-4ABC-8abc-ABCDEF123456-1.json")).toBeNull();
+    expect(
+      getMemoryId("users/0xabc/memories/ABCD1234-ABCD-4ABC-8abc-ABCDEF123456-1.json"),
+    ).toBeNull();
   });
 
   it("valid lowercase UUID extracted", () => {
-    expect(getMemoryId("users/0xabc/memories/a1b2c3d4-e5f6-7890-abcd-ef1234567890-1.json")).toBe("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+    expect(getMemoryId("users/0xabc/memories/a1b2c3d4-e5f6-7890-abcd-ef1234567890-1.json")).toBe(
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    );
   });
 });
 
@@ -91,7 +97,12 @@ describe("getCloudTombstones", () => {
   });
 
   it("no tombstones returns empty", () => {
-    expect(getCloudTombstones(["users/0xabc/memories/uuid-1-100.json", "users/0xabc/memories/uuid-2-200.json"]).size).toBe(0);
+    expect(
+      getCloudTombstones([
+        "users/0xabc/memories/uuid-1-100.json",
+        "users/0xabc/memories/uuid-2-200.json",
+      ]).size,
+    ).toBe(0);
   });
 
   it("deduplicates same tombstone with different timestamps", () => {

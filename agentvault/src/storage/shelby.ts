@@ -32,21 +32,28 @@ async function loadShelbySdk(): Promise<boolean> {
   if (sdkLoadAttempted) return !sdkLoadFailed;
   sdkLoadAttempted = true;
   try {
-    const [shelbyModule, aptosModule] = await Promise.all([import("@shelby-protocol/sdk/node"), import("@aptos-labs/ts-sdk")]);
+    const [shelbyModule, aptosModule] = await Promise.all([
+      import("@shelby-protocol/sdk/node"),
+      import("@aptos-labs/ts-sdk"),
+    ]);
     ShelbyNCtor = shelbyModule.ShelbyNodeClient;
     AccountClass = aptosModule.Account;
     Ed25519Class = aptosModule.Ed25519PrivateKey;
     NetworkEnum = aptosModule.Network;
     if (!ShelbyNCtor || !AccountClass || !Ed25519Class || !NetworkEnum) {
       sdkLoadFailed = true;
-      console.error("[MemoryForge] Shelby SDK loaded but missing expected exports. Pro features disabled.");
+      console.error(
+        "[MemoryForge] Shelby SDK loaded but missing expected exports. Pro features disabled.",
+      );
       return false;
     }
     return true;
   } catch {
     sdkLoadFailed = true;
     console.error("[MemoryForge] Shelby SDK not available. Pro features disabled.");
-    console.error("[MemoryForge] Install with: npm install @shelby-protocol/sdk @aptos-labs/ts-sdk");
+    console.error(
+      "[MemoryForge] Install with: npm install @shelby-protocol/sdk @aptos-labs/ts-sdk",
+    );
     return false;
   }
 }
@@ -84,7 +91,10 @@ export function getShelbyConfig(): ShelbyConfig {
   return { apiKey, namespace, accountAddress };
 }
 
-export async function initShelby(apiKey: string, privateKey?: string): Promise<{ address: string; generatedKey?: string } | null> {
+export async function initShelby(
+  apiKey: string,
+  privateKey?: string,
+): Promise<{ address: string; generatedKey?: string } | null> {
   const ok = await loadShelbySdk();
   if (!ok) return null;
 
@@ -213,7 +223,9 @@ export async function uploadMemory(memory: Memory): Promise<string | null> {
     }
     if (!uploadWarned) {
       uploadWarned = true;
-      console.error("[MemoryForge] Pro sync: upload failed (network/storage issue). Will retry next sync.");
+      console.error(
+        "[MemoryForge] Pro sync: upload failed (network/storage issue). Will retry next sync.",
+      );
     }
     return null;
   }
@@ -279,7 +291,10 @@ export async function listBlobs(): Promise<string[]> {
       .filter((n) => n.includes("/memories/"))
       .map((n) => n.replace(/^@[^/]+\//, "")); // strip @address/ prefix for download
   } catch (err) {
-    console.error("[MemoryForge] Pro sync: failed to list cloud blobs — will retry next sync:", (err as Error).message);
+    console.error(
+      "[MemoryForge] Pro sync: failed to list cloud blobs — will retry next sync:",
+      (err as Error).message,
+    );
     return [];
   }
 }
@@ -312,7 +327,9 @@ export function getMemoryId(blobName: string): string | null {
   // Strip .deleted suffix first for consistent parsing
   const name = blobName.replace(/\.deleted$/, "");
   // New format: users/{ns}/memories/{uuid}-{ts}.json
-  const uuidMatch = name.match(/memories\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/);
+  const uuidMatch = name.match(
+    /memories\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/,
+  );
   if (uuidMatch) return uuidMatch[1];
   // Old format: memories/{id}.json (legacy, pre-namespace)
   const oldMatch = name.match(/^memories\/(.+)\.json$/);

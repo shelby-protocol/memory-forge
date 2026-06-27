@@ -28,7 +28,9 @@ describe("normalizeContent", () => {
 
 describe("inferCategory", () => {
   it("detects code pattern from code blocks", () => {
-    expect(inferCategory("```ts\nconst x: string = 'hello'\nexport default x\n```")).toBe("code-pattern");
+    expect(inferCategory("```ts\nconst x: string = 'hello'\nexport default x\n```")).toBe(
+      "code-pattern",
+    );
   });
 
   it("detects decision-log from chose/decided", () => {
@@ -37,12 +39,16 @@ describe("inferCategory", () => {
   });
 
   it("detects user-preference from prefer/always/convention", () => {
-    expect(inferCategory("Always use 2-space indentation in TypeScript projects")).toBe("user-preference");
+    expect(inferCategory("Always use 2-space indentation in TypeScript projects")).toBe(
+      "user-preference",
+    );
     expect(inferCategory("Prefer single quotes over double quotes")).toBe("user-preference");
   });
 
   it("detects project-context from architecture/deploy/build", () => {
-    expect(inferCategory("The project uses a monorepo with pnpm workspaces and Turborepo")).toBe("project-context");
+    expect(inferCategory("The project uses a monorepo with pnpm workspaces and Turborepo")).toBe(
+      "project-context",
+    );
   });
 
   it("returns null for ambiguous content", () => {
@@ -52,7 +58,9 @@ describe("inferCategory", () => {
 
 describe("suggestTags", () => {
   it("detects react + typescript", () => {
-    const tags = suggestTags("Using React 19 with TypeScript strict mode, useState and useEffect hooks");
+    const tags = suggestTags(
+      "Using React 19 with TypeScript strict mode, useState and useEffect hooks",
+    );
     expect(tags).toContain("react");
     expect(tags).toContain("typescript");
   });
@@ -64,7 +72,9 @@ describe("suggestTags", () => {
   });
 
   it("detects auth + api + security", () => {
-    const tags = suggestTags("JWT authentication with OAuth2 for REST API endpoints, CSRF protection enabled");
+    const tags = suggestTags(
+      "JWT authentication with OAuth2 for REST API endpoints, CSRF protection enabled",
+    );
     expect(tags).toContain("auth");
     expect(tags).toContain("api");
     expect(tags).toContain("security");
@@ -77,7 +87,9 @@ describe("suggestTags", () => {
   });
 
   it("detects llm from openai/anthropic mention", () => {
-    const tags = suggestTags("Using Anthropic Claude API for prompt engineering and embedding generation");
+    const tags = suggestTags(
+      "Using Anthropic Claude API for prompt engineering and embedding generation",
+    );
     expect(tags).toContain("llm");
   });
 
@@ -107,7 +119,9 @@ describe("suggestTags", () => {
 
 describe("analyzeMemory", () => {
   it("returns full analysis", () => {
-    const result = analyzeMemory("Prefer React 19 with TypeScript strict mode for all new projects");
+    const result = analyzeMemory(
+      "Prefer React 19 with TypeScript strict mode for all new projects",
+    );
     expect(result.suggested_category).toBe("user-preference");
     expect(result.suggested_tags).toContain("react");
     expect(result.suggested_tags).toContain("typescript");

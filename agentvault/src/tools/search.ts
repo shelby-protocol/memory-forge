@@ -24,7 +24,12 @@ export function register(server: McpServer, opts: ToolOptions) {
           .enum(["hybrid", "vector", "bm25"])
           .default("hybrid")
           .describe("Search method: hybrid (default), vector-only, or BM25-only."),
-        alpha: z.number().min(0).max(1).default(0.7).describe("Hybrid weight: 1 = pure vector, 0 = pure BM25. Default 0.7."),
+        alpha: z
+          .number()
+          .min(0)
+          .max(1)
+          .default(0.7)
+          .describe("Hybrid weight: 1 = pure vector, 0 = pure BM25. Default 0.7."),
       },
     },
     async (params) => {
@@ -79,7 +84,9 @@ export function register(server: McpServer, opts: ToolOptions) {
                 similarity: typeof r.similarity === "number" ? Number(r.similarity.toFixed(3)) : 0,
                 _score: r._score ?? null,
                 content: r.content,
-                _method: r._fallback || (effectiveAlpha === 0 ? "bm25" : effectiveAlpha === 1 ? "vector" : "hybrid"),
+                _method:
+                  r._fallback ||
+                  (effectiveAlpha === 0 ? "bm25" : effectiveAlpha === 1 ? "vector" : "hybrid"),
               })),
               hint: results.length === 0 ? "No relevant memories found." : null,
             }),

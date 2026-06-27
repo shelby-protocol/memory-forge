@@ -253,8 +253,10 @@ describe("Scenario 7: Multi-tag filtering", () => {
   });
 
   it("single tag", () => expect(s.list({ tags: ["react"], limit: 10, offset: 0 })).toHaveLength(2));
-  it("OR multi-tag", () => expect(s.list({ tags: ["python", "django"], limit: 10, offset: 0 })).toHaveLength(1));
-  it("no-match tag", () => expect(s.list({ tags: ["rust"], limit: 10, offset: 0 })).toHaveLength(0));
+  it("OR multi-tag", () =>
+    expect(s.list({ tags: ["python", "django"], limit: 10, offset: 0 })).toHaveLength(1));
+  it("no-match tag", () =>
+    expect(s.list({ tags: ["rust"], limit: 10, offset: 0 })).toHaveLength(0));
 });
 
 describe("Scenario 8: Large batch performance", () => {
@@ -266,7 +268,14 @@ describe("Scenario 8: Large batch performance", () => {
         id: `perf-${i}`,
         name: `Memory ${i}`,
         content: `Content for memory ${i}`,
-        category: i % 4 === 0 ? "decision-log" : i % 4 === 1 ? "user-preference" : i % 4 === 2 ? "code-pattern" : "general",
+        category:
+          i % 4 === 0
+            ? "decision-log"
+            : i % 4 === 1
+              ? "user-preference"
+              : i % 4 === 2
+                ? "code-pattern"
+                : "general",
         tags: [`tag-${i % 10}`],
         priority: 1 + (i % 10),
         vector: [],

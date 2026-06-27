@@ -41,34 +41,46 @@ describe("installHooks", () => {
   it("SessionStart hook configured", () => {
     const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
     const hooks = config.hooks?.SessionStart || [];
-    const hasMf = hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")));
+    const hasMf = hooks.some((h: any) =>
+      h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")),
+    );
     expect(hasMf).toBe(true);
   });
 
   it("Stop hook configured", () => {
     const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
     const hooks = config.hooks?.Stop || [];
-    const hasMf = hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge hook stop")));
+    const hasMf = hooks.some((h: any) =>
+      h.hooks?.some((inner: any) => inner.command?.includes("memory-forge hook stop")),
+    );
     expect(hasMf).toBe(true);
   });
 
   it("PreCompact hook configured", () => {
     const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
     const hooks = config.hooks?.PreCompact || [];
-    expect(hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge hook pre-compact")))).toBe(true);
+    expect(
+      hooks.some((h: any) =>
+        h.hooks?.some((inner: any) => inner.command?.includes("memory-forge hook pre-compact")),
+      ),
+    ).toBe(true);
   });
 
   it("double install does not duplicate hooks", () => {
     installHooks();
     const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
     const sessionHooks = config.hooks?.SessionStart || [];
-    const mfCount = sessionHooks.filter((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge"))).length;
+    const mfCount = sessionHooks.filter((h: any) =>
+      h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")),
+    ).length;
     expect(mfCount).toBeLessThanOrEqual(1);
   });
 
   it("hook type is 'command'", () => {
     const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-    const mfHook = config.hooks?.SessionStart?.find((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")));
+    const mfHook = config.hooks?.SessionStart?.find((h: any) =>
+      h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")),
+    );
     expect(mfHook?.hooks?.[0]?.type).toBe("command");
   });
 });

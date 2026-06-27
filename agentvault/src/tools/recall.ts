@@ -16,7 +16,12 @@ export function register(server: McpServer, opts: ToolOptions) {
     async (params) => {
       const { memory_id } = params;
       const memory = store.get(memory_id);
-      if (!memory) return { content: [{ type: "text" as const, text: JSON.stringify({ error: "Not found", memory_id }) }] };
+      if (!memory)
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify({ error: "Not found", memory_id }) },
+          ],
+        };
       store.touch(memory_id);
       saveMemory(memory);
       return {

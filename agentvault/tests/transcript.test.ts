@@ -27,10 +27,24 @@ beforeAll(() => {
   fs.mkdirSync(testProjectDir, { recursive: true });
 
   const lines = [
-    JSON.stringify({ message: { role: "user", content: [{ type: "text", text: "What is the capital of France?" }] } }),
-    JSON.stringify({ message: { role: "assistant", content: [{ type: "text", text: "The capital of France is Paris." }] } }),
-    JSON.stringify({ message: { role: "user", content: [{ type: "text", text: "Write a TypeScript function." }] } }),
-    JSON.stringify({ message: { role: "assistant", content: [{ type: "text", text: "Here is the function." }] } }),
+    JSON.stringify({
+      message: {
+        role: "user",
+        content: [{ type: "text", text: "What is the capital of France?" }],
+      },
+    }),
+    JSON.stringify({
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "The capital of France is Paris." }],
+      },
+    }),
+    JSON.stringify({
+      message: { role: "user", content: [{ type: "text", text: "Write a TypeScript function." }] },
+    }),
+    JSON.stringify({
+      message: { role: "assistant", content: [{ type: "text", text: "Here is the function." }] },
+    }),
   ];
   fs.writeFileSync(jsonlPath, lines.join("\n") + "\n");
   fs.utimesSync(jsonlPath, Date.now() / 1000, Date.now() / 1000);

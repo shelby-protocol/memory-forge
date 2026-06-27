@@ -15,7 +15,8 @@ export function register(server: McpServer, opts: ToolOptions) {
     "memory_store",
     {
       title: "Store memory",
-      description: "Store a context, knowledge, or preference into persistent memory. Auto-embeds for semantic retrieval.",
+      description:
+        "Store a context, knowledge, or preference into persistent memory. Auto-embeds for semantic retrieval.",
       inputSchema: {
         content: z
           .string()
@@ -23,16 +24,30 @@ export function register(server: McpServer, opts: ToolOptions) {
           .max(100000)
           .refine((s) => s.trim().length > 0, "Content must not be whitespace-only")
           .describe("Memory content (max 100KB)."),
-        category: z.string().default("general").describe("Category: user-preference, project-context, decision-log, code-pattern."),
+        category: z
+          .string()
+          .default("general")
+          .describe("Category: user-preference, project-context, decision-log, code-pattern."),
         tags: z.array(z.string().min(1)).default([]).describe("Tags list."),
         priority: z.number().min(1).max(10).default(5).describe("Priority 1-10."),
-        name: z.string().min(1).max(120).optional().describe("Custom name (optional — auto-generated from content if not provided)."),
-        branch: z.string().max(120).optional().describe("Git branch for context scoping (auto-detected if omitted)."),
+        name: z
+          .string()
+          .min(1)
+          .max(120)
+          .optional()
+          .describe("Custom name (optional — auto-generated from content if not provided)."),
+        branch: z
+          .string()
+          .max(120)
+          .optional()
+          .describe("Git branch for context scoping (auto-detected if omitted)."),
         related_to: z.array(z.string()).optional().describe("IDs of related memories."),
         auto_tag: z
           .boolean()
           .default(true)
-          .describe("Auto-suggest tags and category from content. Set false to use only explicit tags/category."),
+          .describe(
+            "Auto-suggest tags and category from content. Set false to use only explicit tags/category.",
+          ),
       },
     },
     async (params) => {
@@ -74,7 +89,9 @@ export function register(server: McpServer, opts: ToolOptions) {
       const merged = await autoMerge(store, memory);
       if (merged) {
         saveMemory(merged);
-        console.error(`[MemoryForge] Merged duplicate: "${memory.name}" → "${merged.name}" (${(0.8 * 100).toFixed(0)}%+ overlap)`);
+        console.error(
+          `[MemoryForge] Merged duplicate: "${memory.name}" → "${merged.name}" (${(0.8 * 100).toFixed(0)}%+ overlap)`,
+        );
         return {
           content: [
             {
@@ -94,9 +111,15 @@ export function register(server: McpServer, opts: ToolOptions) {
       saveMemory(memory);
       store.add(memory);
 
-      if (hasPro) uploadMemory(memory).catch((err) => console.error("[MemoryForge] Pro upload failed:", (err as Error).message));
+      if (hasPro)
+        uploadMemory(memory).catch((err) =>
+          console.error("[MemoryForge] Pro upload failed:", (err as Error).message),
+        );
 
-      const hint = !hasPro && store.size() >= 20 ? "💡 20+ memories! Upgrade to Pro for cross-device sync: memory-forge pro" : null;
+      const hint =
+        !hasPro && store.size() >= 20
+          ? "💡 20+ memories! Upgrade to Pro for cross-device sync: memory-forge pro"
+          : null;
 
       return {
         content: [

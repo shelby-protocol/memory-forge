@@ -49,7 +49,11 @@ export class MemoryStore {
       for (const m of this.memories.values()) {
         const ac = m.access_count || 0;
         const pr = m.priority || 5;
-        if (!worst || ac < worst.access_count || (ac === worst.access_count && pr < worst.priority)) {
+        if (
+          !worst ||
+          ac < worst.access_count ||
+          (ac === worst.access_count && pr < worst.priority)
+        ) {
           worst = { id: m.id, access_count: ac, priority: pr };
         }
       }
@@ -81,7 +85,12 @@ export class MemoryStore {
     return this.memories.size;
   }
 
-  list(opts: { category?: string | null; tags?: string[] | null; limit: number; offset: number }): Memory[] {
+  list(opts: {
+    category?: string | null;
+    tags?: string[] | null;
+    limit: number;
+    offset: number;
+  }): Memory[] {
     let results = [...this.memories.values()];
 
     if (opts.category) {
@@ -93,8 +102,12 @@ export class MemoryStore {
 
     return results
       .sort((a, b) => {
-        const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
-        const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
+        const aTime = a.last_accessed
+          ? new Date(a.last_accessed).getTime()
+          : new Date(a.created_at).getTime();
+        const bTime = b.last_accessed
+          ? new Date(b.last_accessed).getTime()
+          : new Date(b.created_at).getTime();
         return bTime - aTime;
       })
       .slice(opts.offset, opts.offset + opts.limit);
@@ -185,7 +198,10 @@ export class MemoryStore {
   /** 降级: 无向量时的混合关键词匹配。
    *  ≤3 char tokens: word-boundary only (acronyms like DB, CI, AI).
    *  >3 char tokens: word-boundary primary + substring fallback (postgres → PostgreSQL). */
-  keywordSearch(query: string, options: { limit: number; category?: string | null; tags?: string[] | null }): Memory[] {
+  keywordSearch(
+    query: string,
+    options: { limit: number; category?: string | null; tags?: string[] | null },
+  ): Memory[] {
     const rawTokens = query
       .toLowerCase()
       .split(/\s+/)
@@ -264,26 +280,34 @@ export class MemoryStore {
       if (m.branch) branches[m.branch] = (branches[m.branch] || 0) + 1;
       if (m.related_to?.length) withRelations++;
     }
-    const sorted = all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const sorted = all.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
     const sortedByAccess = [...all].sort((a, b) => b.access_count - a.access_count);
     const decayDist = { active: 0, fading: 0, stale: 0, archived: 0 };
     const now = Date.now();
     for (const m of all) {
-      const last = m.last_accessed ? new Date(m.last_accessed).getTime() : new Date(m.created_at).getTime();
+      const last = m.last_accessed
+        ? new Date(m.last_accessed).getTime()
+        : new Date(m.created_at).getTime();
       const days = (now - last) / 86400000;
       if (days <= 7) decayDist.active++;
       else if (days <= 30) decayDist.fading++;
       else if (days <= 90) decayDist.stale++;
       else decayDist.archived++;
     }
-    const weeklyNew = all.filter((m) => new Date(m.created_at).getTime() > now - 7 * 86400000).length;
+    const weeklyNew = all.filter(
+      (m) => new Date(m.created_at).getTime() > now - 7 * 86400000,
+    ).length;
     return {
       total: all.length,
       categories,
       top_tags: Object.entries(tagCounts)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10),
-      top_accessed: sortedByAccess.slice(0, 10).map((m) => ({ id: m.id.slice(0, 8), name: m.name, count: m.access_count })),
+      top_accessed: sortedByAccess
+        .slice(0, 10)
+        .map((m) => ({ id: m.id.slice(0, 8), name: m.name, count: m.access_count })),
       oldest: sorted[sorted.length - 1]?.created_at ?? null,
       newest: sorted[0]?.created_at ?? null,
       total_accesses: all.reduce((s, m) => s + m.access_count, 0),

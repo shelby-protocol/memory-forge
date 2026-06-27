@@ -35,14 +35,18 @@ export async function setup(): Promise<void> {
     console.log(`   ℹ️  Already configured: ${mcpResult.installed.join(", ")}`);
   }
   if (mcpResult.updated.length === 0 && mcpResult.installed.length === 0) {
-    console.log("   ℹ️  No supported AI tools detected. Install Claude Code, Codex, Cursor, or Windsurf first.");
+    console.log(
+      "   ℹ️  No supported AI tools detected. Install Claude Code, Codex, Cursor, or Windsurf first.",
+    );
   }
 
   // 2. Install Claude Code lifecycle hooks
   console.log("\n🪝  Installing Claude Code hooks…");
   const hooksOk = installHooks();
   console.log(
-    hooksOk ? "   ✅ Hooks installed (SessionStart / Stop / PreCompact / PostToolUse)" : "   ⚠️  Hooks skipped (Claude Code not found)",
+    hooksOk
+      ? "   ✅ Hooks installed (SessionStart / Stop / PreCompact / PostToolUse)"
+      : "   ⚠️  Hooks skipped (Claude Code not found)",
   );
 
   // 3. Import existing rules

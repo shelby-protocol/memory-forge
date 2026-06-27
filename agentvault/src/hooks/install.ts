@@ -116,9 +116,15 @@ function hasHook(hooks: any[], name: string): boolean {
 
 // ═══ Status ═════════════════════════════════════════════════
 
-export function getHooksStatus(): { sessionStart: boolean; stop: boolean; preCompact: boolean; postToolUse: boolean } {
+export function getHooksStatus(): {
+  sessionStart: boolean;
+  stop: boolean;
+  preCompact: boolean;
+  postToolUse: boolean;
+} {
   try {
-    if (!fs.existsSync(CLAUDE_SETTINGS)) return { sessionStart: false, stop: false, preCompact: false, postToolUse: false };
+    if (!fs.existsSync(CLAUDE_SETTINGS))
+      return { sessionStart: false, stop: false, preCompact: false, postToolUse: false };
     const config = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS, "utf-8"));
     return {
       sessionStart: hasHook(config.hooks?.SessionStart || [], "memory-forge"),

@@ -19,7 +19,11 @@ export interface ImportedRule {
 
 const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
 
-const SOURCES: { path: string; category: string; extract: (content: string, filepath: string) => ImportedRule[] }[] = [
+const SOURCES: {
+  path: string;
+  category: string;
+  extract: (content: string, filepath: string) => ImportedRule[];
+}[] = [
   {
     path: path.join(HOME, ".claude", "CLAUDE.md"),
     category: "claude-rules",
@@ -37,7 +41,9 @@ const SOURCES: { path: string; category: string; extract: (content: string, file
     extract: (content, filepath) => {
       // Import entire rule file as one memory (not line-by-line)
       if (content.trim().length > 10) {
-        return [{ source: filepath, key: `cursor-${path.basename(filepath)}`, content: content.trim() }];
+        return [
+          { source: filepath, key: `cursor-${path.basename(filepath)}`, content: content.trim() },
+        ];
       }
       return [];
     },
@@ -73,7 +79,9 @@ export function importRules(): ImportedRule[] {
     }
 
     if (stat.isDirectory()) {
-      const files = fs.readdirSync(source.path).filter((f) => f.endsWith(".md") || f.endsWith(".mdc"));
+      const files = fs
+        .readdirSync(source.path)
+        .filter((f) => f.endsWith(".md") || f.endsWith(".mdc"));
       for (const file of files) {
         const filepath = path.join(source.path, file);
         try {

@@ -113,8 +113,20 @@ describe("expandQuery", () => {
 describe("MemoryStore hybrid search", () => {
   it("returns results with hybrid method tag when vector available", () => {
     const s = new MemoryStore();
-    s.add({ ...mem, id: "a", content: "React TypeScript hooks pattern deployment pipeline", vector: [0.1, 0.2, 0.3, 0.4], tags: [] });
-    s.add({ ...mem, id: "b", content: "Python Django REST API authentication module", vector: [0.5, 0.6, 0.7, 0.8], tags: [] });
+    s.add({
+      ...mem,
+      id: "a",
+      content: "React TypeScript hooks pattern deployment pipeline",
+      vector: [0.1, 0.2, 0.3, 0.4],
+      tags: [],
+    });
+    s.add({
+      ...mem,
+      id: "b",
+      content: "Python Django REST API authentication module",
+      vector: [0.5, 0.6, 0.7, 0.8],
+      tags: [],
+    });
 
     const qv = new Float32Array([0.1, 0.2, 0.3, 0.4]);
     const results = s.search("react typescript", {

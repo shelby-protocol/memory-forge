@@ -107,7 +107,9 @@ export function autoPriority(memory: Memory): number {
   const recencyWeight = memory.last_accessed
     ? Math.max(0, 1 - (Date.now() - new Date(memory.last_accessed).getTime()) / (90 * 86400000))
     : 0.5;
-  return Math.round(1 + 9 * (freqWeight * 0.4 + recencyWeight * 0.4 + (1 - Math.min(ageDays, 365) / 365) * 0.2));
+  return Math.round(
+    1 + 9 * (freqWeight * 0.4 + recencyWeight * 0.4 + (1 - Math.min(ageDays, 365) / 365) * 0.2),
+  );
 }
 
 /** 自动衰减: Ebbinghaus 遗忘曲线 */
@@ -154,8 +156,12 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   const handoff = eligible
     .filter((m) => m.category === "session-handoff")
     .sort((a, b) => {
-      const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
-      const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
+      const aTime = a.last_accessed
+        ? new Date(a.last_accessed).getTime()
+        : new Date(a.created_at).getTime();
+      const bTime = b.last_accessed
+        ? new Date(b.last_accessed).getTime()
+        : new Date(b.created_at).getTime();
       return bTime - aTime;
     })
     .slice(0, 1); // only the most recent handoff
@@ -165,8 +171,12 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   // Sort normal: recency first, current-branch boost (+50% score), decay as tiebreaker
   const currentBranch = currentGitBranch();
   normal.sort((a, b) => {
-    const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
-    const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
+    const aTime = a.last_accessed
+      ? new Date(a.last_accessed).getTime()
+      : new Date(a.created_at).getTime();
+    const bTime = b.last_accessed
+      ? new Date(b.last_accessed).getTime()
+      : new Date(b.created_at).getTime();
     // Recency primary: newer first; current-branch memories +50% score boost
     if (bTime !== aTime) return bTime - aTime;
 
@@ -252,7 +262,8 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   if (eligibleTotal > limit) {
     lines.push(
       "",
-      `[MemoryForge] Showing top ${limit} of ${eligibleTotal} eligible memories. ` + `Use memory_search or memory_recall to find more.`,
+      `[MemoryForge] Showing top ${limit} of ${eligibleTotal} eligible memories. ` +
+        `Use memory_search or memory_recall to find more.`,
     );
   }
 
@@ -276,13 +287,22 @@ function redactSecrets(text: string): string {
       // Private key hex strings (ed25519, secp256k1, etc.)
       .replace(/(?:ed25519|secp256k1|ecdsa)-priv-\S+/gi, "[REDACTED-KEY]")
       // PEM private key blocks
-      .replace(/-----BEGIN\s.*PRIVATE\sKEY-----[\s\S]*?-----END\s.*PRIVATE\sKEY-----/gi, "[REDACTED-PEM]")
+      .replace(
+        /-----BEGIN\s.*PRIVATE\sKEY-----[\s\S]*?-----END\s.*PRIVATE\sKEY-----/gi,
+        "[REDACTED-PEM]",
+      )
       // Lines with "Private Key:", "Secret:", "Password:", "API Key:" patterns
-      .replace(/^(.*(?:Private\s*Key|Secret\s*Key|API\s*Key|Password|passwd)\s*[=:]\s*)\S+$/gim, "$1[REDACTED]")
+      .replace(
+        /^(.*(?:Private\s*Key|Secret\s*Key|API\s*Key|Password|passwd)\s*[=:]\s*)\S+$/gim,
+        "$1[REDACTED]",
+      )
       // Standalone API tokens like "AG-..." (Shelbynet format)
       .replace(/\bAG-[A-Z0-9]{20,}\b/g, "[REDACTED-TOKEN]")
       // BIP39 mnemonics: 12-24 word phrases
-      .replace(/\b(?:\w+\s+){11,23}\w+\s*(?:mnemonic|seed phrase|recovery phrase)/gi, "[REDACTED-MNEMONIC]")
+      .replace(
+        /\b(?:\w+\s+){11,23}\w+\s*(?:mnemonic|seed phrase|recovery phrase)/gi,
+        "[REDACTED-MNEMONIC]",
+      )
   );
 }
 
@@ -302,7 +322,9 @@ function smartPreview(content: string, maxLen: number): string {
 
   if (meaningful.length === 0) {
     // No meaningful paragraphs found — raw truncation
-    return content.length > maxLen ? safeTruncate(content, maxLen).replace(/\n/g, " ").trim() + "…" : content;
+    return content.length > maxLen
+      ? safeTruncate(content, maxLen).replace(/\n/g, " ").trim() + "…"
+      : content;
   }
 
   // Build preview from first meaningful paragraph(s)
@@ -316,7 +338,10 @@ function smartPreview(content: string, maxLen: number): string {
       const cutoff = meaningful[i].slice(0, maxLen);
       const m = cutoff.match(/[.!?。！？]/g);
       const lastPunct = m ? Math.max(...m.map((p) => cutoff.lastIndexOf(p))) + 1 : 0;
-      return (lastPunct > maxLen * 0.5 ? cutoff.slice(0, lastPunct) : cutoff.slice(0, maxLen)).trim() + "…";
+      return (
+        (lastPunct > maxLen * 0.5 ? cutoff.slice(0, lastPunct) : cutoff.slice(0, maxLen)).trim() +
+        "…"
+      );
     } else {
       return preview + "…";
     }
