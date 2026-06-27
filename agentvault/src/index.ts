@@ -176,7 +176,7 @@ if (cmd === "setup") {
   const s = new MemoryStore();
   for (const m of loadAllMemories()) s.add(m);
   const st = s.stats();
-  console.log(`Total: ${st.total}  |  Accesses: ${st.total_accesses}  |  Oldest: ${st.oldest ?? "—"}  |  Newest: ${st.newest ?? "—"}`);
+  console.log(`Total: ${st.total}  |  Accesses: ${st.total_accesses}  |  Weekly new: ${st.weekly_new}  |  Oldest: ${st.oldest ?? "—"}  |  Newest: ${st.newest ?? "—"}`);
   console.log(
     "Categories:",
     Object.entries(st.categories)
@@ -184,6 +184,13 @@ if (cmd === "setup") {
       .join("  "),
   );
   if (st.top_tags.length) console.log("Top tags:", st.top_tags.map(([t, n]) => `${t}(${n})`).join("  "));
+  console.log(
+    "Decay:",
+    `active=${st.decay_distribution.active} fading=${st.decay_distribution.fading} stale=${st.decay_distribution.stale} archived=${st.decay_distribution.archived}`,
+  );
+  if (st.branches) console.log("Branches:", Object.entries(st.branches).map(([k, v]) => `${k}(${v})`).join("  "));
+  if (st.with_relations > 0) console.log(`Relations: ${st.with_relations} memories linked`);
+  if (st.top_accessed.length) console.log("Top accessed:", st.top_accessed.map((a) => `${a.name}(${a.count})`).join("  "));
   process.exit(0);
 } else if (cmd === "capture-transcript") {
   cliCaptureTranscript();
@@ -287,6 +294,13 @@ if (cmd === "setup") {
         console.error("[MemoryForge] Cloud sync skipped — will retry next session.");
       }
     }
+  } else if (hookType === "post-tool-use") {
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        additionalContext: "[MemoryForge] 💡 Consider saving key changes or decisions with memory_store.",
+      },
+    }));
   } else if (hookType === "pre-compact") {
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);
@@ -330,7 +344,7 @@ if (cmd === "setup") {
     }
   } else {
     console.error(`Unknown hook type: ${hookType || "(none)"}`);
-    console.error("Hook types: session-start, stop, pre-compact, capture-transcript");
+    console.error("Hook types: session-start, stop, pre-compact, capture-transcript, post-tool-use");
     process.exit(1);
   }
   process.exit(0);

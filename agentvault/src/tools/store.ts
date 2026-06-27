@@ -7,6 +7,7 @@ import { embed } from "../embedding.js";
 import { autoName, autoMerge } from "../auto/index.js";
 import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
+import { execSync } from "node:child_process";
 
 export function register(server: McpServer, opts: ToolOptions) {
   const { store, hasPro } = opts;
@@ -27,6 +28,8 @@ export function register(server: McpServer, opts: ToolOptions) {
         tags: z.array(z.string().min(1)).default([]).describe("Tags list."),
         priority: z.number().min(1).max(10).default(5).describe("Priority 1-10."),
         name: z.string().min(1).max(120).optional().describe("Custom name (optional — auto-generated from content if not provided)."),
+        branch: z.string().max(120).optional().describe("Git branch for context scoping (auto-detected if omitted)."),
+        related_to: z.array(z.string()).optional().describe("IDs of related memories."),
       },
     },
     async (params) => {

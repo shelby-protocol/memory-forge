@@ -13,6 +13,10 @@ export interface Memory {
   created_at: string;
   access_count: number;
   last_accessed: string | null;
+  /** Git branch where this memory was created. Current-branch memories get context boost. */
+  branch?: string;
+  /** IDs of related memories (e.g., \"depends on\", \"follows from\"). */
+  related_to?: string[];
   similarity?: number;
   _score?: number;
   _fallback?: string;
@@ -195,22 +199,39 @@ export class MemoryStore {
 
   stats() {
     const all = [...this.memories.values()];
-    const categories: Record<string, number> = {};
-    const tagCounts: Record<string, number> = {};
+    const categories: Record<string, number> = {}, tagCounts: Record<string, number> = {}, branches: Record<string, number> = {};
+    let withRelations = 0;
     for (const m of all) {
       categories[m.category] = (categories[m.category] || 0) + 1;
       for (const t of m.tags) tagCounts[t] = (tagCounts[t] || 0) + 1;
+      if (m.branch) branches[m.branch] = (branches[m.branch] || 0) + 1;
+      if (m.related_to?.length) withRelations++;
     }
     const sorted = all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const sortedByAccess = [...all].sort((a, b) => b.access_count - a.access_count);
+    const decayDist = { active: 0, fading: 0, stale: 0, archived: 0 };
+    const now = Date.now();
+    for (const m of all) {
+      const last = m.last_accessed ? new Date(m.last_accessed).getTime() : new Date(m.created_at).getTime();
+      const days = (now - last) / 86400000;
+      if (days <= 7) decayDist.active++;
+      else if (days <= 30) decayDist.fading++;
+      else if (days <= 90) decayDist.stale++;
+      else decayDist.archived++;
+    }
+    const weeklyNew = all.filter(m => new Date(m.created_at).getTime() > now - 7 * 86400000).length;
     return {
       total: all.length,
       categories,
-      top_tags: Object.entries(tagCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10),
+      top_tags: Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 10),
+      top_accessed: sortedByAccess.slice(0, 10).map(m => ({ id: m.id.slice(0, 8), name: m.name, count: m.access_count })),
       oldest: sorted[sorted.length - 1]?.created_at ?? null,
       newest: sorted[0]?.created_at ?? null,
       total_accesses: all.reduce((s, m) => s + m.access_count, 0),
+      decay_distribution: decayDist,
+      weekly_new: weeklyNew,
+      with_relations: withRelations,
+      branches: Object.keys(branches).length > 0 ? branches : undefined,
     };
   }
 }

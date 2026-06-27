@@ -38,6 +38,14 @@ export function installHooks(): boolean {
       });
     }
 
+    config.hooks.PostToolUse = config.hooks.PostToolUse || [];
+    if (!hasHook(config.hooks.PostToolUse, "memory-forge")) {
+      config.hooks.PostToolUse.push({
+        matcher: "",
+        hooks: [{ type: "command", command: `${mfCmd} hook post-tool-use` }],
+      });
+    }
+
     config.hooks.PreCompact = config.hooks.PreCompact || [];
     if (!hasHook(config.hooks.PreCompact, "memory-forge")) {
       config.hooks.PreCompact.push({
@@ -57,16 +65,17 @@ function hasHook(hooks: any[], name: string): boolean {
   return hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes(name)));
 }
 
-export function getHooksStatus(): { sessionStart: boolean; stop: boolean; preCompact: boolean } {
+export function getHooksStatus(): { sessionStart: boolean; stop: boolean; preCompact: boolean; postToolUse: boolean } {
   try {
-    if (!fs.existsSync(CLAUDE_SETTINGS)) return { sessionStart: false, stop: false, preCompact: false };
+    if (!fs.existsSync(CLAUDE_SETTINGS)) return { sessionStart: false, stop: false, preCompact: false, postToolUse: false };
     const config = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS, "utf-8"));
     return {
       sessionStart: hasHook(config.hooks?.SessionStart || [], "memory-forge"),
       stop: hasHook(config.hooks?.Stop || [], "memory-forge"),
+      postToolUse: hasHook(config.hooks?.PostToolUse || [], "memory-forge"),
       preCompact: hasHook(config.hooks?.PreCompact || [], "memory-forge"),
     };
   } catch {
-    return { sessionStart: false, stop: false, preCompact: false };
+    return { sessionStart: false, stop: false, preCompact: false, postToolUse: false };
   }
 }

@@ -6,6 +6,7 @@ import { autoName } from "../auto/index.js";
 import { safeTruncate } from "../store.js";
 import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
+import { execSync } from "node:child_process";
 
 export function register(server: McpServer, opts: ToolOptions) {
   const { store } = opts;
@@ -28,10 +29,12 @@ export function register(server: McpServer, opts: ToolOptions) {
         tags: z.array(z.string()).optional().describe("New tags list (optional, replaces all existing tags)."),
         priority: z.number().min(1).max(10).optional().describe("New priority 1-10 (optional)."),
         name: z.string().min(1).max(120).optional().describe("New name (optional — auto-generated if not provided)."),
+        branch: z.string().max(120).optional().describe("Git branch (auto-detected if omitted)."),
+        related_to: z.array(z.string()).optional().describe("Related memory IDs."),
       },
     },
     async (params) => {
-      const { memory_id, content, category, tags, priority, name: customName } = params;
+      const { memory_id, content, category, tags, priority, name: customName, branch: newBranch, related_to } = params;
 
       if (content === undefined && category === undefined && tags === undefined && priority === undefined && customName === undefined) {
         return {
@@ -74,6 +77,8 @@ export function register(server: McpServer, opts: ToolOptions) {
       if (category !== undefined) memory.category = category;
       if (tags !== undefined) memory.tags = tags;
       if (priority !== undefined) memory.priority = priority;
+        if (related_to !== undefined) memory.related_to = related_to;
+        if (newBranch !== undefined) memory.branch = newBranch;
       memory.access_count++;
       memory.last_accessed = new Date().toISOString();
 

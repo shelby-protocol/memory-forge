@@ -6,6 +6,17 @@ import type { MemoryStore, Memory } from "../store.js";
 import { contentOverlap, safeTruncate } from "../store.js";
 import { saveMemory } from "../storage/local.js";
 import { embed } from "../embedding.js";
+import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
+
+/** Get current git branch. Returns empty string on failure (not a git repo, etc). */
+function currentGitBranch(): string {
+  try {
+    return execSync("git branch --show-current", { encoding: "utf-8", timeout: 2000 }).trim();
+  } catch {
+    return "";
+  }
+}
 
 /** 自动命名: 首句提取 + 词边界截断。不切词，不停半截。
  *  用户可通过 memory_store({ name: "..." }) 覆盖。 */
@@ -149,11 +160,12 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   const evergreen = eligible.filter((m) => m.priority >= 10 && m.category !== "session-handoff");
   const normal = eligible.filter((m) => m.priority < 10 && m.category !== "session-handoff");
 
-  // Sort normal: recency first (last_accessed > created_at), decay as tiebreaker
+  // Sort normal: recency first, current-branch boost (+50% score), decay as tiebreaker
+  const currentBranch = currentGitBranch();
   normal.sort((a, b) => {
     const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
     const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
-    // Recency primary: newer first
+    // Recency primary: newer first; current-branch memories +50% score boost
     if (bTime !== aTime) return bTime - aTime;
 
     // Same recency → category decay × priority decider
@@ -163,8 +175,10 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     const bHalf = CATEGORY_HALFLIFE[b.category] ?? 14;
     const aDecay = Math.pow(0.5, aDays / aHalf);
     const bDecay = Math.pow(0.5, bDays / bHalf);
-    const aScore = aDecay * (a.priority || 5);
-    const bScore = bDecay * (b.priority || 5);
+    const aBranchBoost = (currentBranch && a.branch === currentBranch) ? 1.5 : 1;
+          const aScore = aDecay * (a.priority || 5) * aBranchBoost;
+    const bBranchBoost = (currentBranch && b.branch === currentBranch) ? 1.5 : 1;
+          const bScore = bDecay * (b.priority || 5) * bBranchBoost;
     return bScore - aScore;
   });
 
@@ -202,10 +216,16 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
       minute: "2-digit",
     });
 
-    if (m.category === "session-handoff") {
+    let staleNote = "";
+      const pathRE = /\b(?:src\/|lib\/|app\/|config\/|docs\/)[\w.\-\/]+\.[a-z]{1,6}\b/gi;
+      const refs = m.content.match(pathRE) || [];
+      const staleRefs = refs.filter((p) => { try { return !existsSync(p); } catch { return false; } });
+      if (staleRefs.length > 0) staleNote = " ⚠️ stale: " + staleRefs.slice(0, 3).join(", ");
+
+      if (m.category === "session-handoff") {
       hasHandoff = true;
       // Handoff: show full content (not truncated preview) with distinct header
-      const body = redactSecrets(m.content);
+      const body = redactSecrets(m.content) + staleNote;
       lines.push(
         "",
         `## 📋 Last session (${dateStr})`,
@@ -215,8 +235,9 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
         "Other recent memories:",
       );
     } else {
-      const preview = smartPreview(redactSecrets(m.content), 300);
-      lines.push(`- [${m.name}] ${dateStr} | ${m.category}\n  ${preview}`);
+      const btag = m.branch ? " [" + m.branch + "]" : "";
+      const preview = smartPreview(redactSecrets(m.content) + staleNote, 300);
+      lines.push(`- [${m.name}] ${dateStr} | ${m.category}${btag}\n  ${preview}`);
     }
   }
 
