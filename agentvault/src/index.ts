@@ -256,22 +256,23 @@ if (cmd === "--version" || cmd === "-v") {
         if (changed) { try { saveMemory(m); updated++; } catch {} }
       }
     }
-    console.error(`[MemoryForge] Maintenance: ${updated} priority updates, ${archived} memories archived (90+ days unused) — ${all.length} total`);
-    // Auto-capture conversation transcript (best-effort, don't crash hook)
+    console.error(`[MemoryForge] ${all.length} memories maintained, ${archived} archived`);
     try {
       const transcriptResult = captureTranscript();
       console.error(`[MemoryForge] ${transcriptResult}`);
     } catch (err) {
       console.error(`[MemoryForge] transcript capture failed: ${(err as Error).message}`);
     }
-    // Purge expired tombstones
     try { cleanupTombstones(); } catch {}
-    // Pro: push any new local memories (e.g. just-captured transcript) to cloud
+    // Pro: push to cloud before exit so other devices get everything
     if (process.env.SHELBY_API_KEY) {
       try {
         const { proAutoActivate } = await import("./pro.js");
         await proAutoActivate();
-      } catch {}
+        console.error("[MemoryForge] All memories synced to cloud. Safe to close.");
+      } catch {
+        console.error("[MemoryForge] Cloud sync skipped — will retry next session.");
+      }
     }
   } else if (hookType === "pre-compact") {
     const s = new MemoryStore();
