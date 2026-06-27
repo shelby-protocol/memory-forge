@@ -209,7 +209,7 @@ if (cmd === "--version" || cmd === "-v") {
     let proNote = "";
     const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
     const profilePath = join(homeDir, ".memory-forge", "pro.json");
-    if (fs.existsSync(profilePath) && process.env.SHELBY_API_KEY) {
+    if (fs.existsSync(profilePath) && (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey)) {
       try {
         const profile = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
         if (profile.address) {
@@ -265,7 +265,7 @@ if (cmd === "--version" || cmd === "-v") {
     }
     try { cleanupTombstones(); } catch {}
     // Pro: push to cloud before exit so other devices get everything
-    if (process.env.SHELBY_API_KEY) {
+    if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
       try {
         const { proAutoActivate } = await import("./pro.js");
         await proAutoActivate();
@@ -308,7 +308,7 @@ if (cmd === "--version" || cmd === "-v") {
       console.error(`[MemoryForge] pre-compact transcript capture failed: ${(err as Error).message}`);
     }
     // Pro: push to cloud now — VS Code panel close may skip Stop hook
-    if (process.env.SHELBY_API_KEY) {
+    if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
       try {
         const { proAutoActivate } = await import("./pro.js");
         await proAutoActivate();
@@ -499,7 +499,7 @@ function startMcpServer() {
           memory_id: m.id, name: m.name, category: m.category,
           tags: m.tags, priority: m.priority, access_count: m.access_count,
           created_at: m.created_at, last_accessed: m.last_accessed,
-          preview: m.content.slice(0, 200),
+          preview: safeTruncate(m.content, 200),
         })),
       }) }] };
     }
@@ -519,7 +519,7 @@ function startMcpServer() {
       if (existed) {
         deleteMemoryFile(memory_id);
         // Pro: upload cloud tombstone to prevent sync resurrection
-        if (process.env.SHELBY_API_KEY) {
+        if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
           deleteBlob(getBlobName(memory_id)).catch(() => {});
         }
       }
@@ -705,7 +705,7 @@ function startMcpServer() {
       saveMemory(memory);
 
       // Pro: sync updated memory to cloud
-      if (process.env.SHELBY_API_KEY) {
+      if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
         uploadMemory(memory).catch(() => {});
       }
 
