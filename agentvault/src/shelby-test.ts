@@ -3,16 +3,17 @@
  * Run: npx tsx src/shelby-test.ts
  */
 
-import { getMemoryId, getCloudTombstones, getBlobName } from "./storage/shelby.js";
+import { getMemoryId, getCloudTombstones, getBlobName, getShelbyConfig, uploadMemory, downloadMemory, listBlobs, deleteBlob, getShelbyClient, getShelbyAccount, isAuthFailed, initShelby, getBalances, getStorageUsage } from "./storage/shelby.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import type { Memory } from "./store.js";
 
 let ok = 0;
 let ng = 0;
-function t(name: string, fn: () => void) {
+async function t(name: string, fn: () => void | Promise<void>) {
   try {
-    fn();
+    await fn();
     ok++;
   } catch (e: any) {
     ng++;
@@ -129,8 +130,6 @@ t("blob name contains 13-digit timestamp", () => {
 
 // ═══ getShelbyConfig (via module) ═══
 console.log("\n=== getShelbyConfig ===");
-import { getShelbyConfig } from "./storage/shelby.js";
-
 t("getShelbyConfig returns valid structure", () => {
   const cfg = getShelbyConfig();
   if (typeof cfg.apiKey !== "string" && cfg.apiKey !== null) throw new Error("apiKey should be string|null");
@@ -145,8 +144,6 @@ t("namespace contains users/ prefix", () => {
 
 // ═══ Null-client graceful degradation ═══
 console.log("\n=== Null-client graceful degradation ===");
-import { uploadMemory, downloadMemory, listBlobs, deleteBlob, getShelbyClient, getShelbyAccount, isAuthFailed } from "./storage/shelby.js";
-import type { Memory } from "./store.js";
 
 const testMem: Memory = {
   id: "test-null-client",
@@ -161,84 +158,87 @@ const testMem: Memory = {
   last_accessed: null,
 };
 
-t("uploadMemory null client returns null", async () => {
-  const result = await uploadMemory(testMem);
-  if (result !== null) throw new Error(`expected null, got "${result}"`);
-});
+// Wrap all remaining tests in async main so we can await async t() calls
+async function main() {
+  await t("uploadMemory null client returns null", async () => {
+    const result = await uploadMemory(testMem);
+    if (result !== null) throw new Error(`expected null, got "${result}"`);
+  });
 
-t("downloadMemory null client returns null", async () => {
-  const result = await downloadMemory("users/default/memories/test-123.json");
-  if (result !== null) throw new Error(`expected null, got ${JSON.stringify(result)}`);
-});
+  await t("downloadMemory null client returns null", async () => {
+    const result = await downloadMemory("users/default/memories/test-123.json");
+    if (result !== null) throw new Error(`expected null, got ${JSON.stringify(result)}`);
+  });
 
-t("listBlobs null client returns empty array", async () => {
-  const result = await listBlobs();
-  if (result.length !== 0) throw new Error(`expected [], got ${result.length} items`);
-});
+  await t("listBlobs null client returns empty array", async () => {
+    const result = await listBlobs();
+    if (result.length !== 0) throw new Error(`expected [], got ${result.length} items`);
+  });
 
-t("deleteBlob null client does not throw", async () => {
-  await deleteBlob("users/default/memories/test-123.json");
-  // no throw = pass
-});
+  await t("deleteBlob null client does not throw", async () => {
+    await deleteBlob("users/default/memories/test-123.json");
+    // no throw = pass
+  });
 
-t("getShelbyClient returns null by default", () => {
-  if (getShelbyClient() !== null) throw new Error("should be null");
-});
+  t("getShelbyClient returns null by default", () => {
+    if (getShelbyClient() !== null) throw new Error("should be null");
+  });
 
-t("getShelbyAccount returns null by default", () => {
-  if (getShelbyAccount() !== null) throw new Error("should be null");
-});
+  t("getShelbyAccount returns null by default", () => {
+    if (getShelbyAccount() !== null) throw new Error("should be null");
+  });
 
-t("isAuthFailed initially false", () => {
-  if (isAuthFailed()) throw new Error("should be false before any auth attempt");
-});
+  t("isAuthFailed initially false", () => {
+    if (isAuthFailed()) throw new Error("should be false before any auth attempt");
+  });
 
-// ═══ initShelby — client/account creation ═══
-console.log("\n=== initShelby ===");
-import { initShelby } from "./storage/shelby.js";
+  // ═══ initShelby — client/account creation ═══
+  console.log("\n=== initShelby ===");
 
-t("initShelby with generated key creates client", async () => {
-  const result = await initShelby("test-api-key-mock-12345");
-  if (!result) throw new Error("initShelby returned null — SDK load failed");
-  if (!result.address) throw new Error("no address returned");
-  if (typeof result.address !== "string" || result.address.length < 40) throw new Error(`bad address: "${result.address}"`);
-  if (!result.generatedKey) throw new Error("should auto-generate key when not provided");
-  if (getShelbyClient() === null) throw new Error("client should be set");
-  if (getShelbyAccount() === null) throw new Error("account should be set");
-});
+  await t("initShelby with generated key creates client", async () => {
+    const result = await initShelby("test-api-key-mock-12345");
+    if (!result) throw new Error("initShelby returned null — SDK load failed");
+    if (!result.address) throw new Error("no address returned");
+    if (typeof result.address !== "string" || result.address.length < 40) throw new Error(`bad address: "${result.address}"`);
+    if (!result.generatedKey) throw new Error("should auto-generate key when not provided");
+    if (getShelbyClient() === null) throw new Error("client should be set");
+    if (getShelbyAccount() === null) throw new Error("account should be set");
+  });
 
-t("initShelby with private key uses provided key", async () => {
-  const testKey = "a".repeat(64);
-  const result = await initShelby("test-api-key-2", testKey);
-  if (!result) throw new Error("initShelby returned null");
-  if (result.generatedKey) throw new Error("should not generate when key provided");
-  if (!result.address) throw new Error("no address");
-});
+  await t("initShelby with private key uses provided key", async () => {
+    const testKey = "a".repeat(64);
+    const result = await initShelby("test-api-key-2", testKey);
+    if (!result) throw new Error("initShelby returned null");
+    if (result.generatedKey) throw new Error("should not generate when key provided");
+    if (!result.address) throw new Error("no address");
+  });
 
-t("initShelby resets authFailed", async () => {
-  await initShelby("test-api-key-reset");
-  if (isAuthFailed()) throw new Error("should be reset to false after initShelby");
-});
+  await t("initShelby resets authFailed", async () => {
+    await initShelby("test-api-key-reset");
+    if (isAuthFailed()) throw new Error("should be reset to false after initShelby");
+  });
 
-// ═══ getBalances / getStorageUsage null client ═══
-console.log("\n=== getBalances / getStorageUsage null client ===");
-import { getBalances, getStorageUsage } from "./storage/shelby.js";
+  // ═══ getBalances / getStorageUsage null client ═══
+  console.log("\n=== getBalances / getStorageUsage null client ===");
 
-t("getBalances null client returns null", async () => {
-  // After initShelby above, client IS set. But without real network, should return null.
-  const result = await getBalances();
-  // Either null (no network) or valid object (if Shelbynet accessible)
-  if (result !== null && (typeof result.apt !== "string" || typeof result.shelbyUsd !== "string")) {
-    throw new Error(`unexpected format: ${JSON.stringify(result)}`);
-  }
-});
+  await t("getBalances null client returns null", async () => {
+    // After initShelby above, client IS set. But without real network, should return null.
+    const result = await getBalances();
+    // Either null (no network) or valid object (if Shelbynet accessible)
+    if (result !== null && (typeof result.apt !== "string" || typeof result.shelbyUsd !== "string")) {
+      throw new Error(`unexpected format: ${JSON.stringify(result)}`);
+    }
+  });
 
-t("getStorageUsage null/error returns null", async () => {
-  const result = await getStorageUsage();
-  if (result !== null && (typeof result.blobCount !== "number" || typeof result.totalBytes !== "number")) {
-    throw new Error(`unexpected format: ${JSON.stringify(result)}`);
-  }
-});
+  await t("getStorageUsage null/error returns null", async () => {
+    const result = await getStorageUsage();
+    if (result !== null && (typeof result.blobCount !== "number" || typeof result.totalBytes !== "number")) {
+      throw new Error(`unexpected format: ${JSON.stringify(result)}`);
+    }
+  });
 
-console.log(`\n${ok} passed, ${ng} failed`);
-if (ng > 0) process.exit(1);
+  console.log(`\n${ok} passed, ${ng} failed`);
+  if (ng > 0) process.exit(1);
+}
+
+main();

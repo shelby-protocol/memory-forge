@@ -40,6 +40,11 @@ async function loadShelbySdk(): Promise<boolean> {
     AccountClass = aptosModule.Account;
     Ed25519Class = aptosModule.Ed25519PrivateKey;
     NetworkEnum = aptosModule.Network;
+    if (!ShelbyNCtor || !AccountClass || !Ed25519Class || !NetworkEnum) {
+      sdkLoadFailed = true;
+      console.error("[MemoryForge] Shelby SDK loaded but missing expected exports. Pro features disabled.");
+      return false;
+    }
     return true;
   } catch (err) {
     sdkLoadFailed = true;
