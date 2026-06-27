@@ -249,6 +249,10 @@ if (cmd === "--version" || cmd === "-v") {
       const decay = autoDecay(m);
       if (decay === 0) {
         try { deleteMemoryFile(m.id); } catch {}
+        // Upload cloud tombstone for cross-device archive propagation
+        if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
+          deleteBlob(getBlobName(m.id)).catch(() => {});
+        }
         archived++;
       } else {
         let changed = false;

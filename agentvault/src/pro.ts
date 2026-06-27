@@ -246,7 +246,6 @@ export async function syncAll(): Promise<void> {
     } else {
       store.add(remote);
       saveMemory(remote);
-      downloaded++;
     }
     downloaded++;
   }
