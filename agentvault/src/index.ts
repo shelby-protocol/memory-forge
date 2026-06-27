@@ -204,20 +204,41 @@ if (cmd === "--version" || cmd === "-v") {
     for (const m of loadAllMemories()) s.add(m);
     const summary = generateContextSummary(s, 5);
     const memoryCount = s.size();
+
+    // Pro status for session-start visibility
+    let proNote = "";
+    const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+    const profilePath = join(homeDir, ".memory-forge", "pro.json");
+    if (fs.existsSync(profilePath) && process.env.SHELBY_API_KEY) {
+      try {
+        const profile = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
+        if (profile.address) {
+          const localCount = loadAllMemories().length;
+          const syncAge = profile.lastSync
+            ? Math.round((Date.now() - new Date(profile.lastSync).getTime()) / 60000)
+            : null;
+          const ageStr = syncAge === null ? "" : syncAge < 1 ? " (just now)" : syncAge < 60 ? ` (${syncAge}m ago)` : ` (${Math.round(syncAge / 60)}h ago)`;
+          proNote = ` | Pro: ${localCount} memories synced${ageStr}`;
+        }
+      } catch { /* corrupted — ignore */ }
+    }
+
     const sessionTitle = projectSlug
       ? `${projectSlug} (${memoryCount} memories)`
       : `MemoryForge (${memoryCount} memories)`;
+
+    const systemMsgBase = memoryCount > 0
+      ? `MemoryForge: ${memoryCount} memories loaded from previous sessions`
+      : "MemoryForge: No memories yet. Run `memory-forge setup` to get started.";
 
     // Output with user-visible session title + agent context
     const output = JSON.stringify({
       hookSpecificOutput: {
         hookEventName: "SessionStart",
         additionalContext: (summary || "[MemoryForge] No memories yet.") + projectContextNote,
-        sessionTitle,
+        sessionTitle: sessionTitle + proNote,
       },
-      systemMessage: memoryCount > 0
-        ? `MemoryForge: ${memoryCount} memories loaded from previous sessions`
-        : "MemoryForge: No memories yet. Run `memory-forge setup` to get started.",
+      systemMessage: systemMsgBase + proNote,
     });
     console.log(output);
   } else if (hookType === "stop") {
