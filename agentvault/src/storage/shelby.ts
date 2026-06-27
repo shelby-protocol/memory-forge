@@ -154,8 +154,8 @@ export async function uploadMemory(memory: Memory): Promise<string | null> {
     return blobName;
   } catch (err) {
     const msg = (err as Error).message;
-    // 400 = blob already exists (immutable) — treat as success
-    if (msg.includes("400") || msg.includes("Bad Request")) {
+    // 400 "already exists" (immutable blob) — treat as success
+    if (msg.includes("already exists") || msg.includes("immutable")) {
       return blobName;
     }
     // 401/403 = auth failure — stop trying this session
@@ -229,7 +229,8 @@ export async function listBlobs(): Promise<string[]> {
       .map((m) => m.name)
       .filter((n) => n.includes("/memories/"))
       .map((n) => n.replace(/^@[^/]+\//, "")); // strip @address/ prefix for download
-  } catch {
+  } catch (err) {
+    console.error("[MemoryForge] Pro sync: failed to list cloud blobs — will retry next sync:", (err as Error).message);
     return [];
   }
 }
