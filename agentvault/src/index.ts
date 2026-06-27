@@ -90,13 +90,16 @@ if (cmd === "--version" || cmd === "-v") {
       ? `${projectSlug} (${memoryCount} memories)`
       : `MemoryForge (${memoryCount} memories)`;
 
-    // Output as hookSpecificOutput for silent, token-efficient context injection
+    // Output with user-visible session title + agent context
     const output = JSON.stringify({
       hookSpecificOutput: {
         hookEventName: "SessionStart",
         additionalContext: (summary || "[MemoryForge] No memories yet.") + projectContextNote,
         sessionTitle,
       },
+      systemMessage: memoryCount > 0
+        ? `MemoryForge: ${memoryCount} memories loaded from previous sessions`
+        : "MemoryForge: No memories yet. Run `memory-forge setup` to get started.",
     });
     console.log(output);
   } else if (hookType === "stop") {

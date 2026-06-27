@@ -329,7 +329,7 @@ await run("generateContextSummary includes agent instruction", () => {
   const s = new MemoryStore();
   s.add({ ...mem, id: "a", content: "Some content", priority: 9 });
   const summary = generateContextSummary(s, 1);
-  assert(summary.includes("[MemoryForge] When the user asks"), "should include agent instruction");
+  assert(summary.includes("[MemoryForge] IMPORTANT"), "should include proactive agent instruction");
 });
 
 await run("generateContextSummary category boost: decision-log beats user-preference at same time", () => {

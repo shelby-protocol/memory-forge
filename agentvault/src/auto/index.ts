@@ -153,12 +153,14 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     );
   }
 
-  // Agent instruction: actively reference this context
+  // Proactive greeting: agent acknowledges context in first response
   lines.push(
     "",
-    "[MemoryForge] When the user asks about previous work, \"what we were doing\", " +
-    "\"continue yesterday\", or similar — reference the context above. " +
-    "Briefly summarize what was happening last session before asking what to do next."
+    "[MemoryForge] IMPORTANT — In your FIRST response to the user (even to a simple " +
+    "\"hi\" or \"continue\"), acknowledge the context above. Summarize in 1-2 lines what " +
+    "was happening last session. Example: \"Loaded context from last session: we were " +
+    "working on [topic]. [N] memories available. What should we do next?\" " +
+    "This makes the user aware their context was loaded successfully."
   );
 
   return lines.join("\n\n");
