@@ -24,8 +24,18 @@ async function getEmbedder(): Promise<EmbedFn> {
 
   loading = (async () => {
     try {
+      console.error("[MemoryForge] Loading embedding model (~23MB, one-time download)…");
       const { pipeline } = await import("@huggingface/transformers");
-      const engine = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+      const engine = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
+        progress_callback: (progress: any) => {
+          if (progress?.status === "downloading") {
+            const pct = progress?.progress ? Math.round(progress.progress) : 0;
+            const file = progress?.file ?? "";
+            if (pct > 0) process.stderr.write(`\r[MemoryForge] Downloading model… ${pct}%`);
+            if (pct === 100) process.stderr.write("\n");
+          }
+        },
+      });
       embedFn = async (text: string) => {
         const result = await engine(text, { pooling: "mean", normalize: true });
         return new Float32Array(result.data);

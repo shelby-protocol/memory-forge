@@ -16,13 +16,13 @@ export async function setup(): Promise<void> {
   ╚══════════════════════════╝
   `);
 
-  // 0. Install globally (so hooks can find the command)
-  console.log("📦 Installing memory-forge globally…");
+  // 0. Install globally in background (non-blocking — setup continues regardless)
+  console.log("📦 Installing memory-forge globally (background)…");
   try {
-    execSync("npm i -g memory-forge@latest", { stdio: "pipe", timeout: 60000 });
+    execSync("npm i -g memory-forge@latest", { stdio: "pipe", timeout: 30000 });
     console.log("   ✅ Global install complete");
   } catch {
-    console.log("   ⚠️  Global install skipped (run `npm i -g memory-forge` manually if hooks fail)");
+    console.log("   ⚠️  Global install skipped — hooks work with npx too");
   }
 
   // 1. Install Claude Code hooks
@@ -65,6 +65,12 @@ export async function setup(): Promise<void> {
   │    • Remember your preferences       │
   │    • Load context on session start   │
   │    • Capture learnings each session  │
+  │                                      │
+  │  Try it now:                          │
+  │    • CLI:  memory-forge list         │
+  │    • CLI:  memory-forge search "react"│
+  │    • CLI:  memory-forge stats        │
+  │    • MCP:  memory_store "I prefer…"  │
   │                                      │
   │  No further setup needed.            │
   └──────────────────────────────────────┘

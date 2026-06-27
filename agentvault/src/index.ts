@@ -2,12 +2,12 @@
 /**
  * MemoryForge — AI Agent 持久记忆引擎 (MVP)
  *
- * 8 个 MCP 工具 + 5 个后台自动化引擎 + Pro 层 Shelby 云同步。
- * 嵌入: Transformers.js (23MB, 进程内)。
- * 存储: Free 层本地 Markdown; Pro 层 Shelby 云。
+ * 9 MCP tools + 5 auto-engines + Pro Shelby cloud sync.
+ * Embedding: Transformers.js (23MB, in-process).
+ * Storage: Free = local Markdown; Pro = Shelby cloud.
  *
- * 一键嵌入:
- *   claude mcp add memory-forge -- npx memory-forge
+ * Quick start:
+ *   npx memory-forge setup
  */
 
 import { randomUUID } from "node:crypto";
@@ -58,6 +58,49 @@ if (cmd === "--version" || cmd === "-v") {
   pro()
     .then(() => process.exit(0))
     .catch((err) => { console.error(err); process.exit(1); });
+} else if (cmd === "list") {
+  // CLI: memory-forge list [category]
+  const cat = process.argv[3];
+  const s = new MemoryStore();
+  for (const m of loadAllMemories()) s.add(m);
+  let memories = s.list({ limit: 100, offset: 0 });
+  if (cat) memories = memories.filter((m) => m.category === cat);
+  if (memories.length === 0) {
+    console.log(cat ? `No memories in category "${cat}".` : "No memories yet. Use memory_store to create one.");
+  } else {
+    console.log(`${memories.length} memories${cat ? ` (category: ${cat})` : ""}:`);
+    for (const m of memories) {
+      const date = new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      console.log(`  ${m.id.slice(0, 8)}  ${date}  [${m.category}]  ${m.name}`);
+    }
+  }
+  process.exit(0);
+} else if (cmd === "search") {
+  // CLI: memory-forge search <query>
+  const query = process.argv.slice(3).join(" ");
+  if (!query) { console.log("Usage: memory-forge search <query>"); process.exit(1); }
+  const s = new MemoryStore();
+  for (const m of loadAllMemories()) s.add(m);
+  const results = s.search(query, { limit: 10, minSimilarity: 0 });
+  if (results.length === 0) {
+    console.log(`No memories matching "${query}".`);
+  } else {
+    console.log(`${results.length} results for "${query}":`);
+    for (const r of results) {
+      console.log(`  ${r.id.slice(0, 8)}  [${r.category}]  ${r.name}`);
+      console.log(`    ${safeTruncate(r.content, 120)}`);
+    }
+  }
+  process.exit(0);
+} else if (cmd === "stats") {
+  // CLI: memory-forge stats
+  const s = new MemoryStore();
+  for (const m of loadAllMemories()) s.add(m);
+  const st = s.stats();
+  console.log(`Total: ${st.total}  |  Accesses: ${st.total_accesses}  |  Oldest: ${st.oldest ?? "—"}  |  Newest: ${st.newest ?? "—"}`);
+  console.log("Categories:", Object.entries(st.categories).map(([k, v]) => `${k}(${v})`).join("  "));
+  if (st.top_tags.length) console.log("Top tags:", st.top_tags.map(([t, n]) => `${t}(${n})`).join("  "));
+  process.exit(0);
 } else if (cmd === "capture-transcript") {
   cliCaptureTranscript();
   process.exit(0);
@@ -116,7 +159,7 @@ if (cmd === "--version" || cmd === "-v") {
         if (changed) { try { saveMemory(m); updated++; } catch {} }
       }
     }
-    console.error(`[MemoryForge] auto-capture: ${updated} updated, ${archived} archived`);
+    console.error(`[MemoryForge] Maintenance: ${updated} priority updates, ${archived} memories archived (90+ days unused) — ${all.length} total`);
     // Auto-capture conversation transcript (best-effort, don't crash hook)
     try {
       const transcriptResult = captureTranscript();
@@ -192,13 +235,13 @@ function startMcpServer() {
   server.registerTool(
     "memory_store",
     {
-      title: "存储记忆",
-      description: "存储一条上下文、知识或偏好到持久记忆中。自动向量化以支持语义检索。",
+      title: "Store memory",
+      description: "Store a context, knowledge, or preference into persistent memory. Auto-embeds for semantic retrieval.",
       inputSchema: {
-        content: z.string().min(1).max(100000).refine((s) => s.trim().length > 0, "Content must not be whitespace-only").describe("要存储的记忆内容（最大 100KB）。"),
-        category: z.string().default("general").describe("分类标签: user-preference, project-context, decision-log, code-pattern。"),
-        tags: z.array(z.string().min(1)).default([]).describe("标签列表。"),
-        priority: z.number().min(1).max(10).default(5).describe("优先级 1-10。"),
+        content: z.string().min(1).max(100000).refine((s) => s.trim().length > 0, "Content must not be whitespace-only").describe("Memory content (max 100KB)."),
+        category: z.string().default("general").describe("Category: user-preference, project-context, decision-log, code-pattern."),
+        tags: z.array(z.string().min(1)).default([]).describe("Tags list."),
+        priority: z.number().min(1).max(10).default(5).describe("Priority 1-10."),
       },
     },
     async (params) => {
@@ -215,6 +258,7 @@ function startMcpServer() {
       const merged = await autoMerge(store, memory);
       if (merged) {
         saveMemory(merged);
+        console.error(`[MemoryForge] Merged duplicate: "${memory.name}" → "${merged.name}" (${(0.8 * 100).toFixed(0)}%+ overlap)`);
         return { content: [{ type: "text" as const, text: JSON.stringify({
           success: true, merged: true, memory_id: merged.id, name: merged.name, preview: safeTruncate(content, 200),
         }) }] };
@@ -238,10 +282,10 @@ function startMcpServer() {
   server.registerTool(
     "memory_search",
     {
-      title: "语义检索记忆",
-      description: "通过语义相似度搜索相关记忆。向量模型不可用时自动回退到关键词匹配。",
+      title: "Search memories",
+      description: "Semantic search with vector similarity. Auto-falls back to keyword matching when model unavailable.",
       inputSchema: {
-        query: z.string().describe("自然语言查询。"),
+        query: z.string().describe("Natural language search query."),
         limit: z.number().min(1).max(20).default(5),
         min_similarity: z.number().min(0).max(1).default(0.6),
         category: z.string().optional(),
@@ -278,9 +322,9 @@ function startMcpServer() {
   server.registerTool(
     "memory_recall",
     {
-      title: "精确获取记忆",
-      description: "通过 memory_id 精确获取一条记忆的完整内容。",
-      inputSchema: { memory_id: z.string().describe("记忆 ID。") },
+      title: "Recall memory",
+      description: "Retrieve a single memory by its exact ID with full content.",
+      inputSchema: { memory_id: z.string().describe("Memory ID.") },
     },
     async (params) => {
       const { memory_id } = params;
@@ -333,9 +377,9 @@ function startMcpServer() {
   server.registerTool(
     "memory_forget",
     {
-      title: "遗忘记忆",
-      description: "删除一条记忆，同时删除本地文件。",
-      inputSchema: { memory_id: z.string().describe("要删除的记忆 ID。") },
+      title: "Forget memory",
+      description: "Delete a memory by ID — removes local file + uploads cloud tombstone.",
+      inputSchema: { memory_id: z.string().describe("Memory ID to delete.") },
     },
     async (params) => {
       const { memory_id } = params;
@@ -357,8 +401,8 @@ function startMcpServer() {
   server.registerTool(
     "memory_context",
     {
-      title: "加载上下文",
-      description: "加载当前会话的上下文——返回最近创建或访问的高优先级记忆。",
+      title: "Load context",
+      description: "Load current session context — returns top recent/high-priority memories.",
       inputSchema: { limit: z.number().min(1).max(20).default(5) },
     },
     async (params) => {
@@ -374,11 +418,11 @@ function startMcpServer() {
   server.registerTool(
     "memory_export",
     {
-      title: "导出记忆",
-      description: "导出记忆为可移植格式（JSON 或 Markdown）。Free 用户换电脑时手动带走记忆，Pro 用户备份。不指定 memory_ids 则导出全部。",
+      title: "Export memories",
+      description: "Export memories to portable JSON or Markdown. Free users can move between machines; Pro users can backup. Exports all if no memory_ids specified.",
       inputSchema: {
-        memory_ids: z.array(z.string()).optional().describe("要导出的记忆 ID 列表。不指定则导出全部。"),
-        format: z.enum(["json", "markdown"]).default("json").describe("导出格式: json（结构化）或 markdown（人类可读）。"),
+        memory_ids: z.array(z.string()).optional().describe("Memory IDs to export. Exports all if not specified."),
+        format: z.enum(["json", "markdown"]).default("json").describe("Export format: json (structured) or markdown (human-readable)."),
       },
     },
     async (params) => {
@@ -434,12 +478,12 @@ function startMcpServer() {
   server.registerTool(
     "memory_share",
     {
-      title: "分享记忆",
-      description: "将一条记忆打包为可分享的格式，方便发送给队友或其他 Agent 导入。返回一个独立 JSON 包，对方可用 memory_store 重新存入。",
+      title: "Share memory",
+      description: "Package a single memory into a shareable JSON bundle for teammates or other agents to import via memory_store.",
       inputSchema: {
-        memory_id: z.string().describe("要分享的记忆 ID。"),
-        recipient: z.string().optional().describe("接收者名称（可选，写入分享包元数据）。"),
-        note: z.string().optional().describe("附注消息（可选，写入分享包）。"),
+        memory_id: z.string().describe("Memory ID to share."),
+        recipient: z.string().optional().describe("Recipient name (optional, written to share metadata)."),
+        note: z.string().optional().describe("Optional note attached to the share package."),
       },
     },
     async (params) => {
@@ -477,14 +521,14 @@ function startMcpServer() {
   server.registerTool(
     "memory_update",
     {
-      title: "更新记忆",
-      description: "增量更新一条记忆。只覆盖传入的字段，未传入的字段保持不变。",
+      title: "Update memory",
+      description: "Partially update a memory by ID. Only provided fields are changed — unset fields stay untouched.",
       inputSchema: {
-        memory_id: z.string().describe("要更新的记忆 ID。"),
-        content: z.string().min(1).max(100000).refine((s) => s.trim().length > 0, "Content must not be whitespace-only").optional().describe("新内容（可选）。"),
-        category: z.string().optional().describe("新分类（可选）。"),
-        tags: z.array(z.string()).optional().describe("新标签列表（可选，会完全替换）。"),
-        priority: z.number().min(1).max(10).optional().describe("新优先级 1-10（可选）。"),
+        memory_id: z.string().describe("Memory ID to update."),
+        content: z.string().min(1).max(100000).refine((s) => s.trim().length > 0, "Content must not be whitespace-only").optional().describe("New content (optional)."),
+        category: z.string().optional().describe("New category (optional)."),
+        tags: z.array(z.string()).optional().describe("New tags list (optional, replaces all existing tags)."),
+        priority: z.number().min(1).max(10).optional().describe("New priority 1-10 (optional)."),
       },
     },
     async (params) => {
