@@ -16,19 +16,14 @@ An MCP-standard AI agent persistent memory engine. Free tier runs locally, Pro t
 | `memory_list` | List memories with category/tag filtering |
 | `memory_forget` | Delete memory (local + Shelby tombstone) |
 | `memory_context` | Load top-N session context |
+| `memory_export` | Export as JSON or Markdown |
+| `memory_share` | Package single memory for teammate import |
 
 ### Editing Layer
 
 | Tool | Description |
 |---|---|
 | `memory_update` | Partial update by ID — only provided fields changed |
-
-### Collaboration Layer
-
-| Tool | Description |
-|---|---|
-| `memory_export` | Export as JSON or Markdown |
-| `memory_share` | Package single memory for teammate import |
 
 ## Auto-Engines (5)
 
@@ -52,7 +47,7 @@ An MCP-standard AI agent persistent memory engine. Free tier runs locally, Pro t
 
 | Tier | Description |
 |---|---|
-| Free | 8 tools, local storage, unlimited memories |
+| Free | 9 tools, local storage, unlimited memories |
 | Pro | + Shelby decentralized cloud sync, cross-device |
 
 Pro currently operates on Shelbynet testnet.

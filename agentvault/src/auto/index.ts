@@ -17,7 +17,8 @@ export function autoName(content: string): string {
     .replace(/\n/g, ". ")     // newlines as sentence boundaries
     .replace(/\s+/g, " ")
     .trim();
-  if (!clean) return "memory";
+  // After stripping code blocks, only punctuation/whitespace remains → fallback
+  if (!clean || clean.replace(/[\W_]/g, "").length === 0) return "memory";
 
   // Find first natural sentence boundary
   const endMarkers = [". ", "? ", "! ", ".\" ", ".\n"];

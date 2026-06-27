@@ -133,7 +133,26 @@ await run("keywordSearch with name match scores higher", () => {
   const r = s.keywordSearch("react", { limit: 5 });
   assert(r.length === 2, "two matches");
 });
+	await run("keywordSearch CJK Japanese query finds match", () => {
+	  const s = new MemoryStore();
+	  s.add({ ...mem, id: "cjk-ja", name: "test", content: "日本語テストデータ", tags: [] });
+	  const r = s.keywordSearch("日本語", { limit: 5 });
+	  assert(r.length >= 1, "Japanese search should find result");
+	});
 
+	await run("keywordSearch CJK Chinese query finds match", () => {
+	  const s = new MemoryStore();
+	  s.add({ ...mem, id: "cjk-zh", name: "中文", content: "这是一个中文测试数据", tags: [] });
+	  const r = s.keywordSearch("中文", { limit: 5 });
+	  assert(r.length >= 1, "Chinese search should find result");
+	});
+
+	await run("keywordSearch CJK Korean query finds match", () => {
+	  const s = new MemoryStore();
+	  s.add({ ...mem, id: "cjk-ko", name: "한글", content: "한국어 테스트 데이터", tags: [] });
+	  const r = s.keywordSearch("한국어", { limit: 5 });
+	  assert(r.length >= 1, "Korean search should find result");
+	});
 await run("vectorSearch with no vector returns empty if threshold high", () => {
   const s = new MemoryStore();
   s.add({ ...mem, id: "a", vector: [0.1, 0.2, 0.3] });
@@ -203,6 +222,10 @@ await run("autoName code-only returns 'memory'", () => {
   const n = autoName("```\ncode block only\n```");
   assertEq(n, "memory", "fallback");
 });
+	await run("autoName multiple code blocks only returns 'memory'", () => {
+	  const n = autoName("```\nconst x = 1;\n```\n```\nconst y = 2;\n```");
+	  assertEq(n, "memory", "multi code-block fallback");
+	});
 
 await run("autoName empty", () => {
   const n = autoName("");
@@ -590,7 +613,7 @@ await run("full lifecycle: store → search → export → forget", () => {
       s.add({ ...mem, id: `stress-${i}`, content: `Memory content ${i} with filler to make it searchable.`, access_count: i % 100, priority: 1 + (i % 10) });
     }
     assert(s.size() <= 5000, "LRU capped at 5000");
-    assert(s.size() >= 4000 && s.size() < 5000, `LRU eviction working: ${s.size()} items`);
+    assert(s.size() === 5000, `LRU eviction working: ${s.size()} items`);
   });
 
   await run("stress: rapid 200 stores + searches — no crash", () => {

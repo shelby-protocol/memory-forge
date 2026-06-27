@@ -92,28 +92,32 @@ function blobNameFor(memoryId: string): string {
 
 const SHELBYUSD_FA = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1";
 
-/** Query on-chain balances via REST API. Returns null on error. */
+/** Query on-chain balances via Aptos indexer GraphQL.
+ *  On shelbynet, APT and ShelbyUSD are both Fungible Assets (8 decimals).
+ *  FA stores live at derived addresses — indexer aggregates them correctly. */
 export async function getBalances(): Promise<{ apt: string; shelbyUsd: string } | null> {
   if (!client || !account) return null;
   try {
-    const aptosConfig = (client as any).config;
-    const baseUrl = aptosConfig.fullnode ?? "https://api.shelbynet.shelby.xyz/v1";
     const addr = account.accountAddress.toString();
+    const indexerUrl = "https://api.shelbynet.shelby.xyz/v1/graphql";
 
-    // APT: query coin store resource
-    const aptUrl = `${baseUrl}/accounts/${addr}/resource/0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>`;
-    const aptRes = await fetch(aptUrl).then(r => r.json()).catch(() => null);
-    const aptRaw = aptRes?.data?.coin?.value;
+    const query = {
+      query: `{ current_fungible_asset_balances(where: {owner_address: {_eq: "${addr}"}}) { amount metadata { name symbol decimals } } }`,
+    };
 
-    // ShelbyUSD: query fungible asset balance
-    const usdUrl = `${baseUrl}/accounts/${addr}/fungible_asset_balances`;
-    const usdRes = await fetch(usdUrl).then(r => r.json()).catch(() => null);
-    const usdEntry = Array.isArray(usdRes) ? usdRes.find((b: any) => b.asset_type === SHELBYUSD_FA) : null;
-    const usdRaw = usdEntry?.amount;
+    const res = await fetch(indexerUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(query),
+    }).then(r => r.json()).catch(() => null);
+
+    const balances: any[] = res?.data?.current_fungible_asset_balances ?? [];
+    const aptEntry = balances.find((b: any) => b.metadata?.symbol === "APT");
+    const usdEntry = balances.find((b: any) => b.metadata?.symbol === "SHELBY_USD");
 
     return {
-      apt: typeof aptRaw === "string" ? (Number(aptRaw) / 1e8).toFixed(4) : "0.0000",
-      shelbyUsd: typeof usdRaw === "string" ? (Number(usdRaw) / 1e6).toFixed(4) : "0.0000",
+      apt: aptEntry?.amount != null ? (Number(aptEntry.amount) / 1e8).toFixed(4) : "0.0000",
+      shelbyUsd: usdEntry?.amount != null ? (Number(usdEntry.amount) / 1e8).toFixed(4) : "0.0000",
     };
   } catch {
     return null;

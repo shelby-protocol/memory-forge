@@ -13,5 +13,5 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/test.ts"]
+  "exclude": ["node_modules", "dist", "src/test.ts", "src/scenario-test.ts", "src/shelby-test.ts", "src/setup-test.ts", "src/import-test.ts", "src/embed-test.ts", "src/transcript-test.ts"]
 }

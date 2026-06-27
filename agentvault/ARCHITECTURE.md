@@ -8,7 +8,7 @@
 │  via MCP stdio protocol              │
 ├─────────────────────────────────────┤
 │  MCP Server (index.ts)              │
-│  8 tools + CLI hook routing          │
+│  9 tools + CLI hook routing          │
 ├──────────┬──────────────────────────┤
 │  Free    │  Pro                      │
 │  local   │  Shelby cloud             │

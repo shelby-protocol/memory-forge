@@ -92,8 +92,8 @@ if (cmd === "--version" || cmd === "-v") {
         if (balances) {
           const aptVal = parseFloat(balances.apt);
           const usdVal = parseFloat(balances.shelbyUsd);
-          const aptWarn = aptVal < 0.01 ? " ⚠️  low (gas may fail)" : "";
-          const usdWarn = usdVal < 1.0 ? " ⚠️  low (storage uploads may fail)" : "";
+          const aptWarn = aptVal < 0.01 ? " ⚠️  low (Gas Station sponsors tx fees)" : "";
+          const usdWarn = usdVal < 1.0 ? " ⚠️  low (fund for direct storage payments)" : "";
           console.log(`  APT balance:        ${balances.apt}${aptWarn}`);
           console.log(`  ShelbyUSD balance:  ${balances.shelbyUsd}${usdWarn}`);
         } else if (cfg.apiKey) {

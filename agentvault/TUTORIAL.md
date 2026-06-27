@@ -155,7 +155,7 @@ APTOS_PRIVATE_KEY="key" memory-forge pro
 
 ---
 
-## 8 MCP Tools (Agent Calls These)
+## 9 MCP Tools (Agent Calls These)
 
 | Tool | Purpose | Example Trigger |
 |---|---|---|

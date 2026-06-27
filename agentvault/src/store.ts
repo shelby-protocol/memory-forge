@@ -35,14 +35,19 @@ export class MemoryStore {
     if (memory.vector?.length) {
       this.vectorCache.set(memory.id, new Float32Array(memory.vector));
     }
-    // LRU: keep max 5000 in memory
+    // LRU: keep max 5000 in memory. O(n) single-entry eviction.
     if (this.memories.size > 5000) {
-      const oldest = [...this.memories.values()]
-        .sort((a, b) => (a.access_count || 0) - (b.access_count || 0) || (a.priority || 5) - (b.priority || 5))
-        .slice(0, 1000);
-      for (const m of oldest) {
-        this.memories.delete(m.id);
-        this.vectorCache.delete(m.id);
+      let worst: { id: string; access_count: number; priority: number } | null = null;
+      for (const m of this.memories.values()) {
+        const ac = m.access_count || 0;
+        const pr = m.priority || 5;
+        if (!worst || ac < worst.access_count || (ac === worst.access_count && pr < worst.priority)) {
+          worst = { id: m.id, access_count: ac, priority: pr };
+        }
+      }
+      if (worst) {
+        this.memories.delete(worst.id);
+        this.vectorCache.delete(worst.id);
       }
     }
   }
@@ -138,13 +143,14 @@ export class MemoryStore {
       candidates = candidates.filter((m) => options.tags!.some((t) => m.tags.includes(t)));
     }
 
-    // Build per-token matchers: boundary regex (all) + substring check (long tokens only)
+    // Build per-token matchers: boundary regex (all) + substring fallback (all).
+    // \b works for Latin scripts; substring fallback catches CJK & non-Latin
+    // where \b does not match. \b matches scored higher (2-3), substring lower (1).
     const matchers = rawTokens.map((t) => {
       const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       return {
         regex: new RegExp(`\\b${escaped}\\b`, "i"),
         substring: escaped,
-        isShort: t.length <= 3,
       };
     });
 
@@ -160,14 +166,14 @@ export class MemoryStore {
 
           if (mat.regex.test(content)) {
             contentWeight = 2; // word boundary hit
-          } else if (!mat.isShort && content.includes(mat.substring)) {
-            contentWeight = 1; // substring fallback (long tokens only)
+          } else if (content.includes(mat.substring)) {
+            contentWeight = 1; // substring fallback
           }
 
           if (mat.regex.test(name)) {
             nameWeight = 3; // word boundary hit
-          } else if (!mat.isShort && name.includes(mat.substring)) {
-            nameWeight = 1; // substring fallback (long tokens only)
+          } else if (name.includes(mat.substring)) {
+            nameWeight = 1; // substring fallback
           }
 
           score += contentWeight + nameWeight;

@@ -1,6 +1,6 @@
 # MemoryForge — Technical Documentation
 
-> Version 0.3.0 | 8 MCP Tools + 5 Auto-Engines | Free (local) + Pro (Shelby cloud) | 52 tests
+> Version 0.4.2 | 9 MCP Tools + 5 Auto-Engines | Free (local) + Pro (Shelby cloud) | 72 tests
 
 ## Table of Contents
 
@@ -26,9 +26,10 @@
 │  CLI Router (index.ts)              │
 │  setup / pro / hook / MCP Server    │
 ├─────────────────────────────────────┤
-│  8 MCP Tools                        │
+│  9 MCP Tools                        │
 │  store / search / recall / list     │
 │  forget / context / export / share  │
+│  update                             │
 ├──────────────┬──────────────────────┤
 │  Free Tier   │  Pro Tier             │
 │  MemoryStore │  ShelbyNodeClient     │
