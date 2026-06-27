@@ -26,7 +26,12 @@ async function getEmbedder(): Promise<EmbedFn> {
   loading = (async () => {
     try {
       console.error("[MemoryForge] Loading embedding model (~23MB, one-time download)…");
-      const { pipeline } = await import("@huggingface/transformers");
+      const { pipeline, env } = await import("@huggingface/transformers");
+      // Use HF mirror in blocked regions via HF_MIRROR env var
+      if (process.env.HF_MIRROR) {
+        env.remoteHost = process.env.HF_MIRROR;
+        console.error(`[MemoryForge] Using mirror: ${process.env.HF_MIRROR}`);
+      }
       const engine = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
         progress_callback: (progress: any) => {
           if (progress?.status === "downloading") {
@@ -71,7 +76,6 @@ export async function embed(text: string): Promise<Float32Array | null> {
 /** 预加载模型（后台运行，不阻塞） */
 export function preload(): void {
   getEmbedder().then((fn) => {
-    // Test with a lightweight string to warm the pipeline
     fn("warmup")
       .then(() => {
         console.error("[MemoryForge] Embedding model ready — semantic search active");

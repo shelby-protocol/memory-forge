@@ -15,25 +15,57 @@
 import * as fs from "node:fs";
 import { MemoryStore, type Memory } from "../src/store.js";
 import { randomUUID } from "node:crypto";
-import { autoName } from "../src/auto/index.js";
+import { autoName, inferCategory, suggestTags } from "../src/auto/index.js";
 import { embed } from "../src/embedding.js";
 import { expandQuery } from "../src/search/expand.js";
 
+// ── GPU Embed Server ───────────────────────────────────
+
+const GPU_EMBED_URL = process.env.GPU_EMBED_URL || "http://127.0.0.1:8765";
+let gpuAvailable: boolean | null = null;
+
+async function checkGpu(): Promise<boolean> {
+  if (gpuAvailable !== null) return gpuAvailable;
+  try {
+    const res = await fetch(`${GPU_EMBED_URL}/health`);
+    gpuAvailable = res.ok;
+  } catch {
+    gpuAvailable = false;
+  }
+  return gpuAvailable;
+}
+
+async function batchEmbed(texts: string[]): Promise<Float32Array[]> {
+  if (!(await checkGpu())) return texts.map(() => new Float32Array(0));
+  try {
+    const res = await fetch(`${GPU_EMBED_URL}/embed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts }),
+    });
+    const data = (await res.json()) as { vectors: number[][] };
+    return data.vectors.map((v) => new Float32Array(v));
+  } catch {
+    return texts.map(() => new Float32Array(0));
+  }
+}
+
 // ── Types ──────────────────────────────────────────────
 
-interface Session {
-  session_id: string;
-  session_date: string;
-  messages: { role: string; content: string }[];
-}
+// LongMemEval format: sessions vary — some are 2-msg tuples, others are multi-turn arrays
+type MsgObj = { role: string; content: string };
+type SessionData = MsgObj[]; // array of message objects (numeric keys)
 
 interface LongMemEvalQuestion {
   question_id: string;
   question: string;
+  question_type: string;
+  question_date: string;
   answer: string;
-  task: string;
-  haystack_sessions: Session[];
-  evidence_sessions?: string[];
+  answer_session_ids: string[];
+  haystack_dates: string[];
+  haystack_session_ids: string[];
+  haystack_sessions: SessionData[];
 }
 
 // ── CLI args ───────────────────────────────────────────
@@ -89,37 +121,63 @@ async function runBenchmark(opts: ReturnType<typeof parseArgs>) {
 
   for (const q of questions) {
     const store = new MemoryStore();
-    const evidenceIds = new Set(q.evidence_sessions ?? []);
+    const origEvidenceIds = new Set(q.answer_session_ids ?? []);
+    const evidenceIds = new Set<string>();
 
-    // Index all sessions as memories
-    for (const session of q.haystack_sessions) {
-      const content = session.messages.map((m) => `${m.role}: ${m.content}`).join("\n");
-      const id = session.session_id;
+    // Collect all content texts for batch embedding
+    const contentTexts: string[] = [];
+    const contentMeta: { sid: string; isEvidence: boolean }[] = [];
 
-      // Embed only if enabled (expensive)
-      let vector: number[] = [];
-      if (!opts.skipEmbed) {
-        const vec = await embed(content);
-        if (vec) vector = Array.from(vec);
+    for (let si = 0; si < q.haystack_sessions.length; si++) {
+      const session = q.haystack_sessions[si];
+      const baseSid = q.haystack_session_ids[si] ?? `s-${si}`;
+      const isEvidence = origEvidenceIds.has(baseSid);
+
+      if (session.length <= 2) {
+        const content = session.map((m: MsgObj) => `${m.role}: ${m.content}`).join("\n");
+        contentTexts.push(content);
+        contentMeta.push({ sid: baseSid, isEvidence });
+      } else {
+        for (let mi = 0; mi < session.length - 1; mi++) {
+          const pair = [session[mi], session[mi + 1]];
+          const subSid = `${baseSid}-t${mi}`;
+          const content = `${pair[0].role}: ${pair[0].content}\n${pair[1].role}: ${pair[1].content}`;
+          contentTexts.push(content);
+          contentMeta.push({ sid: subSid, isEvidence });
+        }
       }
+    }
 
+    // Batch embed all session content + query via GPU server
+    const embedTargets = opts.skipEmbed ? [] : [...contentTexts, q.question];
+    let vectors: Float32Array[] = [];
+    if (!opts.skipEmbed) {
+      vectors = await batchEmbed(embedTargets);
+    }
+    const queryVec = !opts.skipEmbed && vectors.length > 0 ? vectors.pop()! : undefined;
+
+    // Add all memories with their vectors
+    for (let i = 0; i < contentMeta.length; i++) {
+      const { sid, isEvidence } = contentMeta[i];
+      const content = contentTexts[i];
+      const vec = vectors[i] ?? new Float32Array(0);
       store.add({
-        id,
+        id: sid,
         name: autoName(content),
         content,
         category: "general",
         tags: [],
         priority: 5,
-        vector,
+        vector: vec.length > 0 ? Array.from(vec) : [],
         created_at: new Date().toISOString(),
         access_count: 0,
         last_accessed: null,
       });
+      if (isEvidence) evidenceIds.add(sid);
     }
 
     // Search
     const expanded = expandQuery(q.question);
-    const queryVec = !opts.skipEmbed ? await embed(q.question) : null;
 
     let results: Memory[];
     if (opts.method === "bm25") {
@@ -144,14 +202,15 @@ async function runBenchmark(opts: ReturnType<typeof parseArgs>) {
     }
 
     // Per-task stats
-    if (!taskResults[q.task]) {
-      taskResults[q.task] = { total: 0, hits: {} };
-      for (const k of kValues) taskResults[q.task].hits[k] = 0;
+    const task = q.question_type;
+    if (!taskResults[task]) {
+      taskResults[task] = { total: 0, hits: {} };
+      for (const k of kValues) taskResults[task].hits[k] = 0;
     }
-    taskResults[q.task].total++;
+    taskResults[task].total++;
     for (const k of kValues) {
       if (results.slice(0, k).some((r) => evidenceIds.has(r.id))) {
-        taskResults[q.task].hits[k]++;
+        taskResults[task].hits[k]++;
       }
     }
 

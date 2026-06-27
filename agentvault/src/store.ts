@@ -154,7 +154,14 @@ export class MemoryStore {
       const bmRaw = bm25Results.get(m.id) ?? 0;
       const bmNorm = bm25Max > 0 ? bmRaw / bm25Max : 0;
 
-      const hybridScore = alpha * vScore + (1 - alpha) * bmNorm;
+      // Recommendation/preference queries: boost vector weight.
+      // These queries need semantic matching (e.g. "video editing" → "Premiere Pro")
+      const q = rawQuery.toLowerCase();
+      const isRecQuery =
+        /\b(recommend|suggest|suggestion|advice|tips?|ideas?|what should|which one|trying to decide|do you think|do you have any|i('m| am) (thinking|planning|trying|looking)|what('s| is) (a |the )?(good|best)|how (can|do|should) i|could there be)\b/i.test(q);
+      const effectiveAlpha = isRecQuery ? 0.9 : alpha;
+
+      const hybridScore = effectiveAlpha * vScore + (1 - effectiveAlpha) * bmNorm;
       return { memory: m, similarity: vSim, score: hybridScore };
     });
 
