@@ -155,7 +155,7 @@ export async function pro(): Promise<void> {
 export async function syncAll(): Promise<void> {
   if (!fs.existsSync(PROFILE_PATH)) return;
 
-  const apiKey = process.env.SHELBY_API_KEY;
+  const apiKey = getShelbyConfig().apiKey;
   if (!apiKey) {
     console.error("[MemoryForge] Pro sync skipped: SHELBY_API_KEY not set");
     return;
@@ -242,8 +242,10 @@ export async function syncAll(): Promise<void> {
   let uploaded = 0;
   let uploadFailed = 0;
   for (const m of loadAllMemories()) {
-    const blobName = `memories/${m.id}.json`;
-    if (blobs.includes(blobName)) continue;
+    const newName = getBlobName(m.id);
+    const oldName = `memories/${m.id}.json`;
+    // Skip if already on Shelby (either old or new format)
+    if (blobs.includes(newName) || blobs.includes(oldName)) continue;
     const result = await uploadMemory(m);
     if (result) uploaded++; else uploadFailed++;
   }
