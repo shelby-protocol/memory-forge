@@ -1,12 +1,62 @@
 /**
- * Claude Code hooks 自动配置。
- * 写入 ~/.claude/settings.json，自动添加 SessionStart/Stop/PreCompact hooks。
+ * Hooks + MCP server auto-configuration.
+ * Installs lifecycle hooks to Claude Code settings.json.
+ * Installs MCP server config to Claude Code / Codex / Cursor / Windsurf.
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const CLAUDE_SETTINGS = path.join(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".claude", "settings.json");
+const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+
+/** Tools that use the standard MCP mcp.json format. */
+const MCP_TOOLS: { name: string; dir: string }[] = [
+  { name: "Claude Code", dir: path.join(HOME, ".claude") },
+  { name: "Codex", dir: path.join(HOME, ".codex") },
+  { name: "Cursor", dir: path.join(HOME, ".cursor") },
+  { name: "Windsurf", dir: path.join(HOME, ".windsurf") },
+];
+
+const CLAUDE_SETTINGS = path.join(HOME, ".claude", "settings.json");
+
+// ═══ MCP Server Installation ════════════════════════════════
+
+export function installMcpServers(): { installed: string[]; updated: string[] } {
+  const installed: string[] = [];
+  const updated: string[] = [];
+
+  for (const tool of MCP_TOOLS) {
+    try {
+      if (!fs.existsSync(tool.dir)) {
+        // Only create directory if tool config dir exists (don't create for absent tools)
+        continue;
+      }
+
+      const mcpPath = path.join(tool.dir, "mcp.json");
+      let config: any = {};
+      if (fs.existsSync(mcpPath)) {
+        config = JSON.parse(fs.readFileSync(mcpPath, "utf-8"));
+      }
+
+      if (!config.mcpServers) config.mcpServers = {};
+
+      if (config.mcpServers["memory-forge"]) {
+        installed.push(tool.name);
+        continue;
+      }
+
+      config.mcpServers["memory-forge"] = { command: "memory-forge" };
+      fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2));
+      updated.push(tool.name);
+    } catch {
+      // Tool not installed or config corrupted — skip
+    }
+  }
+
+  return { installed, updated };
+}
+
+// ═══ Claude Code Hooks ══════════════════════════════════════
 
 export function installHooks(): boolean {
   try {
@@ -15,8 +65,7 @@ export function installHooks(): boolean {
 
     let config: any = {};
     if (fs.existsSync(CLAUDE_SETTINGS)) {
-      const raw = fs.readFileSync(CLAUDE_SETTINGS, "utf-8");
-      config = JSON.parse(raw);
+      config = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS, "utf-8"));
     }
 
     if (!config.hooks) config.hooks = {};
@@ -26,7 +75,7 @@ export function installHooks(): boolean {
     config.hooks.SessionStart = config.hooks.SessionStart || [];
     if (!hasHook(config.hooks.SessionStart, "memory-forge")) {
       config.hooks.SessionStart.push({
-        matcher: "startup", // only fire on new session, not resume/clear/compact
+        matcher: "startup",
         hooks: [{ type: "command", command: `${mfCmd} hook session-start` }],
       });
     }
@@ -65,6 +114,8 @@ function hasHook(hooks: any[], name: string): boolean {
   return hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes(name)));
 }
 
+// ═══ Status ═════════════════════════════════════════════════
+
 export function getHooksStatus(): { sessionStart: boolean; stop: boolean; preCompact: boolean; postToolUse: boolean } {
   try {
     if (!fs.existsSync(CLAUDE_SETTINGS)) return { sessionStart: false, stop: false, preCompact: false, postToolUse: false };
@@ -78,4 +129,17 @@ export function getHooksStatus(): { sessionStart: boolean; stop: boolean; preCom
   } catch {
     return { sessionStart: false, stop: false, preCompact: false, postToolUse: false };
   }
+}
+
+export function getMcpStatus(): { tool: string; configured: boolean }[] {
+  return MCP_TOOLS.map((t) => {
+    try {
+      const mcpPath = path.join(t.dir, "mcp.json");
+      if (!fs.existsSync(mcpPath)) return { tool: t.name, configured: false };
+      const config = JSON.parse(fs.readFileSync(mcpPath, "utf-8"));
+      return { tool: t.name, configured: !!config.mcpServers?.["memory-forge"] };
+    } catch {
+      return { tool: t.name, configured: false };
+    }
+  });
 }
