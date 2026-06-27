@@ -15,6 +15,9 @@ import {
   listBlobs,
   getMemoryId,
   getShelbyConfig,
+  getBalances,
+  getStorageUsage,
+  isAuthFailed,
 } from "./storage/shelby.js";
 import { MemoryStore } from "./store.js";
 
@@ -151,37 +154,49 @@ export async function syncAll(): Promise<void> {
 
   // Download and merge blob memories (skip tombstoned, prefer newer remote)
   let downloaded = 0;
+  let mergeConflicts = 0;
   for (const blobName of blobs) {
     const memoryId = getMemoryId(blobName);
     if (!memoryId) continue;
-    if (tombstoned.has(memoryId)) continue; // user deleted this — don't resurrect
+    if (tombstoned.has(memoryId)) continue;
 
     const local = store.get(memoryId);
     const remote = await downloadMemory(blobName);
     if (!remote) continue;
 
     if (local) {
-      // Field-level merge: combine non-conflicting fields, LWW for same-field edits
       const localTime = new Date(local.created_at).getTime();
       const remoteTime = new Date(remote.created_at).getTime();
 
-      if (remoteTime <= localTime) {
-        // Remote is older — keep local as-is, but merge remote-only fields
-        // (fields remote changed that local hasn't touched since sync)
-        continue;
-      }
+      if (remoteTime <= localTime) continue;
 
-      // Remote is newer — merge intelligently
+      // Field-level merge: track which fields conflict (both sides changed)
+      const fieldConflicts: string[] = [];
       const merged = { ...local };
       merged.last_accessed = remote.last_accessed ?? local.last_accessed;
 
-      // Each field: remote wins if changed (timestamp proxy), else keep local
-      if (remote.content !== local.content) merged.content = remote.content;
-      if (remote.category !== local.category) merged.category = remote.category;
-      if (JSON.stringify(remote.tags) !== JSON.stringify(local.tags)) merged.tags = remote.tags;
-      if (remote.priority !== local.priority) merged.priority = remote.priority;
-      // access_count: keep max
+      if (remote.content !== local.content) {
+        merged.content = remote.content;
+        if (local.content !== merged.content) fieldConflicts.push("content");
+      }
+      if (remote.category !== local.category) {
+        merged.category = remote.category;
+        if (local.category !== merged.category) fieldConflicts.push("category");
+      }
+      if (JSON.stringify(remote.tags) !== JSON.stringify(local.tags)) {
+        merged.tags = remote.tags;
+        fieldConflicts.push("tags");
+      }
+      if (remote.priority !== local.priority) {
+        merged.priority = remote.priority;
+        fieldConflicts.push("priority");
+      }
       merged.access_count = Math.max(local.access_count, remote.access_count);
+
+      if (fieldConflicts.length > 0) {
+        mergeConflicts++;
+        console.error(`[MemoryForge] Merge conflict on "${merged.name}": ${fieldConflicts.join(", ")} — remote won`);
+      }
 
       store.add(merged);
       saveMemory(merged);
@@ -211,28 +226,27 @@ export async function syncAll(): Promise<void> {
   }
 
   // Touch last-sync timestamp with stats
-  updateSyncStamp(uploaded, downloaded, uploadFailed);
+  updateSyncStamp(uploaded, downloaded, uploadFailed, mergeConflicts);
 
   // Purge expired tombstones
   cleanupTombstones();
 }
 
-interface SyncEntry { time: string; up: number; down: number; failed: number }
+interface SyncEntry { time: string; up: number; down: number; failed: number; conflicts?: number }
 
-function updateSyncStamp(up: number, down: number, failed: number): void {
+function updateSyncStamp(up: number, down: number, failed: number, conflicts?: number): void {
   try {
     const profile = fs.existsSync(PROFILE_PATH)
       ? JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"))
       : { version: 1 };
     profile.lastSync = new Date().toISOString();
     profile.syncHistory = profile.syncHistory || [];
-    profile.syncHistory.push({ time: profile.lastSync, up, down, failed });
-    // Keep last 10 entries
+    profile.syncHistory.push({ time: profile.lastSync, up, down, failed, conflicts: conflicts ?? 0 });
     if (profile.syncHistory.length > 10) profile.syncHistory = profile.syncHistory.slice(-10);
-    // Running totals
     profile.totalUploaded = (profile.totalUploaded || 0) + up;
     profile.totalDownloaded = (profile.totalDownloaded || 0) + down;
     profile.totalFailed = (profile.totalFailed || 0) + failed;
+    profile.totalConflicts = (profile.totalConflicts || 0) + (conflicts ?? 0);
     fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
   } catch { /* best-effort */ }
 }
@@ -283,11 +297,14 @@ export async function proAutoActivate(): Promise<void> {
 export function proStatus(): {
   active: boolean; address?: string; lastSync?: string;
   totalUploaded?: number; totalDownloaded?: number; totalFailed?: number;
-  syncHistory?: SyncEntry[]; localCount?: number;
+  totalConflicts?: number; syncHistory?: SyncEntry[]; localCount?: number;
+  apiKeyValid?: boolean; balances?: { apt: string; shelbyUsd: string } | null;
+  storage?: { blobCount: number; totalBytes: number } | null;
 } {
   if (!fs.existsSync(PROFILE_PATH)) return { active: false };
   try {
     const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+    const cfg = getShelbyConfig();
     return {
       active: true,
       address: profile.address,
@@ -295,8 +312,12 @@ export function proStatus(): {
       totalUploaded: profile.totalUploaded ?? 0,
       totalDownloaded: profile.totalDownloaded ?? 0,
       totalFailed: profile.totalFailed ?? 0,
+      totalConflicts: profile.totalConflicts ?? 0,
       syncHistory: profile.syncHistory ?? [],
       localCount: loadAllMemories().length,
+      apiKeyValid: cfg.apiKey ? !isAuthFailed() : undefined,
+      balances: null, // filled async by CLI
+      storage: null,  // filled async by CLI
     };
   } catch {
     return { active: false };

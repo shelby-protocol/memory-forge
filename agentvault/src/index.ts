@@ -57,35 +57,76 @@ if (cmd === "--version" || cmd === "-v") {
 } else if (cmd === "pro") {
   const sub = process.argv[3];
   if (sub === "status") {
-    const s = proStatus();
-    if (!s.active) {
-      console.log("Pro: not active");
-      console.log("  Set SHELBY_API_KEY and restart your session to auto-activate.");
-      console.log("  Or run: SHELBY_API_KEY=\"...\" memory-forge pro");
-    } else {
-      console.log("Pro: active ✅");
-      console.log(`  Address:            ${s.address}`);
-      console.log(`  Local memories:     ${s.localCount}`);
-      console.log(`  Total uploaded:     ${s.totalUploaded}`);
-      console.log(`  Total downloaded:   ${s.totalDownloaded}`);
-      console.log(`  Total failed:       ${s.totalFailed || "—"}`);
-      console.log(`  Last sync:          ${s.lastSync || "never"}`);
-      if (s.syncHistory && s.syncHistory.length > 0) {
-        console.log(`  Recent syncs:`);
-        for (const entry of s.syncHistory.slice(-5).reverse()) {
-          const parts: string[] = [];
-          if (entry.up > 0) parts.push(`↑${entry.up}`);
-          if (entry.down > 0) parts.push(`↓${entry.down}`);
-          if (entry.failed > 0) parts.push(`✗${entry.failed}`);
-          console.log(`    ${entry.time.slice(0, 19).replace("T", " ")}  ${parts.join(" ") || "—"}`);
+    (async () => {
+      const { getBalances, getStorageUsage, initShelby, getShelbyConfig } = await import("./storage/shelby.js");
+      const s = proStatus();
+      if (!s.active) {
+        console.log("Pro: not active");
+        console.log("  Set SHELBY_API_KEY and restart your session to auto-activate.");
+        console.log("  Or run: SHELBY_API_KEY=\"...\" memory-forge pro");
+      } else {
+        const cfg = getShelbyConfig();
+        let balances = null;
+        let storage = null;
+        if (cfg.apiKey && cfg.accountAddress) {
+          const { readFileSync } = await import("node:fs");
+          const { join } = await import("node:path");
+          const { homedir } = await import("node:os");
+          let profile: any = null;
+          try { profile = JSON.parse(readFileSync(join(homedir(), ".memory-forge", "pro.json"), "utf-8")); } catch {}
+          if (profile?.privateKey) {
+            initShelby(cfg.apiKey, profile.privateKey);
+            balances = await getBalances();
+            storage = await getStorageUsage();
+          }
+        }
+
+        console.log("Pro: active ✅");
+        console.log("");
+        console.log("  ── Account ──");
+        console.log(`  Address:            ${s.address}`);
+        console.log(`  API key:            ${s.apiKeyValid === false ? "❌ invalid" : s.apiKeyValid ? "✅ valid" : "—"}`);
+        if (balances) {
+          console.log(`  APT balance:        ${balances.apt}`);
+          console.log(`  ShelbyUSD balance:  ${balances.shelbyUsd}`);
+        } else if (cfg.apiKey) {
+          console.log(`  Balances:           (query failed — network or unfunded)`);
+        }
+        console.log("");
+        console.log("  ── Storage ──");
+        console.log(`  Local memories:     ${s.localCount}`);
+        if (storage) {
+          const kb = (storage.totalBytes / 1024).toFixed(1);
+          console.log(`  Shelby blobs:       ${storage.blobCount} (${kb} KB)`);
+        } else if (cfg.apiKey) {
+          console.log(`  Shelby usage:       (query failed)`);
+        }
+        console.log("");
+        console.log("  ── Sync stats ──");
+        console.log(`  Total uploaded:     ${s.totalUploaded}`);
+        console.log(`  Total downloaded:   ${s.totalDownloaded}`);
+        console.log(`  Total failed:       ${s.totalFailed || "—"}`);
+        console.log(`  Total conflicts:    ${s.totalConflicts || "—"}`);
+        console.log(`  Last sync:          ${s.lastSync || "never"}`);
+        if (s.syncHistory && s.syncHistory.length > 0) {
+          console.log(`  Recent syncs:`);
+          for (const entry of s.syncHistory.slice(-5).reverse()) {
+            const parts: string[] = [];
+            if (entry.up > 0) parts.push(`↑${entry.up}`);
+            if (entry.down > 0) parts.push(`↓${entry.down}`);
+            if (entry.failed > 0) parts.push(`✗${entry.failed}`);
+            if (entry.conflicts && entry.conflicts > 0) parts.push(`⚡${entry.conflicts}`);
+            console.log(`    ${entry.time.slice(0, 19).replace("T", " ")}  ${parts.join(" ") || "—"}`);
+          }
         }
       }
-    }
-    process.exit(0);
+      process.exit(0);
+    })();
+  } else {
+    pro()
+      .then(() => process.exit(process.exitCode ?? 0))
+      .catch((err) => { console.error(err); process.exit(1); });
   }
-  pro()
-    .then(() => process.exit(process.exitCode ?? 0))
-    .catch((err) => { console.error(err); process.exit(1); });
 } else if (cmd === "list") {
   // CLI: memory-forge list [category]
   const cat = process.argv[3];

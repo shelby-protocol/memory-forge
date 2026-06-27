@@ -18,6 +18,9 @@ let account: Account | null = null;
 let authFailed = false;
 let uploadWarned = false;
 
+/** Whether the last API call failed with 401/403. */
+export function isAuthFailed(): boolean { return authFailed; }
+
 /** Central Shelby config — single switch point for API key → license key migration. */
 export interface ShelbyConfig {
   apiKey: string | null;
@@ -82,6 +85,53 @@ export function getShelbyAccount(): Account | null {
 function blobNameFor(memoryId: string): string {
   const cfg = getShelbyConfig();
   return `${cfg.namespace}/memories/${memoryId}.json`;
+}
+
+const SHELBYUSD_FA = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1";
+
+/** Query on-chain balances via REST API. Returns null on error. */
+export async function getBalances(): Promise<{ apt: string; shelbyUsd: string } | null> {
+  if (!client || !account) return null;
+  try {
+    const aptosConfig = (client as any).config;
+    const baseUrl = aptosConfig.fullnode ?? "https://api.shelbynet.shelby.xyz/v1";
+    const addr = account.accountAddress.toString();
+
+    // APT: query coin store resource
+    const aptUrl = `${baseUrl}/accounts/${addr}/resource/0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>`;
+    const aptRes = await fetch(aptUrl).then(r => r.json()).catch(() => null);
+    const aptRaw = aptRes?.data?.coin?.value;
+
+    // ShelbyUSD: query fungible asset balance
+    const usdUrl = `${baseUrl}/accounts/${addr}/fungible_asset_balances`;
+    const usdRes = await fetch(usdUrl).then(r => r.json()).catch(() => null);
+    const usdEntry = Array.isArray(usdRes) ? usdRes.find((b: any) => b.asset_type === SHELBYUSD_FA) : null;
+    const usdRaw = usdEntry?.amount;
+
+    return {
+      apt: aptRaw !== undefined ? (Number(aptRaw) / 1e8).toFixed(4) : "?",
+      shelbyUsd: usdRaw !== undefined ? (Number(usdRaw) / 1e6).toFixed(4) : "?",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Query storage usage from Shelby. Returns count + total bytes, or null on error. */
+export async function getStorageUsage(): Promise<{ blobCount: number; totalBytes: number } | null> {
+  if (!client || !account) return null;
+  try {
+    // Use coordination layer to list blobs with metadata
+    const metadata = await client.coordination.getAccountBlobs({
+      account: account.accountAddress,
+    });
+    const cfg = getShelbyConfig();
+    const ours = metadata.filter((m: any) => m.name?.includes(`/${cfg.namespace}/`));
+    const totalBytes = ours.reduce((sum: number, m: any) => sum + (m.size ?? 0), 0);
+    return { blobCount: ours.length, totalBytes };
+  } catch {
+    return null;
+  }
 }
 
 /** 上传记忆到 Shelby */
