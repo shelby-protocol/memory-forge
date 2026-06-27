@@ -210,8 +210,19 @@ if (cmd === "--version" || cmd === "-v") {
       console.error(`[MemoryForge] transcript capture failed: ${(err as Error).message}`);
       process.exit(1);
     }
+  } else {
+    console.error(`Unknown hook type: ${hookType || "(none)"}`);
+    console.error("Hook types: session-start, stop, pre-compact, capture-transcript");
+    process.exit(1);
   }
   process.exit(0);
+} else if (cmd && cmd !== "serve" && cmd !== "start") {
+  // Unknown command — show help
+  console.error(`Unknown command: ${cmd}`);
+  console.error("Usage: memory-forge <command>");
+  console.error("Commands: setup, pro, list [category], search <query>, stats, hook <type>, capture-transcript, --version");
+  console.error("Default (no command): start MCP server (for Claude Code / Cursor integration)");
+  process.exit(1);
 } else {
   // Default: start MCP server
   startMcpServer();
