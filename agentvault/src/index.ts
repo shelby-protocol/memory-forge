@@ -15,10 +15,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-import { MemoryStore } from "./store.js";
+import { MemoryStore, safeTruncate } from "./store.js";
 import { embed, preload } from "./embedding.js";
 import { saveMemory, loadAllMemories, deleteMemoryFile, cleanupTombstones } from "./storage/local.js";
-import { uploadMemory } from "./storage/shelby.js";
+import { uploadMemory, deleteBlob, getBlobName } from "./storage/shelby.js";
 import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
 import { pro, syncAll } from "./pro.js";
@@ -216,7 +216,7 @@ function startMcpServer() {
       if (merged) {
         saveMemory(merged);
         return { content: [{ type: "text" as const, text: JSON.stringify({
-          success: true, merged: true, memory_id: merged.id, name: merged.name, preview: content.slice(0, 200),
+          success: true, merged: true, memory_id: merged.id, name: merged.name, preview: safeTruncate(content, 200),
         }) }] };
       }
 
@@ -229,7 +229,7 @@ function startMcpServer() {
       }
 
       return { content: [{ type: "text" as const, text: JSON.stringify({
-        success: true, memory_id: memory.id, name: memory.name, preview: content.slice(0, 200),
+        success: true, memory_id: memory.id, name: memory.name, preview: safeTruncate(content, 200),
       }) }] };
     }
   );
@@ -264,7 +264,9 @@ function startMcpServer() {
         query, count: results.length,
         results: results.map((r) => ({
           memory_id: r.id, name: r.name,
-          similarity: r.similarity?.toFixed(3) ?? 0, content: r.content,
+          similarity: typeof r.similarity === "number" ? Number(r.similarity.toFixed(3)) : 0,
+          _score: r._score ?? null,
+          content: r.content,
           _method: r._fallback || "vector",
         })),
         hint: results.length === 0 ? "No relevant memories found." : null,
@@ -333,7 +335,13 @@ function startMcpServer() {
     async (params) => {
       const { memory_id } = params;
       const existed = store.remove(memory_id);
-      if (existed) deleteMemoryFile(memory_id);
+      if (existed) {
+        deleteMemoryFile(memory_id);
+        // Pro: upload cloud tombstone to prevent sync resurrection
+        if (process.env.SHELBY_API_KEY) {
+          deleteBlob(getBlobName(memory_id)).catch(() => {});
+        }
+      }
       return { content: [{ type: "text" as const, text: JSON.stringify({
         success: existed, memory_id, action: existed ? "deleted" : "not_found",
       }) }] };
@@ -476,6 +484,14 @@ function startMcpServer() {
     },
     async (params) => {
       const { memory_id, content, category, tags, priority } = params;
+
+      // Guard: at least one optional field must be provided
+      if (content === undefined && category === undefined && tags === undefined && priority === undefined) {
+        return { content: [{ type: "text" as const, text: JSON.stringify({
+          error: "No fields to update", hint: "Provide at least one of: content, category, tags, priority.",
+        }) }] };
+      }
+
       const memory = store.get(memory_id);
       if (!memory) {
         return { content: [{ type: "text" as const, text: JSON.stringify({
@@ -486,6 +502,7 @@ function startMcpServer() {
       // Apply partial updates — only override provided fields
       if (content !== undefined) {
         memory.content = content;
+        memory.name = autoName(content);
         const vec = await embed(content);
         if (vec) memory.vector = Array.from(vec);
       }
@@ -504,7 +521,7 @@ function startMcpServer() {
 
       return { content: [{ type: "text" as const, text: JSON.stringify({
         success: true, memory_id: memory.id, name: memory.name,
-        preview: memory.content.slice(0, 200),
+        preview: safeTruncate(memory.content, 200),
         updated_fields: Object.keys(params).filter((k) => k !== "memory_id" && params[k as keyof typeof params] !== undefined),
       }) }] };
     }

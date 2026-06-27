@@ -123,7 +123,7 @@ export class MemoryStore {
       .map((s): Memory => ({ ...s.memory, similarity: s.similarity, _score: s.score }));
   }
 
-  /** 降级: 无向量时的关键词匹配 */
+  /** 降级: 无向量时的词边界关键词匹配 */
   keywordSearch(query: string, options: { limit: number; category?: string | null; tags?: string[] | null }): Memory[] {
     const tokens = query.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
     if (tokens.length === 0) return [];
@@ -136,11 +136,18 @@ export class MemoryStore {
       candidates = candidates.filter((m) => options.tags!.some((t) => m.tags.includes(t)));
     }
 
+    // Escape regex special chars, build word-boundary patterns per token
+    const patterns = tokens.map((t) => {
+      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`\\b${escaped}\\b`, "i");
+    });
+
     return candidates
       .map((m) => {
-        const content = m.content.toLowerCase();
-        const hits = tokens.filter((t) => content.includes(t)).length;
-        const nameHits = tokens.filter((t) => m.name.toLowerCase().includes(t)).length;
+        const content = m.content;
+        const name = m.name;
+        const hits = patterns.filter((re) => re.test(content)).length;
+        const nameHits = patterns.filter((re) => re.test(name)).length;
         const keywordScore = hits * 2 + nameHits * 3;
         if (keywordScore === 0) return { memory: m, score: 0 };
         return { memory: m, score: keywordScore + (m.priority || 5) };
@@ -148,7 +155,12 @@ export class MemoryStore {
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, options.limit)
-      .map((s): Memory => ({ ...s.memory, similarity: 0, _score: s.score, _fallback: "keyword" }));
+      .map((s): Memory => ({
+        ...s.memory,
+        similarity: s.score / 10, // normalize 0-10 score to 0-1 range for display
+        _score: s.score,
+        _fallback: "keyword",
+      }));
   }
 
   stats() {
