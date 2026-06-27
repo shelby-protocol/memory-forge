@@ -111,8 +111,8 @@ export async function getBalances(): Promise<{ apt: string; shelbyUsd: string } 
     const usdRaw = usdEntry?.amount;
 
     return {
-      apt: aptRaw !== undefined ? (Number(aptRaw) / 1e8).toFixed(4) : "?",
-      shelbyUsd: usdRaw !== undefined ? (Number(usdRaw) / 1e6).toFixed(4) : "?",
+      apt: typeof aptRaw === "string" ? (Number(aptRaw) / 1e8).toFixed(4) : "0.0000",
+      shelbyUsd: typeof usdRaw === "string" ? (Number(usdRaw) / 1e6).toFixed(4) : "0.0000",
     };
   } catch {
     return null;
