@@ -18,6 +18,8 @@ import {
   getBalances,
   getStorageUsage,
   isAuthFailed,
+  deleteBlob,
+  getBlobName,
 } from "./storage/shelby.js";
 import { MemoryStore } from "./store.js";
 
@@ -53,6 +55,18 @@ export async function pro(): Promise<void> {
     if (!apiKey) {
       console.log("   No key provided. Sync skipped.");
       return;
+    }
+    // If user provided a different private key, update the profile
+    if (process.env.APTOS_PRIVATE_KEY) {
+      const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+      if (profile.privateKey !== process.env.APTOS_PRIVATE_KEY) {
+        const { address } = initShelby(apiKey, process.env.APTOS_PRIVATE_KEY);
+        profile.privateKey = process.env.APTOS_PRIVATE_KEY;
+        profile.address = address;
+        profile.apiKey = apiKey;
+        fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
+        console.log(`   Account switched to ${address}`);
+      }
     }
     console.log("✅ Pro is active. Syncing memories...");
     await syncAll();
@@ -240,6 +254,20 @@ export async function syncAll(): Promise<void> {
     if (downloaded > 0) parts.push(`↓${downloaded}`);
     if (uploadFailed > 0) parts.push(`✗${uploadFailed}`);
     console.error(`[MemoryForge] Sync: ${parts.join(" ")}`);
+  }
+
+  // Cleanup: tombstone remote blobs that no longer exist locally
+  let cleanedBlobs = 0;
+  const localIds = new Set(loadAllMemories().map((m) => m.id));
+  for (const blobName of blobs) {
+    const id = getMemoryId(blobName);
+    if (id && !localIds.has(id) && !tombstoned.has(id)) {
+      deleteBlob(getBlobName(id)).catch(() => {});
+      cleanedBlobs++;
+    }
+  }
+  if (cleanedBlobs > 0) {
+    console.error(`[MemoryForge] Cleanup: tombstoned ${cleanedBlobs} stale cloud blobs`);
   }
 
   // Touch last-sync timestamp with stats
