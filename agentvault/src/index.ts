@@ -703,6 +703,7 @@ function startMcpServer() {
       memory.last_accessed = new Date().toISOString();
 
       saveMemory(memory);
+      store.add(memory); // update vectorCache for search
 
       // Pro: sync updated memory to cloud
       if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {

@@ -187,7 +187,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   }
 
   // Token budget note: tell agent if context is truncated
-  const eligibleTotal = eligible.length + evergreen.length;
+  const eligibleTotal = eligible.length;
   if (eligibleTotal > limit) {
     lines.push(
       "",
