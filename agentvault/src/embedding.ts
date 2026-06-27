@@ -31,8 +31,6 @@ async function getEmbedder(): Promise<EmbedFn> {
         progress_callback: (progress: any) => {
           if (progress?.status === "downloading") {
             const pct = progress?.progress ? Math.round(progress.progress) : 0;
-            const file = progress?.file ?? "";
-            if (pct > 0) process.stderr.write(`\r[MemoryForge] Downloading model… ${pct}%`);
             if (pct === 100) process.stderr.write("\n");
           }
         },

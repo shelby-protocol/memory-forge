@@ -43,7 +43,7 @@ async function loadShelbySdk(): Promise<boolean> {
       return false;
     }
     return true;
-  } catch (err) {
+  } catch {
     sdkLoadFailed = true;
     console.error("[MemoryForge] Shelby SDK not available. Pro features disabled.");
     console.error("[MemoryForge] Install with: npm install @shelby-protocol/sdk @aptos-labs/ts-sdk");
@@ -128,6 +128,8 @@ function blobNameFor(memoryId: string): string {
   return `${cfg.namespace}/memories/${memoryId}-${Date.now()}.json`;
 }
 
+// ShelbyUSD fungible asset address on Shelbynet testnet
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SHELBYUSD_FA = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1";
 
 /** Query on-chain balances via Aptos indexer GraphQL.

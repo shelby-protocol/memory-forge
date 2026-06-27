@@ -6,7 +6,6 @@ import { autoName, suggestTags, inferCategory } from "../auto/index.js";
 import { safeTruncate } from "../store.js";
 import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
-import { execSync } from "node:child_process";
 
 export function register(server: McpServer, opts: ToolOptions) {
   const { store } = opts;

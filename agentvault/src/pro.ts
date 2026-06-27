@@ -15,8 +15,6 @@ import {
   listBlobs,
   getMemoryId,
   getShelbyConfig,
-  getBalances,
-  getStorageUsage,
   isAuthFailed,
   deleteBlob,
   getBlobName,
@@ -190,7 +188,7 @@ export async function syncAll(): Promise<void> {
   let profile: { address: string; privateKey: string };
   try {
     profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
-  } catch (err) {
+  } catch {
     console.error("[MemoryForge] Pro sync skipped: corrupted profile (run `memory-forge pro` to repair)");
     return;
   }

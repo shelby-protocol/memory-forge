@@ -18,7 +18,7 @@ import { loadAllMemories, cleanupTombstones, deleteMemoryFile } from "./storage/
 import { deleteBlob, getBlobName, getShelbyConfig } from "./storage/shelby.js";
 import { autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
-import { pro, syncAll, proStatus, proAutoActivate } from "./pro.js";
+import { pro, proStatus, proAutoActivate } from "./pro.js";
 import { captureTranscript, cliCaptureTranscript } from "./transcript.js";
 import { saveMemory } from "./storage/local.js";
 
@@ -287,7 +287,7 @@ if (cmd === "setup") {
         }
       }
     }
-    console.error(`[MemoryForge] ${all.length} memories maintained, ${archived} archived`);
+    console.error(`[MemoryForge] ${all.length} memories maintained, ${updated} saved, ${archived} archived`);
     try {
       console.error(`[MemoryForge] ${captureTranscript()}`);
     } catch (err) {

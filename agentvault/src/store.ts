@@ -102,7 +102,6 @@ export class MemoryStore {
 
   search(rawQuery: string, options: SearchOptions): Memory[] {
     const queryVec = options.queryVec;
-    const alpha = options.alpha ?? 0.7;
 
     // Both vector and BM25 available → hybrid
     if (queryVec) {
@@ -115,7 +114,7 @@ export class MemoryStore {
   /** 混合搜索: alpha × cosine + (1-alpha) × BM25。
    *  alpha=1 → pure vector, alpha=0 → pure BM25. Default 0.7. */
   private hybridSearch(rawQuery: string, queryVec: Float32Array, options: SearchOptions): Memory[] {
-    const { limit, category, tags, minSimilarity } = options;
+    const { limit, category, tags } = options;
     const alpha = options.alpha ?? 0.7;
     let candidates = [...this.memories.values()];
 

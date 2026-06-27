@@ -7,7 +7,6 @@ import { embed } from "../embedding.js";
 import { autoName, autoMerge, suggestTags, inferCategory } from "../auto/index.js";
 import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
-import { execSync } from "node:child_process";
 
 export function register(server: McpServer, opts: ToolOptions) {
   const { store, hasPro } = opts;
