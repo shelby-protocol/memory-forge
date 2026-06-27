@@ -36,6 +36,8 @@
     "TECHNICAL.md",
     "TUTORIAL.md",
     "CHANGELOG.md",
+    "article-devto.md",
+    "results-hybrid-hybrid.json",
     "LICENSE"
   ],
   "scripts": {
@@ -52,7 +54,7 @@
     "lint": "npx eslint src/",
     "format": "npx prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "npx prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "prepublishOnly": "npm run build"
+    "prepare": "npm run build"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.0.0",
