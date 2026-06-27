@@ -23,6 +23,9 @@ function ensureDir(): void {
 
 export function saveMemory(memory: Memory): void {
   ensureDir();
+  const vectorStr = memory.vector?.length
+    ? `> vector: ${JSON.stringify(Array.from(memory.vector))}`
+    : null;
   const lines = [
     `# ${memory.name}`,
     `> category: ${memory.category}`,
@@ -31,6 +34,7 @@ export function saveMemory(memory: Memory): void {
     `> created: ${memory.created_at}`,
     `> access_count: ${memory.access_count}`,
     `> last_accessed: ${memory.last_accessed ?? ""}`,
+    ...(vectorStr ? [vectorStr] : []),
     ``,
     memory.content,
   ];
@@ -60,6 +64,7 @@ function parseMemoryFile(filepath: string): Memory | null {
     let created = new Date().toISOString();
     let accessCount = 0;
     let lastAccessed: string | null = null;
+    let vector: number[] = [];
     let bodyStart = 0;
 
     for (let i = 0; i < lines.length; i++) {
@@ -92,6 +97,13 @@ function parseMemoryFile(filepath: string): Memory | null {
         lastAccessed = line.slice(17).trim() || null;
         continue;
       }
+      if (line.startsWith("> vector:")) {
+        try {
+          const arr = JSON.parse(line.slice(10).trim());
+          if (Array.isArray(arr)) vector = arr.map(Number);
+        } catch { /* ignore corrupt vector */ }
+        continue;
+      }
       if (line === "" && i + 1 < lines.length) {
         bodyStart = i + 1;
         break;
@@ -107,7 +119,7 @@ function parseMemoryFile(filepath: string): Memory | null {
       category,
       tags,
       priority,
-      vector: [],
+      vector,
       created_at: created,
       access_count: accessCount,
       last_accessed: lastAccessed,

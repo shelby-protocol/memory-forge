@@ -7,7 +7,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadAllMemories, saveMemory, getTombstonedIds, cleanupTombstones } from "./storage/local.js";
+import { loadAllMemories, saveMemory, deleteMemoryFile, getTombstonedIds, cleanupTombstones } from "./storage/local.js";
 import {
   initShelby,
   uploadMemory,
@@ -250,7 +250,15 @@ export async function syncAll(): Promise<void> {
     downloaded++;
   }
 
-  // Build set of memory IDs already on cloud (versioned blobs — not exact name match)
+  // Cross-device deletion: remove local files tombstoned on cloud
+  for (const id of tombstoned) {
+    if (store.get(id)) {
+      store.remove(id);
+      try { deleteMemoryFile(id); } catch {}
+    }
+  }
+
+  // Build set of memory IDs already on cloud (versioned blobs — not exact name match) (versioned blobs — not exact name match)
   const existingIds = new Set<string>();
   for (const blobName of blobs) {
     const id = getMemoryId(blobName);

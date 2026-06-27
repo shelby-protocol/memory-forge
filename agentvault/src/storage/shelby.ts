@@ -246,7 +246,7 @@ export async function deleteBlob(blobName: string): Promise<void> {
       signer: account,
       blobData: Buffer.from("{}"),
       blobName: blobName + ".deleted",
-      expirationMicros: (Date.now() + 86400000) * 1000,
+      expirationMicros: (Date.now() + 365 * 86400000) * 1000, // 1 year
     });
   } catch {
     // ignore

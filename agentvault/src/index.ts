@@ -271,7 +271,6 @@ if (cmd === "--version" || cmd === "-v") {
     // Pro: push to cloud before exit so other devices get everything
     if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
       try {
-        const { proAutoActivate } = await import("./pro.js");
         await proAutoActivate();
         console.error("[MemoryForge] All memories synced to cloud. Safe to close.");
       } catch {
@@ -314,7 +313,6 @@ if (cmd === "--version" || cmd === "-v") {
     // Pro: push to cloud now — VS Code panel close may skip Stop hook
     if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
       try {
-        const { proAutoActivate } = await import("./pro.js");
         await proAutoActivate();
         console.error("[MemoryForge] Pre-compact sync complete — memories safe on cloud.");
       } catch { /* non-fatal */ }
@@ -594,7 +592,7 @@ function startMcpServer() {
       } else {
         output = JSON.stringify({
           exported_at: new Date().toISOString(),
-          version: "memory-forge-1.0",
+          version: `memory-forge-${pkg.version}`,
           count: memories.length,
           memories: memories.map((m) => ({
             id: m.id,

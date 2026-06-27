@@ -54,17 +54,6 @@ async function getEmbedder(): Promise<EmbedFn> {
   return loading;
 }
 
-/** 重试模型加载（后台调用，不阻塞） */
-function retryEmbedder(): void {
-  if (!embedFn || lastAttempt === 0) return;
-  if (Date.now() - lastAttempt < RETRY_MS) return;
-
-  console.error("[MemoryForge] Retrying embedding model download...");
-  embedFn = null;
-  loading = null;
-  getEmbedder();
-}
-
 export async function embed(text: string): Promise<Float32Array | null> {
   const fn = await getEmbedder();
   try {
