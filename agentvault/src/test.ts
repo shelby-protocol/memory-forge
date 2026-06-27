@@ -332,15 +332,28 @@ await run("generateContextSummary includes agent instruction", () => {
   assert(summary.includes("[MemoryForge] IMPORTANT"), "should include proactive agent instruction");
 });
 
-await run("generateContextSummary category boost: decision-log beats user-preference at same time", () => {
+await run("generateContextSummary recency-dominant: newer beats older regardless of category", () => {
   const s = new MemoryStore();
   const now = new Date().toISOString();
-  s.add({ ...mem, id: "dl", name: "Decision", content: "Decision log entry",
-    category: "decision-log", priority: 1, created_at: now, access_count: 0 });
-  s.add({ ...mem, id: "up", name: "Preference", content: "User preference entry",
-    category: "user-preference", priority: 9, created_at: now, access_count: 0 });
+  const yesterday = new Date(Date.now() - 86400000).toISOString();
+  s.add({ ...mem, id: "old-dl", name: "Old Decision", content: "Old decision log",
+    category: "decision-log", priority: 9, created_at: yesterday, access_count: 0, last_accessed: yesterday });
+  s.add({ ...mem, id: "new-up", name: "New Preference", content: "New user preference",
+    category: "user-preference", priority: 1, created_at: now, access_count: 0, last_accessed: now });
   const summary = generateContextSummary(s, 1);
-  assert(summary.includes("Decision"), "decision-log should beat user-preference with same recency");
+  assert(summary.includes("New Preference"), "newer memory wins regardless of category boost");
+});
+
+await run("generateContextSummary evergreen: priority=10 force-included", () => {
+  const s = new MemoryStore();
+  const now = new Date().toISOString();
+  const veryOld = new Date(Date.now() - 90 * 86400000).toISOString();
+  s.add({ ...mem, id: "ever", name: "Evergreen", content: "Critical evergreen fact",
+    category: "general", priority: 10, created_at: veryOld, access_count: 0, last_accessed: veryOld });
+  s.add({ ...mem, id: "new", name: "New Memory", content: "Newly stored memory",
+    category: "user-preference", priority: 5, created_at: now, access_count: 0, last_accessed: now });
+  const summary = generateContextSummary(s, 2);
+  assert(summary.includes("Evergreen"), "priority=10 should be force-included regardless of age");
 });
 
 await run("generateContextSummary session-transcript excluded from context", () => {

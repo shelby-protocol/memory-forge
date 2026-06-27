@@ -104,39 +104,59 @@ export function autoDecay(memory: Memory): number {
   return 0; // archive
 }
 
-/** 生成上下文摘要给 Agent 注入 */
+/** 生成上下文摘要给 Agent 注入。
+ *  Recency 主导排序（最近使用的优先），分类衰减作 tiebreaker，priority=10 常青保护。 */
 export function generateContextSummary(store: MemoryStore, limit: number = 5): string {
-  const all = store.list({ limit: 100, offset: 0 });
-
-  // Category boost: decision-log and project-context are more useful as quick context
-  // than raw session transcripts or generic memories
-  const CATEGORY_BOOST: Record<string, number> = {
-    "decision-log": 2.0,
-    "project-context": 1.8,
-    "user-preference": 1.2,
-    "code-pattern": 1.1,
-    "session-transcript": 0, // excluded — raw transcripts are for deep recall, not quick context
-    "general": 1.0,
+  // Category half-life (days) — YourMemory-style decay rates.
+  // Strategic decisions decay slowly, casual notes decay fast.
+  const CATEGORY_HALFLIFE: Record<string, number> = {
+    "decision-log": 38,
+    "project-context": 30,
+    "user-preference": 24,
+    "code-pattern": 20,
+    "session-transcript": 0, // excluded from context injection
+    "general": 14,
   };
 
-  // Filter + recency-first with category boost, priority as final tiebreaker
-  const ranked = all
-    .filter((m) => {
-      const boost = CATEGORY_BOOST[m.category];
-      return boost !== undefined ? boost > 0 : true; // exclude categories with boost=0
-    })
-    .sort((a, b) => {
-      const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
-      const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
-      const aBoost = CATEGORY_BOOST[a.category] ?? 1.0;
-      const bBoost = CATEGORY_BOOST[b.category] ?? 1.0;
-      const aScore = aTime * aBoost;
-      const bScore = bTime * bBoost;
-      if (bScore !== aScore) return bScore - aScore;
-      return (b.priority || 5) - (a.priority || 5);
-    });
+  const now = Date.now();
 
-  // Dedup: skip entries too similar to ones already selected (keep more recent)
+  // Widen pool (3× limit) so recency reordering has room
+  const pool = store.list({ limit: Math.max(limit * 3, 50), offset: 0 });
+
+  // Filter out excluded categories
+  const eligible = pool.filter((m) => {
+    const hl = CATEGORY_HALFLIFE[m.category];
+    return hl === undefined || hl > 0;
+  });
+
+  // Split: evergreen (priority=10, force-include) vs normal
+  const evergreen = eligible.filter((m) => m.priority >= 10);
+  const normal = eligible.filter((m) => m.priority < 10);
+
+  // Sort normal: recency first (last_accessed > created_at), decay as tiebreaker
+  normal.sort((a, b) => {
+    const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
+    const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
+    // Recency primary: newer first
+    if (bTime !== aTime) return bTime - aTime;
+
+    // Same recency → category decay × priority decider
+    const aDays = (now - aTime) / 86400000;
+    const bDays = (now - bTime) / 86400000;
+    const aHalf = CATEGORY_HALFLIFE[a.category] ?? 14;
+    const bHalf = CATEGORY_HALFLIFE[b.category] ?? 14;
+    const aDecay = Math.pow(0.5, aDays / aHalf);
+    const bDecay = Math.pow(0.5, bDays / bHalf);
+    const aScore = aDecay * (a.priority || 5);
+    const bScore = bDecay * (b.priority || 5);
+    return bScore - aScore;
+  });
+
+  // Merge: evergreen first (priority desc), then recency-sorted normal
+  evergreen.sort((a, b) => (b.priority || 10) - (a.priority || 10));
+  const ranked = [...evergreen, ...normal];
+
+  // Dedup: skip entries too similar to ones already selected
   const top: typeof ranked = [];
   for (const m of ranked) {
     if (top.some((t) => contentOverlap(t.content, m.content) > 0.6)) continue;
@@ -167,10 +187,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   }
 
   // Token budget note: tell agent if context is truncated
-  const eligibleTotal = all.filter((m) => {
-    const boost = CATEGORY_BOOST[m.category];
-    return boost !== undefined ? boost > 0 : true;
-  }).length;
+  const eligibleTotal = eligible.length + evergreen.length;
   if (eligibleTotal > limit) {
     lines.push(
       "",
