@@ -56,18 +56,17 @@ export async function pro(): Promise<void> {
       console.log("   No key provided. Sync skipped.");
       return;
     }
+    const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+    // Always save API key so getShelbyConfig() can find it
+    profile.apiKey = apiKey;
     // If user provided a different private key, update the profile
-    if (process.env.APTOS_PRIVATE_KEY) {
-      const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
-      if (profile.privateKey !== process.env.APTOS_PRIVATE_KEY) {
-        const { address } = initShelby(apiKey, process.env.APTOS_PRIVATE_KEY);
-        profile.privateKey = process.env.APTOS_PRIVATE_KEY;
-        profile.address = address;
-        profile.apiKey = apiKey;
-        fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
-        console.log(`   Account switched to ${address}`);
-      }
+    if (process.env.APTOS_PRIVATE_KEY && profile.privateKey !== process.env.APTOS_PRIVATE_KEY) {
+      const { address } = initShelby(apiKey, process.env.APTOS_PRIVATE_KEY);
+      profile.privateKey = process.env.APTOS_PRIVATE_KEY;
+      profile.address = address;
+      console.log(`   Account switched to ${address}`);
     }
+    fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
     console.log("✅ Pro is active. Syncing memories...");
     await syncAll();
     return;
