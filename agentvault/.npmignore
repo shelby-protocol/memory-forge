@@ -1,0 +1,16 @@
+src/
+config/
+embedding/
+versions/
+.github/
+eslint.config.js
+.prettierrc
+.prettierignore
+.gitignore
+tsconfig.json
+*.md
+!README.md
+!TECHNICAL.md
+!TUTORIAL.md
+!LICENSE
+!CHANGELOG.md

@@ -73,12 +73,7 @@ export class MemoryStore {
     return this.memories.size;
   }
 
-  list(opts: {
-    category?: string | null;
-    tags?: string[] | null;
-    limit: number;
-    offset: number;
-  }): Memory[] {
+  list(opts: { category?: string | null; tags?: string[] | null; limit: number; offset: number }): Memory[] {
     let results = [...this.memories.values()];
 
     if (opts.category) {
@@ -132,7 +127,10 @@ export class MemoryStore {
    *  ≤3 char tokens: word-boundary only (acronyms like DB, CI, AI).
    *  >3 char tokens: word-boundary primary + substring fallback (postgres → PostgreSQL). */
   keywordSearch(query: string, options: { limit: number; category?: string | null; tags?: string[] | null }): Memory[] {
-    const rawTokens = query.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
+    const rawTokens = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 1);
     if (rawTokens.length === 0) return [];
     let candidates = [...this.memories.values()];
 
@@ -185,12 +183,14 @@ export class MemoryStore {
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, options.limit)
-      .map((s): Memory => ({
-        ...s.memory,
-        similarity: Math.min(s.score / 10, 1.0),
-        _score: s.score,
-        _fallback: "keyword",
-      }));
+      .map(
+        (s): Memory => ({
+          ...s.memory,
+          similarity: Math.min(s.score / 10, 1.0),
+          _score: s.score,
+          _fallback: "keyword",
+        }),
+      );
   }
 
   stats() {
@@ -205,7 +205,9 @@ export class MemoryStore {
     return {
       total: all.length,
       categories,
-      top_tags: Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 10),
+      top_tags: Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10),
       oldest: sorted[sorted.length - 1]?.created_at ?? null,
       newest: sorted[0]?.created_at ?? null,
       total_accesses: all.reduce((s, m) => s + m.access_count, 0),
@@ -215,7 +217,9 @@ export class MemoryStore {
 
 function cosineSimilarity(a: Float32Array, b: Float32Array): number {
   if (a.length === 0 || a.length !== b.length) return 0;
-  let dot = 0, normA = 0, normB = 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     normA += a[i] ** 2;
@@ -261,5 +265,8 @@ export function safeTruncate(text: string, maxLen: number): string {
   const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
   const segments = [...segmenter.segment(text)];
   if (segments.length <= maxLen) return text;
-  return segments.slice(0, maxLen).map((s) => s.segment).join("");
+  return segments
+    .slice(0, maxLen)
+    .map((s) => s.segment)
+    .join("");
 }

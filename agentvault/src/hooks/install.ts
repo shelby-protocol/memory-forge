@@ -6,11 +6,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const CLAUDE_SETTINGS = path.join(
-  process.env.HOME ?? process.env.USERPROFILE ?? "/tmp",
-  ".claude",
-  "settings.json"
-);
+const CLAUDE_SETTINGS = path.join(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".claude", "settings.json");
 
 export function installHooks(): boolean {
   try {
@@ -58,10 +54,7 @@ export function installHooks(): boolean {
 }
 
 function hasHook(hooks: any[], name: string): boolean {
-  return hooks.some(
-    (h: any) =>
-      h.hooks?.some((inner: any) => inner.command?.includes(name))
-  );
+  return hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes(name)));
 }
 
 export function getHooksStatus(): { sessionStart: boolean; stop: boolean; preCompact: boolean } {

@@ -107,7 +107,11 @@ export function rulesToMemories(rules: ImportedRule[]): Memory[] {
       id: randomUUID(),
       name: autoName(r.content),
       content: r.content,
-      category: path.basename(r.source).startsWith(".cursor") ? "cursor-rules" : r.source.includes(".gitconfig") ? "user-info" : "claude-rules",
+      category: path.basename(r.source).startsWith(".cursor")
+        ? "cursor-rules"
+        : r.source.includes(".gitconfig")
+          ? "user-info"
+          : "claude-rules",
       tags: [r.source.split("/").pop()?.replace(/\..*/, "") ?? "imported"],
       priority: 7,
       vector: [],

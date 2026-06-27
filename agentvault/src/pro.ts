@@ -128,13 +128,17 @@ export async function pro(): Promise<void> {
   }
   fs.writeFileSync(
     PROFILE_PATH,
-    JSON.stringify({
-      version: 2,
-      activatedAt: new Date().toISOString(),
-      privateKey,
-      address,
-      apiKey,
-    }, null, 2)
+    JSON.stringify(
+      {
+        version: 2,
+        activatedAt: new Date().toISOString(),
+        privateKey,
+        address,
+        apiKey,
+      },
+      null,
+      2,
+    ),
   );
 
   const syncIcon = uploaded > 0 ? "✅" : "⚠️";
@@ -260,7 +264,9 @@ export async function syncAll(): Promise<void> {
   for (const id of tombstoned) {
     if (store.get(id)) {
       store.remove(id);
-      try { deleteMemoryFile(id); } catch {}
+      try {
+        deleteMemoryFile(id);
+      } catch {}
     }
   }
 
@@ -277,7 +283,8 @@ export async function syncAll(): Promise<void> {
   for (const m of loadAllMemories()) {
     if (existingIds.has(m.id)) continue;
     const result = await uploadMemory(m);
-    if (result) uploaded++; else uploadFailed++;
+    if (result) uploaded++;
+    else uploadFailed++;
   }
 
   if (downloaded > 0 || uploaded > 0 || uploadFailed > 0) {
@@ -311,13 +318,17 @@ export async function syncAll(): Promise<void> {
   cleanupTombstones();
 }
 
-interface SyncEntry { time: string; up: number; down: number; failed: number; conflicts?: number }
+interface SyncEntry {
+  time: string;
+  up: number;
+  down: number;
+  failed: number;
+  conflicts?: number;
+}
 
 function updateSyncStamp(up: number, down: number, failed: number, conflicts?: number): void {
   try {
-    const profile = fs.existsSync(PROFILE_PATH)
-      ? JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"))
-      : { version: 1 };
+    const profile = fs.existsSync(PROFILE_PATH) ? JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8")) : { version: 1 };
     profile.lastSync = new Date().toISOString();
     profile.syncHistory = profile.syncHistory || [];
     profile.syncHistory.push({ time: profile.lastSync, up, down, failed, conflicts: conflicts ?? 0 });
@@ -327,7 +338,9 @@ function updateSyncStamp(up: number, down: number, failed: number, conflicts?: n
     profile.totalFailed = (profile.totalFailed || 0) + failed;
     profile.totalConflicts = (profile.totalConflicts || 0) + (conflicts ?? 0);
     fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
-  } catch { /* best-effort */ }
+  } catch {
+    /* best-effort */
+  }
 }
 
 /** Silent auto-activation — called on MCP server startup when SHELBY_API_KEY is set.
@@ -354,13 +367,20 @@ export async function proAutoActivate(): Promise<void> {
 
   // Save profile
   if (!fs.existsSync(MEMORYFORGE_DIR)) fs.mkdirSync(MEMORYFORGE_DIR, { recursive: true });
-  fs.writeFileSync(PROFILE_PATH, JSON.stringify({
-    version: 2,
-    activatedAt: new Date().toISOString(),
-    privateKey,
-    address,
-    apiKey: cfg.apiKey,
-  }, null, 2));
+  fs.writeFileSync(
+    PROFILE_PATH,
+    JSON.stringify(
+      {
+        version: 2,
+        activatedAt: new Date().toISOString(),
+        privateKey,
+        address,
+        apiKey: cfg.apiKey,
+      },
+      null,
+      2,
+    ),
+  );
 
   console.error(`[MemoryForge] Pro activated — Shelby account ${address.slice(0, 10)}…`);
   if (generatedKey) {
@@ -375,10 +395,17 @@ export async function proAutoActivate(): Promise<void> {
 
 /** Return Pro status for CLI display. */
 export function proStatus(): {
-  active: boolean; address?: string; lastSync?: string;
-  totalUploaded?: number; totalDownloaded?: number; totalFailed?: number;
-  totalConflicts?: number; syncHistory?: SyncEntry[]; localCount?: number;
-  apiKeyValid?: boolean; balances?: { apt: string; shelbyUsd: string } | null;
+  active: boolean;
+  address?: string;
+  lastSync?: string;
+  totalUploaded?: number;
+  totalDownloaded?: number;
+  totalFailed?: number;
+  totalConflicts?: number;
+  syncHistory?: SyncEntry[];
+  localCount?: number;
+  apiKeyValid?: boolean;
+  balances?: { apt: string; shelbyUsd: string } | null;
   storage?: { blobCount: number; totalBytes: number } | null;
 } {
   if (!fs.existsSync(PROFILE_PATH)) return { active: false };
@@ -397,7 +424,7 @@ export function proStatus(): {
       localCount: loadAllMemories().length,
       apiKeyValid: cfg.apiKey ? !isAuthFailed() : undefined,
       balances: null, // filled async by CLI
-      storage: null,  // filled async by CLI
+      storage: null, // filled async by CLI
     };
   } catch {
     return { active: false };

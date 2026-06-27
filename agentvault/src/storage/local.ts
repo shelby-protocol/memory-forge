@@ -6,10 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Memory } from "../store.js";
 
-const BASE = path.join(
-  process.env.MEMORYFORGE_HOME ?? path.join(requireHome(), ".memory-forge"),
-  "memories"
-);
+const BASE = path.join(process.env.MEMORYFORGE_HOME ?? path.join(requireHome(), ".memory-forge"), "memories");
 
 function requireHome(): string {
   return process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
@@ -23,9 +20,7 @@ function ensureDir(): void {
 
 export function saveMemory(memory: Memory): void {
   ensureDir();
-  const vectorStr = memory.vector?.length
-    ? `> vector: ${JSON.stringify(memory.vector)}`
-    : null;
+  const vectorStr = memory.vector?.length ? `> vector: ${JSON.stringify(memory.vector)}` : null;
   const lines = [
     `# ${memory.name}`,
     `> category: ${memory.category}`,
@@ -80,9 +75,16 @@ function parseMemoryFile(filepath: string): Memory | null {
       if (line.startsWith("> tags:")) {
         const raw = line.slice(8).trim();
         if (raw.startsWith("[")) {
-          try { tags = JSON.parse(raw); } catch { tags = []; }
+          try {
+            tags = JSON.parse(raw);
+          } catch {
+            tags = [];
+          }
         } else {
-          tags = raw.split(",").map((t: string) => t.trim()).filter(Boolean);
+          tags = raw
+            .split(",")
+            .map((t: string) => t.trim())
+            .filter(Boolean);
         }
         continue;
       }
@@ -106,7 +108,9 @@ function parseMemoryFile(filepath: string): Memory | null {
         try {
           const arr = JSON.parse(line.slice(10).trim());
           if (Array.isArray(arr)) vector = arr.map(Number).filter((n) => isFinite(n) && !isNaN(n));
-        } catch { /* ignore corrupt vector */ }
+        } catch {
+          /* ignore corrupt vector */
+        }
         continue;
       }
       if (line === "" && i + 1 < lines.length) {
@@ -144,9 +148,7 @@ export function deleteMemoryFile(id: string): void {
 
 // --- Tombstone: prevent deleted memories from resurrecting on Pro sync ---
 
-const TOMBSTONE_DIR = path.join(
-  process.env.MEMORYFORGE_HOME ?? path.join(requireHome(), ".memory-forge")
-);
+const TOMBSTONE_DIR = path.join(process.env.MEMORYFORGE_HOME ?? path.join(requireHome(), ".memory-forge"));
 const TOMBSTONE_PATH = path.join(TOMBSTONE_DIR, "tombstones.json");
 const TOMBSTONE_TTL_DAYS = 90;
 
@@ -187,7 +189,7 @@ export function getTombstonedIds(): Set<string> {
   return new Set(
     loadTombstonesRaw()
       .filter((t) => new Date(t.deleted_at) > cutoff)
-      .map((t) => t.id)
+      .map((t) => t.id),
   );
 }
 

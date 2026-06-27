@@ -9,8 +9,17 @@ import { randomUUID } from "node:crypto";
 import { captureTranscript, cliCaptureTranscript } from "./transcript.js";
 import { loadAllMemories, deleteMemoryFile } from "./storage/local.js";
 
-let ok = 0; let ng = 0;
-function t(name, fn) { try { fn(); ok++; } catch(e) { ng++; console.log("  FAIL " + name + ": " + e.message); } }
+let ok = 0;
+let ng = 0;
+function t(name, fn) {
+  try {
+    fn();
+    ok++;
+  } catch (e) {
+    ng++;
+    console.log("  FAIL " + name + ": " + e.message);
+  }
+}
 
 const home = os.homedir();
 const projectsDir = path.join(home, ".claude", "projects");
@@ -28,7 +37,11 @@ console.log("Setup: creating temp JSONL in", testProjectDir);
 fs.mkdirSync(testProjectDir, { recursive: true });
 
 const preExisting = loadAllMemories();
-const preIds = new Set(preExisting.map(function(m) { return m.id; }));
+const preIds = new Set(
+  preExisting.map(function (m) {
+    return m.id;
+  }),
+);
 
 const jsonlPath = path.join(testProjectDir, sessionId + ".jsonl");
 const jsonlLines = [
@@ -44,61 +57,75 @@ fs.utimesSync(jsonlPath, Date.now() / 1000, Date.now() / 1000);
 console.log("\n=== 1. captureTranscript basic ===");
 let capturedId = null;
 
-t("captureTranscript succeeds with recent JSONL", function() {
+t("captureTranscript succeeds with recent JSONL", function () {
   const result = captureTranscript();
   if (!result.startsWith("Transcript saved:")) throw new Error(result);
 });
 
-t("transcript memory created in local storage", function() {
+t("transcript memory created in local storage", function () {
   const all = loadAllMemories();
-  const newMems = all.filter(function(m) { return !preIds.has(m.id); });
-  const transcripts = newMems.filter(function(m) { return m.category === "session-transcript"; });
+  const newMems = all.filter(function (m) {
+    return !preIds.has(m.id);
+  });
+  const transcripts = newMems.filter(function (m) {
+    return m.category === "session-transcript";
+  });
   if (transcripts.length === 0) throw new Error("no transcript memory found");
   capturedId = transcripts[0].id;
 });
 
-t("transcript has correct category", function() {
+t("transcript has correct category", function () {
   const all = loadAllMemories();
-  const m = all.find(function(x) { return x.id === capturedId; });
+  const m = all.find(function (x) {
+    return x.id === capturedId;
+  });
   if (m.category !== "session-transcript") throw new Error(m.category);
 });
 
-t("transcript includes user message", function() {
+t("transcript includes user message", function () {
   const all = loadAllMemories();
-  const m = all.find(function(x) { return x.id === capturedId; });
+  const m = all.find(function (x) {
+    return x.id === capturedId;
+  });
   if (!m.content.includes("capital of France")) throw new Error("user message missing");
 });
 
-t("transcript name is date-based", function() {
+t("transcript name is date-based", function () {
   const all = loadAllMemories();
-  const m = all.find(function(x) { return x.id === capturedId; });
+  const m = all.find(function (x) {
+    return x.id === capturedId;
+  });
   if (!m.name.startsWith("Session 202")) throw new Error("bad name: " + m.name);
 });
 
-t("transcript has transcript tag", function() {
+t("transcript has transcript tag", function () {
   const all = loadAllMemories();
-  const m = all.find(function(x) { return x.id === capturedId; });
+  const m = all.find(function (x) {
+    return x.id === capturedId;
+  });
   if (!m.tags.includes("transcript")) throw new Error("tag missing");
 });
 
 // ── 2. Dedup ──
 console.log("\n=== 2. Dedup same session ===");
-t("second capture deduped", function() {
+t("second capture deduped", function () {
   const result = captureTranscript();
   if (!result.includes("already captured")) throw new Error(result);
 });
 
 // ── 3. No transcript ──
 console.log("\n=== 3. No recent transcript ===");
-t("deleted JSONL returns no transcript", function() {
+t("deleted JSONL returns no transcript", function () {
   fs.unlinkSync(jsonlPath);
   const result = captureTranscript();
-  if (result === "Transcript already captured (dedup same session).") { /* ok */ } else if (result !== "No recent transcript found." && !result.startsWith("Transcript saved:")) throw new Error(result);
+  if (result === "Transcript already captured (dedup same session).") {
+    /* ok */
+  } else if (result !== "No recent transcript found." && !result.startsWith("Transcript saved:")) throw new Error(result);
 });
 
 // ── 4. Malformed JSONL ──
 console.log("\n=== 4. Malformed JSONL ===");
-t("garbage JSONL does not crash", function() {
+t("garbage JSONL does not crash", function () {
   const mid = randomUUID();
   const mp = path.join(testProjectDir, mid + ".jsonl");
   fs.writeFileSync(mp, "not valid json\n{garbage\n[broken\n");
@@ -110,7 +137,7 @@ t("garbage JSONL does not crash", function() {
 
 // ── 5. Empty JSONL ──
 console.log("\n=== 5. Empty JSONL ===");
-t("empty JSONL returns empty", function() {
+t("empty JSONL returns empty", function () {
   const eid = randomUUID();
   const ep = path.join(testProjectDir, eid + ".jsonl");
   fs.writeFileSync(ep, "");
@@ -122,13 +149,13 @@ t("empty JSONL returns empty", function() {
 
 // ── 6. cliCaptureTranscript ──
 console.log("\n=== 6. cliCaptureTranscript ===");
-t("cliCaptureTranscript does not throw", function() {
+t("cliCaptureTranscript does not throw", function () {
   cliCaptureTranscript();
 });
 
 // ── Cleanup ──
 console.log("\n=== Cleanup ===");
-t("cleanup: delete test transcript memories", function() {
+t("cleanup: delete test transcript memories", function () {
   const all = loadAllMemories();
   for (const m of all) {
     if (!preIds.has(m.id) && m.category === "session-transcript") {

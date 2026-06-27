@@ -10,26 +10,22 @@ import { saveMemory, loadAllMemories, deleteMemoryFile } from "./storage/local.j
 import type { Memory } from "./store.js";
 import { safeTruncate } from "./store.js";
 
-const PROJECTS_DIR = path.join(
-  process.env.HOME ?? process.env.USERPROFILE ?? "/tmp",
-  ".claude",
-  "projects"
-);
+const PROJECTS_DIR = path.join(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".claude", "projects");
 
 const MAX_MEMORY_CHARS = 100_000;
 const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24h — ignore stale JSONL files
-const SAME_SESSION_WINDOW_MS = 30 * 60 * 1000;  // 30min — same session dedup
+const SAME_SESSION_WINDOW_MS = 30 * 60 * 1000; // 30min — same session dedup
 
 /** Derive project slug from CWD so we scope to the right project directory. */
 function currentProjectSlug(): string {
   const cwd = process.cwd();
   // Claude Code names project dirs as D--path or C--path (drive letter → root)
   const normalized = cwd
-    .replace(/^([A-Za-z]):\\/, "$1--")  // Windows: D:\foo → D--\foo
-    .replace(/^([A-Za-z]):/, "$1--")      // Git Bash: D:/foo → D--/foo
-    .replace(/\\/g, "-")                  // backslash → dash
-    .replace(/\//g, "-");                 // forward slash → dash
-  return normalized.replace(/^-+/, "");   // trim leading dashes
+    .replace(/^([A-Za-z]):\\/, "$1--") // Windows: D:\foo → D--\foo
+    .replace(/^([A-Za-z]):/, "$1--") // Git Bash: D:/foo → D--/foo
+    .replace(/\\/g, "-") // backslash → dash
+    .replace(/\//g, "-"); // forward slash → dash
+  return normalized.replace(/^-+/, ""); // trim leading dashes
 }
 
 export function captureTranscript(): string {

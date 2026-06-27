@@ -19,7 +19,9 @@ let authFailed = false;
 let uploadWarned = false;
 
 /** Whether the last API call failed with 401/403. */
-export function isAuthFailed(): boolean { return authFailed; }
+export function isAuthFailed(): boolean {
+  return authFailed;
+}
 
 /** Central Shelby config — single switch point for API key → license key migration. */
 export interface ShelbyConfig {
@@ -40,11 +42,11 @@ export function getShelbyConfig(): ShelbyConfig {
       // Fall back to saved key if env not set
       if (!apiKey) apiKey = profile.apiKey ?? null;
     }
-  } catch { /* corrupted profile — ignore */ }
+  } catch {
+    /* corrupted profile — ignore */
+  }
 
-  const namespace = accountAddress
-    ? `users/${accountAddress}`
-    : `users/default`;
+  const namespace = accountAddress ? `users/${accountAddress}` : `users/default`;
 
   return { apiKey, namespace, accountAddress };
 }
@@ -109,7 +111,9 @@ export async function getBalances(): Promise<{ apt: string; shelbyUsd: string } 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(query),
-    }).then(r => r.json()).catch(() => null);
+    })
+      .then((r) => r.json())
+      .catch(() => null);
 
     const balances: any[] = res?.data?.current_fungible_asset_balances ?? [];
     const aptEntry = balances.find((b: any) => b.metadata?.symbol === "APT");
@@ -191,7 +195,9 @@ export async function downloadMemory(blobName: string): Promise<Memory | null> {
     const data = await new Promise<string>((resolve, reject) => {
       const chunks: Buffer[] = [];
       const timer = setTimeout(() => {
-        try { (blob.readable as any)?.destroy?.(); } catch {}
+        try {
+          (blob.readable as any)?.destroy?.();
+        } catch {}
         reject(new Error(`Download timeout after ${DOWNLOAD_TIMEOUT_MS}ms`));
       }, DOWNLOAD_TIMEOUT_MS);
 

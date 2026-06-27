@@ -4,10 +4,17 @@
  */
 import { embed, preload } from "./embedding.js";
 
-let ok = 0; let ng = 0;
+let ok = 0;
+let ng = 0;
 async function t(name: string, fn: () => Promise<void>) {
-  try { await fn(); ok++; console.log(`  ✅ ${name}`); }
-  catch(e: any) { ng++; console.log(`  ❌ ${name}: ${e.message}`); }
+  try {
+    await fn();
+    ok++;
+    console.log(`  ✅ ${name}`);
+  } catch (e: any) {
+    ng++;
+    console.log(`  ❌ ${name}: ${e.message}`);
+  }
 }
 
 console.log("=== Embedding tests ===");
@@ -27,8 +34,12 @@ await t("embed long text does not crash", async () => {
   if (r !== null && !(r instanceof Float32Array)) throw new Error(`bad type: ${typeof r}`);
 });
 
-await t("preload does not throw", async () => { preload(); });
-await t("preload twice is idempotent", async () => { preload(); });
+await t("preload does not throw", async () => {
+  preload();
+});
+await t("preload twice is idempotent", async () => {
+  preload();
+});
 
 await t("multiple embed calls return same type", async () => {
   const r1 = await embed("test a");
@@ -39,7 +50,7 @@ await t("multiple embed calls return same type", async () => {
 });
 
 await t("rapid 5 concurrent embeds don't crash", async () => {
-  await Promise.all([0,1,2,3,4].map(i => embed(`rapid ${i}`)));
+  await Promise.all([0, 1, 2, 3, 4].map((i) => embed(`rapid ${i}`)));
 });
 
 await t("embed CJK characters", async () => {

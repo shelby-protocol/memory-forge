@@ -19,11 +19,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
       - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
       - run: npx tsc --noEmit
-      - run: npx tsx src/test.ts
-      - run: npx tsx src/scenario-test.ts
-      - run: npx tsx src/shelby-test.ts
-      - run: npx tsx src/setup-test.ts
-      - run: npx tsx src/import-test.ts
-      - run: npx tsx src/embed-test.ts
-      - run: npx tsx src/transcript-test.ts
+      - run: npm run test:all

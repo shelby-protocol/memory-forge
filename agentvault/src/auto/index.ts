@@ -14,14 +14,14 @@ export function autoName(content: string): string {
   const clean = content
     .replace(/```[\s\S]*?```/g, "")
     .replace(/`/g, "")
-    .replace(/\n/g, ". ")     // newlines as sentence boundaries
+    .replace(/\n/g, ". ") // newlines as sentence boundaries
     .replace(/\s+/g, " ")
     .trim();
   // After stripping code blocks, only punctuation/whitespace remains → fallback
   if (!clean || clean.replace(/[\W_]/g, "").length === 0) return "memory";
 
   // Find first natural sentence boundary
-  const endMarkers = [". ", "? ", "! ", ".\" ", ".\n"];
+  const endMarkers = [". ", "? ", "! ", '." ', ".\n"];
   let end = -1;
   for (const marker of endMarkers) {
     const idx = clean.indexOf(marker);
@@ -51,7 +51,8 @@ export async function autoMerge(store: MemoryStore, newMemory: Memory): Promise<
   let candidates: Memory[];
   if (newMemory.vector.length > 0) {
     candidates = store.search("", {
-      limit: 10, minSimilarity: 0.7,
+      limit: 10,
+      minSimilarity: 0.7,
       queryVec: new Float32Array(newMemory.vector),
     });
   } else {
@@ -121,7 +122,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     "user-preference": 24,
     "code-pattern": 20,
     "session-transcript": 0, // excluded from context injection
-    "general": 14,
+    general: 14,
   };
 
   const now = Date.now();
@@ -171,21 +172,24 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   }
 
   if (top.length === 0) {
-    return "[MemoryForge] 👋 Welcome! No memories yet.\n\n" +
+    return (
+      "[MemoryForge] 👋 Welcome! No memories yet.\n\n" +
       "Store your first memory with memory_store to build context across sessions.\n" +
       "Tips:\n" +
       "  • Save project decisions as 'decision-log'\n" +
       "  • Save user preferences as 'user-preference'\n" +
-      "  • Session transcripts are auto-captured (excluded from context, searchable via memory_search)";
+      "  • Session transcripts are auto-captured (excluded from context, searchable via memory_search)"
+    );
   }
 
-  const lines: string[] = [
-    "[MemoryForge] 📋 Recent context from previous sessions:",
-  ];
+  const lines: string[] = ["[MemoryForge] 📋 Recent context from previous sessions:"];
   for (const m of top) {
     const time = m.last_accessed || m.created_at;
     const dateStr = new Date(time).toLocaleDateString("en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
     const preview = smartPreview(redactSecrets(m.content), 300);
 
@@ -197,8 +201,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   if (eligibleTotal > limit) {
     lines.push(
       "",
-      `[MemoryForge] Showing top ${limit} of ${eligibleTotal} eligible memories. ` +
-      `Use memory_search or memory_recall to find more.`
+      `[MemoryForge] Showing top ${limit} of ${eligibleTotal} eligible memories. ` + `Use memory_search or memory_recall to find more.`,
     );
   }
 
@@ -206,10 +209,10 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   lines.push(
     "",
     "[MemoryForge] IMPORTANT — In your FIRST response to the user (even to a simple " +
-    "\"hi\" or \"continue\"), acknowledge the context above. Summarize in 1-2 lines what " +
-    "was happening last session. Example: \"Loaded context from last session: we were " +
-    "working on [topic]. [N] memories available. What should we do next?\" " +
-    "This makes the user aware their context was loaded successfully."
+      '"hi" or "continue"), acknowledge the context above. Summarize in 1-2 lines what ' +
+      'was happening last session. Example: "Loaded context from last session: we were ' +
+      'working on [topic]. [N] memories available. What should we do next?" ' +
+      "This makes the user aware their context was loaded successfully.",
   );
 
   return lines.join("\n\n");
@@ -217,17 +220,19 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
 
 /** Redact sensitive patterns from context preview to prevent key leakage to LLM APIs */
 function redactSecrets(text: string): string {
-  return text
-    // Private key hex strings (ed25519, secp256k1, etc.)
-    .replace(/(?:ed25519|secp256k1|ecdsa)-priv-\S+/gi, "[REDACTED-KEY]")
-    // PEM private key blocks
-    .replace(/-----BEGIN\s.*PRIVATE\sKEY-----[\s\S]*?-----END\s.*PRIVATE\sKEY-----/gi, "[REDACTED-PEM]")
-    // Lines with "Private Key:", "Secret:", "Password:", "API Key:" patterns
-    .replace(/^(.*(?:Private\s*Key|Secret\s*Key|API\s*Key|Password|passwd)\s*[=:]\s*)\S+$/gim, "$1[REDACTED]")
-    // Standalone API tokens like "AG-..." (Shelbynet format)
-    .replace(/\bAG-[A-Z0-9]{20,}\b/g, "[REDACTED-TOKEN]")
-    // BIP39 mnemonics: 12-24 word phrases
-    .replace(/\b(?:\w+\s+){11,23}\w+\s*(?:mnemonic|seed phrase|recovery phrase)/gi, "[REDACTED-MNEMONIC]");
+  return (
+    text
+      // Private key hex strings (ed25519, secp256k1, etc.)
+      .replace(/(?:ed25519|secp256k1|ecdsa)-priv-\S+/gi, "[REDACTED-KEY]")
+      // PEM private key blocks
+      .replace(/-----BEGIN\s.*PRIVATE\sKEY-----[\s\S]*?-----END\s.*PRIVATE\sKEY-----/gi, "[REDACTED-PEM]")
+      // Lines with "Private Key:", "Secret:", "Password:", "API Key:" patterns
+      .replace(/^(.*(?:Private\s*Key|Secret\s*Key|API\s*Key|Password|passwd)\s*[=:]\s*)\S+$/gim, "$1[REDACTED]")
+      // Standalone API tokens like "AG-..." (Shelbynet format)
+      .replace(/\bAG-[A-Z0-9]{20,}\b/g, "[REDACTED-TOKEN]")
+      // BIP39 mnemonics: 12-24 word phrases
+      .replace(/\b(?:\w+\s+){11,23}\w+\s*(?:mnemonic|seed phrase|recovery phrase)/gi, "[REDACTED-MNEMONIC]")
+  );
 }
 
 /** Extract a smart preview: first meaningful paragraph, not raw character truncation. */
@@ -246,9 +251,7 @@ function smartPreview(content: string, maxLen: number): string {
 
   if (meaningful.length === 0) {
     // No meaningful paragraphs found — raw truncation
-    return content.length > maxLen
-      ? safeTruncate(content, maxLen).replace(/\n/g, " ").trim() + "…"
-      : content;
+    return content.length > maxLen ? safeTruncate(content, maxLen).replace(/\n/g, " ").trim() + "…" : content;
   }
 
   // Build preview from first meaningful paragraph(s)

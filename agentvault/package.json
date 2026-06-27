@@ -1,6 +1,6 @@
 {
   "name": "memory-forge",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Forge persistent memories for your AI agent. 9 MCP tools + 5 auto-engines. Powered by Shelby decentralized cloud.",
   "type": "module",
   "license": "MIT",
@@ -35,6 +35,7 @@
     "README.md",
     "TECHNICAL.md",
     "TUTORIAL.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
@@ -42,6 +43,10 @@
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js",
     "test": "npx tsx src/test.ts",
+    "test:all": "npx tsx src/test.ts && npx tsx src/scenario-test.ts && npx tsx src/shelby-test.ts && npx tsx src/setup-test.ts && npx tsx src/import-test.ts && npx tsx src/embed-test.ts && npx tsx src/transcript-test.ts",
+    "lint": "npx eslint src/",
+    "format": "npx prettier --write \"src/**/*.ts\"",
+    "format:check": "npx prettier --check \"src/**/*.ts\"",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -55,6 +60,9 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.7.0"
+    "eslint": "^9.39.4",
+    "prettier": "^3.8.5",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.62.0"
   }
 }

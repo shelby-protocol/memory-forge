@@ -9,8 +9,17 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { execSync } from "node:child_process";
 
-let ok = 0; let ng = 0;
-function t(name: string, fn: () => void) { try { fn(); ok++; } catch(e: any) { ng++; console.log(`  FAIL ${name}: ${e.message}`); } }
+let ok = 0;
+let ng = 0;
+function t(name: string, fn: () => void) {
+  try {
+    fn();
+    ok++;
+  } catch (e: any) {
+    ng++;
+    console.log(`  FAIL ${name}: ${e.message}`);
+  }
+}
 
 const home = os.homedir();
 const settingsPath = path.join(home, ".claude", "settings.json");
@@ -44,36 +53,28 @@ t("SessionStart hook configured", () => {
   const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
   const hooks = config.hooks?.SessionStart || [];
   if (hooks.length === 0) throw new Error("no SessionStart hooks");
-  const hasMf = hooks.some((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge"))
-  );
+  const hasMf = hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")));
   if (!hasMf) throw new Error("memory-forge hook not found in SessionStart");
 });
 
 t("SessionStart has matcher: 'startup'", () => {
   const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
   const hooks = config.hooks?.SessionStart || [];
-  const mfHook = hooks.find((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge"))
-  );
+  const mfHook = hooks.find((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")));
   if (!mfHook?.matcher || mfHook.matcher !== "startup") throw new Error(`matcher=${mfHook?.matcher}`);
 });
 
 t("Stop hook configured", () => {
   const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
   const hooks = config.hooks?.Stop || [];
-  const hasMf = hooks.some((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge hook stop"))
-  );
+  const hasMf = hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge hook stop")));
   if (!hasMf) throw new Error("memory-forge Stop hook not found");
 });
 
 t("PreCompact hook configured", () => {
   const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
   const hooks = config.hooks?.PreCompact || [];
-  const hasMf = hooks.some((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge hook pre-compact"))
-  );
+  const hasMf = hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge hook pre-compact")));
   if (!hasMf) throw new Error("memory-forge PreCompact hook not found");
 });
 
@@ -101,16 +102,12 @@ t("double install does not duplicate hooks", () => {
   installHooks(); // second call
   const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
   const sessionHooks = config.hooks?.SessionStart || [];
-  const mfHooks = sessionHooks.filter((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge"))
-  );
+  const mfHooks = sessionHooks.filter((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")));
   if (mfHooks.length > 1) throw new Error(`duplicated: ${mfHooks.length} SessionStart hooks for memory-forge`);
-  const stopHooks = (config.hooks?.Stop || []).filter((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge"))
-  );
+  const stopHooks = (config.hooks?.Stop || []).filter((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")));
   if (stopHooks.length > 1) throw new Error(`duplicated: ${stopHooks.length} Stop hooks`);
   const preHooks = (config.hooks?.PreCompact || []).filter((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge"))
+    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")),
   );
   if (preHooks.length > 1) throw new Error(`duplicated: ${preHooks.length} PreCompact hooks`);
 });
@@ -120,11 +117,7 @@ console.log("\n=== 4. Hook command format ===");
 
 t("hook commands use 'memory-forge' (not absolute path)", () => {
   const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-  const allHooks = [
-    ...(config.hooks?.SessionStart || []),
-    ...(config.hooks?.Stop || []),
-    ...(config.hooks?.PreCompact || []),
-  ];
+  const allHooks = [...(config.hooks?.SessionStart || []), ...(config.hooks?.Stop || []), ...(config.hooks?.PreCompact || [])];
   for (const h of allHooks) {
     for (const inner of h.hooks || []) {
       if (inner.command && !inner.command.includes("memory-forge")) {
@@ -136,9 +129,7 @@ t("hook commands use 'memory-forge' (not absolute path)", () => {
 
 t("hook type is 'command'", () => {
   const config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-  const mfHook = config.hooks?.SessionStart?.find((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes("memory-forge"))
-  );
+  const mfHook = config.hooks?.SessionStart?.find((h: any) => h.hooks?.some((inner: any) => inner.command?.includes("memory-forge")));
   const inner = mfHook?.hooks?.[0];
   if (inner?.type !== "command") throw new Error(`type=${inner?.type}`);
 });
@@ -167,7 +158,9 @@ t("importRules does not crash", () => {
 if (origBackup) {
   fs.writeFileSync(settingsPath, origBackup);
 } else if (!origExists) {
-  try { fs.unlinkSync(settingsPath); } catch {}
+  try {
+    fs.unlinkSync(settingsPath);
+  } catch {}
 }
 
 console.log(`\n${ok} passed, ${ng} failed`);

@@ -8,8 +8,17 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-let ok = 0; let ng = 0;
-function t(name: string, fn: () => void) { try { fn(); ok++; } catch(e: any) { ng++; console.log(`  FAIL ${name}: ${e.message}`); } }
+let ok = 0;
+let ng = 0;
+function t(name: string, fn: () => void) {
+  try {
+    fn();
+    ok++;
+  } catch (e: any) {
+    ng++;
+    console.log(`  FAIL ${name}: ${e.message}`);
+  }
+}
 
 // ═══ getMemoryId ═══
 console.log("=== getMemoryId ===");
@@ -140,9 +149,16 @@ import { uploadMemory, downloadMemory, listBlobs, deleteBlob, getShelbyClient, g
 import type { Memory } from "./store.js";
 
 const testMem: Memory = {
-  id: "test-null-client", name: "test", content: "test content",
-  category: "general", tags: [], priority: 5, vector: [],
-  created_at: new Date().toISOString(), access_count: 0, last_accessed: null,
+  id: "test-null-client",
+  name: "test",
+  content: "test content",
+  category: "general",
+  tags: [],
+  priority: 5,
+  vector: [],
+  created_at: new Date().toISOString(),
+  access_count: 0,
+  last_accessed: null,
 };
 
 t("uploadMemory null client returns null", async () => {

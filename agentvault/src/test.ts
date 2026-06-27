@@ -133,26 +133,26 @@ await run("keywordSearch with name match scores higher", () => {
   const r = s.keywordSearch("react", { limit: 5 });
   assert(r.length === 2, "two matches");
 });
-	await run("keywordSearch CJK Japanese query finds match", () => {
-	  const s = new MemoryStore();
-	  s.add({ ...mem, id: "cjk-ja", name: "test", content: "日本語テストデータ", tags: [] });
-	  const r = s.keywordSearch("日本語", { limit: 5 });
-	  assert(r.length >= 1, "Japanese search should find result");
-	});
+await run("keywordSearch CJK Japanese query finds match", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "cjk-ja", name: "test", content: "日本語テストデータ", tags: [] });
+  const r = s.keywordSearch("日本語", { limit: 5 });
+  assert(r.length >= 1, "Japanese search should find result");
+});
 
-	await run("keywordSearch CJK Chinese query finds match", () => {
-	  const s = new MemoryStore();
-	  s.add({ ...mem, id: "cjk-zh", name: "中文", content: "这是一个中文测试数据", tags: [] });
-	  const r = s.keywordSearch("中文", { limit: 5 });
-	  assert(r.length >= 1, "Chinese search should find result");
-	});
+await run("keywordSearch CJK Chinese query finds match", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "cjk-zh", name: "中文", content: "这是一个中文测试数据", tags: [] });
+  const r = s.keywordSearch("中文", { limit: 5 });
+  assert(r.length >= 1, "Chinese search should find result");
+});
 
-	await run("keywordSearch CJK Korean query finds match", () => {
-	  const s = new MemoryStore();
-	  s.add({ ...mem, id: "cjk-ko", name: "한글", content: "한국어 테스트 데이터", tags: [] });
-	  const r = s.keywordSearch("한국어", { limit: 5 });
-	  assert(r.length >= 1, "Korean search should find result");
-	});
+await run("keywordSearch CJK Korean query finds match", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "cjk-ko", name: "한글", content: "한국어 테스트 데이터", tags: [] });
+  const r = s.keywordSearch("한국어", { limit: 5 });
+  assert(r.length >= 1, "Korean search should find result");
+});
 await run("vectorSearch with no vector returns empty if threshold high", () => {
   const s = new MemoryStore();
   s.add({ ...mem, id: "a", vector: [0.1, 0.2, 0.3] });
@@ -182,7 +182,7 @@ await run("LRU tiebreaker: same access, lower priority evicted", () => {
   const s = new MemoryStore();
   // Add 5000 items with same access_count=0, alternating priorities
   for (let i = 0; i < 5000; i++) {
-    s.add({ ...mem, id: `tp-${i}`, access_count: 0, priority: (i % 2 === 0) ? 1 : 10 });
+    s.add({ ...mem, id: `tp-${i}`, access_count: 0, priority: i % 2 === 0 ? 1 : 10 });
   }
   // Add one more to trigger eviction
   s.add({ ...mem, id: "overflow", access_count: 0, priority: 10 });
@@ -222,10 +222,10 @@ await run("autoName code-only returns 'memory'", () => {
   const n = autoName("```\ncode block only\n```");
   assertEq(n, "memory", "fallback");
 });
-	await run("autoName multiple code blocks only returns 'memory'", () => {
-	  const n = autoName("```\nconst x = 1;\n```\n```\nconst y = 2;\n```");
-	  assertEq(n, "memory", "multi code-block fallback");
-	});
+await run("autoName multiple code blocks only returns 'memory'", () => {
+  const n = autoName("```\nconst x = 1;\n```\n```\nconst y = 2;\n```");
+  assertEq(n, "memory", "multi code-block fallback");
+});
 
 await run("autoName empty", () => {
   const n = autoName("");
@@ -308,10 +308,24 @@ await run("generateContextSummary tiebreaker: same recency, higher priority wins
 
 await run("generateContextSummary recency-first: newer memory appears first", () => {
   const s = new MemoryStore();
-  s.add({ ...mem, id: "old", content: "Old content", priority: 9, access_count: 100,
-    created_at: "2026-01-01T00:00:00.000Z", last_accessed: "2026-01-01T00:00:00.000Z" });
-  s.add({ ...mem, id: "new", content: "New content", priority: 1, access_count: 0,
-    created_at: "2026-06-27T00:00:00.000Z", last_accessed: "2026-06-27T00:00:00.000Z" });
+  s.add({
+    ...mem,
+    id: "old",
+    content: "Old content",
+    priority: 9,
+    access_count: 100,
+    created_at: "2026-01-01T00:00:00.000Z",
+    last_accessed: "2026-01-01T00:00:00.000Z",
+  });
+  s.add({
+    ...mem,
+    id: "new",
+    content: "New content",
+    priority: 1,
+    access_count: 0,
+    created_at: "2026-06-27T00:00:00.000Z",
+    last_accessed: "2026-06-27T00:00:00.000Z",
+  });
   const summary = generateContextSummary(s, 2);
   // First entry should be the newer memory (header line contains name, date, category)
   const firstEntryHeader = summary.split("\n").find((l) => l.startsWith("- [")) || "";
@@ -359,10 +373,28 @@ await run("generateContextSummary recency-dominant: newer beats older regardless
   const s = new MemoryStore();
   const now = new Date().toISOString();
   const yesterday = new Date(Date.now() - 86400000).toISOString();
-  s.add({ ...mem, id: "old-dl", name: "Old Decision", content: "Old decision log",
-    category: "decision-log", priority: 9, created_at: yesterday, access_count: 0, last_accessed: yesterday });
-  s.add({ ...mem, id: "new-up", name: "New Preference", content: "New user preference",
-    category: "user-preference", priority: 1, created_at: now, access_count: 0, last_accessed: now });
+  s.add({
+    ...mem,
+    id: "old-dl",
+    name: "Old Decision",
+    content: "Old decision log",
+    category: "decision-log",
+    priority: 9,
+    created_at: yesterday,
+    access_count: 0,
+    last_accessed: yesterday,
+  });
+  s.add({
+    ...mem,
+    id: "new-up",
+    name: "New Preference",
+    content: "New user preference",
+    category: "user-preference",
+    priority: 1,
+    created_at: now,
+    access_count: 0,
+    last_accessed: now,
+  });
   const summary = generateContextSummary(s, 1);
   assert(summary.includes("New Preference"), "newer memory wins regardless of category boost");
 });
@@ -371,20 +403,54 @@ await run("generateContextSummary evergreen: priority=10 force-included", () => 
   const s = new MemoryStore();
   const now = new Date().toISOString();
   const veryOld = new Date(Date.now() - 90 * 86400000).toISOString();
-  s.add({ ...mem, id: "ever", name: "Evergreen", content: "Critical evergreen fact",
-    category: "general", priority: 10, created_at: veryOld, access_count: 0, last_accessed: veryOld });
-  s.add({ ...mem, id: "new", name: "New Memory", content: "Newly stored memory",
-    category: "user-preference", priority: 5, created_at: now, access_count: 0, last_accessed: now });
+  s.add({
+    ...mem,
+    id: "ever",
+    name: "Evergreen",
+    content: "Critical evergreen fact",
+    category: "general",
+    priority: 10,
+    created_at: veryOld,
+    access_count: 0,
+    last_accessed: veryOld,
+  });
+  s.add({
+    ...mem,
+    id: "new",
+    name: "New Memory",
+    content: "Newly stored memory",
+    category: "user-preference",
+    priority: 5,
+    created_at: now,
+    access_count: 0,
+    last_accessed: now,
+  });
   const summary = generateContextSummary(s, 2);
   assert(summary.includes("Evergreen"), "priority=10 should be force-included regardless of age");
 });
 
 await run("generateContextSummary session-transcript excluded from context", () => {
   const s = new MemoryStore();
-  s.add({ ...mem, id: "dl", name: "Decision log", content: "Important decision",
-    category: "decision-log", priority: 5, created_at: new Date().toISOString(), access_count: 0 });
-  s.add({ ...mem, id: "tx", name: "Transcript", content: "Raw transcript dump",
-    category: "session-transcript", priority: 9, created_at: new Date().toISOString(), access_count: 0 });
+  s.add({
+    ...mem,
+    id: "dl",
+    name: "Decision log",
+    content: "Important decision",
+    category: "decision-log",
+    priority: 5,
+    created_at: new Date().toISOString(),
+    access_count: 0,
+  });
+  s.add({
+    ...mem,
+    id: "tx",
+    name: "Transcript",
+    content: "Raw transcript dump",
+    category: "session-transcript",
+    priority: 9,
+    created_at: new Date().toISOString(),
+    access_count: 0,
+  });
   const summary = generateContextSummary(s, 2);
   // session-transcript (boost=0) should be excluded entirely
   assert(summary.includes("Decision log"), "decision-log should be included");
@@ -394,18 +460,34 @@ await run("generateContextSummary session-transcript excluded from context", () 
 await run("generateContextSummary all-transcript store shows welcome", () => {
   // Use a store with only session-transcript (boost=0, filtered out → treated as empty)
   const s = new MemoryStore();
-  s.add({ ...mem, id: "tx", name: "Transcript", content: "Raw transcript",
-    category: "session-transcript", priority: 9, access_count: 100,
-    created_at: new Date().toISOString() });
+  s.add({
+    ...mem,
+    id: "tx",
+    name: "Transcript",
+    content: "Raw transcript",
+    category: "session-transcript",
+    priority: 9,
+    access_count: 100,
+    created_at: new Date().toISOString(),
+  });
   const summary = generateContextSummary(s, 5);
   assert(summary.includes("Welcome"), "should show welcome when no context-eligible memories");
 });
 
 await run("generateContextSummary redacts private keys", () => {
   const s = new MemoryStore();
-  s.add({ ...mem, id: "sk", name: "Secrets", content: "Account info\nPrivate Key: ed25519-priv-0x745b30cf6ed6ab8584d0de1316be81f952aad9ccaf621b32655a644e0ecf6500\nAPI Key: AG-DB9VDTVMTAM2FYMAGVQFZP9AC7TTGN7DU",
-    category: "project-context", priority: 9, access_count: 100,
-    created_at: new Date().toISOString(), last_accessed: new Date().toISOString() });
+  s.add({
+    ...mem,
+    id: "sk",
+    name: "Secrets",
+    content:
+      "Account info\nPrivate Key: ed25519-priv-0x745b30cf6ed6ab8584d0de1316be81f952aad9ccaf621b32655a644e0ecf6500\nAPI Key: AG-DB9VDTVMTAM2FYMAGVQFZP9AC7TTGN7DU",
+    category: "project-context",
+    priority: 9,
+    access_count: 100,
+    created_at: new Date().toISOString(),
+    last_accessed: new Date().toISOString(),
+  });
   const summary = generateContextSummary(s, 1);
   assert(!summary.includes("ed25519-priv-0x745b"), "private key should be redacted");
   assert(!summary.includes("AG-DB9VDTVMTAM2FYMAGVQFZP9AC7TTGN7DU"), "API token should be redacted");
@@ -415,10 +497,26 @@ await run("generateContextSummary redacts private keys", () => {
 await run("generateContextSummary dedup skips similar entries", () => {
   const s = new MemoryStore();
   const now = new Date().toISOString();
-  s.add({ ...mem, id: "a", name: "Report A", content: "The project uses TypeScript and React for the frontend with JWT authentication",
-    category: "decision-log", priority: 7, created_at: now, access_count: 5 });
-  s.add({ ...mem, id: "b", name: "Report B", content: "The project uses TypeScript and React for the frontend", // 80% overlap
-    category: "decision-log", priority: 5, created_at: now, access_count: 3 });
+  s.add({
+    ...mem,
+    id: "a",
+    name: "Report A",
+    content: "The project uses TypeScript and React for the frontend with JWT authentication",
+    category: "decision-log",
+    priority: 7,
+    created_at: now,
+    access_count: 5,
+  });
+  s.add({
+    ...mem,
+    id: "b",
+    name: "Report B",
+    content: "The project uses TypeScript and React for the frontend", // 80% overlap
+    category: "decision-log",
+    priority: 5,
+    created_at: now,
+    access_count: 3,
+  });
   const summary = generateContextSummary(s, 3);
   // Only the more recent/higher-priority entry should appear
   assert(summary.includes("Report A"), "higher priority entry should be kept");
@@ -427,8 +525,16 @@ await run("generateContextSummary dedup skips similar entries", () => {
 
 await run("generateContextSummary smartPreview uses paragraphs not raw truncation", () => {
   const s = new MemoryStore();
-  s.add({ ...mem, id: "sp", name: "Structured Doc", content: "# Title\n\nFirst meaningful paragraph here.\n\n## Section\nMore details here.",
-    category: "decision-log", priority: 9, access_count: 10, created_at: new Date().toISOString() });
+  s.add({
+    ...mem,
+    id: "sp",
+    name: "Structured Doc",
+    content: "# Title\n\nFirst meaningful paragraph here.\n\n## Section\nMore details here.",
+    category: "decision-log",
+    priority: 9,
+    access_count: 10,
+    created_at: new Date().toISOString(),
+  });
   const summary = generateContextSummary(s, 1);
   // Should show "First meaningful paragraph here." not "# Title" heading
   assert(summary.includes("First meaningful paragraph here"), "should use first paragraph, not heading");
@@ -488,19 +594,51 @@ console.log("\n📤 Export & Share");
 
 await run("export JSON format includes all fields", () => {
   const s = new MemoryStore();
-  s.add({ ...mem, id: "e1", name: "Alpha", content: "Content A", category: "cat-a", tags: ["x"], priority: 8, created_at: "2026-01-01T00:00:00Z" });
-  s.add({ ...mem, id: "e2", name: "Beta", content: "Content B", category: "cat-b", tags: ["y"], priority: 3, created_at: "2026-06-01T00:00:00Z" });
+  s.add({
+    ...mem,
+    id: "e1",
+    name: "Alpha",
+    content: "Content A",
+    category: "cat-a",
+    tags: ["x"],
+    priority: 8,
+    created_at: "2026-01-01T00:00:00Z",
+  });
+  s.add({
+    ...mem,
+    id: "e2",
+    name: "Beta",
+    content: "Content B",
+    category: "cat-b",
+    tags: ["y"],
+    priority: 3,
+    created_at: "2026-06-01T00:00:00Z",
+  });
 
   const all = s.list({ limit: 100, offset: 0 });
   const pkg = {
     exported_at: new Date().toISOString(),
     version: "memory-forge-1.0",
     count: all.length,
-    memories: all.map((m) => ({ id: m.id, name: m.name, content: m.content, category: m.category, tags: m.tags, priority: m.priority, created_at: m.created_at })),
+    memories: all.map((m) => ({
+      id: m.id,
+      name: m.name,
+      content: m.content,
+      category: m.category,
+      tags: m.tags,
+      priority: m.priority,
+      created_at: m.created_at,
+    })),
   };
   assertEq(pkg.count, 2, "count");
-  assert(pkg.memories.some((m) => m.name === "Alpha"), "has Alpha");
-  assert(pkg.memories.some((m) => m.name === "Beta"), "has Beta");
+  assert(
+    pkg.memories.some((m) => m.name === "Alpha"),
+    "has Alpha",
+  );
+  assert(
+    pkg.memories.some((m) => m.name === "Beta"),
+    "has Beta",
+  );
 });
 
 await run("export Markdown format", () => {
@@ -508,15 +646,19 @@ await run("export Markdown format", () => {
   s.add({ ...mem, id: "md1", name: "Coding Style", content: "Use tabs", tags: ["style"] });
 
   const all = s.list({ limit: 100, offset: 0 });
-  const md = all.map((m) => [
-    `# ${m.name}`,
-    `> category: ${m.category} | tags: ${m.tags.join(", ")} | priority: ${m.priority}`,
-    `> created: ${m.created_at} | access_count: ${m.access_count}`,
-    "",
-    m.content,
-    "",
-    "---",
-  ].join("\n")).join("\n\n");
+  const md = all
+    .map((m) =>
+      [
+        `# ${m.name}`,
+        `> category: ${m.category} | tags: ${m.tags.join(", ")} | priority: ${m.priority}`,
+        `> created: ${m.created_at} | access_count: ${m.access_count}`,
+        "",
+        m.content,
+        "",
+        "---",
+      ].join("\n"),
+    )
+    .join("\n\n");
 
   assert(md.includes("# Coding Style"), "md has title");
   assert(md.includes("Use tabs"), "md has content");
@@ -531,7 +673,14 @@ await run("export empty store", () => {
 
 await run("share package valid structure", () => {
   const s = new MemoryStore();
-  s.add({ ...mem, id: "sh1", name: "Deploy Checklist", content: "1. Run tests\n2. Build\n3. Push", category: "decision-log", tags: ["deploy"] });
+  s.add({
+    ...mem,
+    id: "sh1",
+    name: "Deploy Checklist",
+    content: "1. Run tests\n2. Build\n3. Push",
+    category: "decision-log",
+    tags: ["deploy"],
+  });
 
   const m = s.get("sh1");
   const share = {
@@ -570,7 +719,8 @@ await run("share preserves special characters", () => {
     type: "memory-forge-share",
     version: "1.0",
     shared_at: new Date().toISOString(),
-    recipient: null, note: null,
+    recipient: null,
+    note: null,
     memory: { name: "API Config", content, category: "general", tags: [] },
     import_instruction: "Use memory_store with this content to import.",
   };
@@ -606,45 +756,50 @@ await run("full lifecycle: store → search → export → forget", () => {
   assertEq(s.size(), 0, "gone");
 });
 
+await run("stress: 5000 memories — LRU eviction", () => {
+  const s = new MemoryStore();
+  for (let i = 0; i < 5010; i++) {
+    s.add({
+      ...mem,
+      id: `stress-${i}`,
+      content: `Memory content ${i} with filler to make it searchable.`,
+      access_count: i % 100,
+      priority: 1 + (i % 10),
+    });
+  }
+  assert(s.size() <= 5000, "LRU capped at 5000");
+  assert(s.size() === 5000, `LRU eviction working: ${s.size()} items`);
+});
 
-  await run("stress: 5000 memories — LRU eviction", () => {
-    const s = new MemoryStore();
-    for (let i = 0; i < 5010; i++) {
-      s.add({ ...mem, id: `stress-${i}`, content: `Memory content ${i} with filler to make it searchable.`, access_count: i % 100, priority: 1 + (i % 10) });
-    }
-    assert(s.size() <= 5000, "LRU capped at 5000");
-    assert(s.size() === 5000, `LRU eviction working: ${s.size()} items`);
-  });
+await run("stress: rapid 200 stores + searches — no crash", () => {
+  const s = new MemoryStore();
+  const start = Date.now();
+  for (let i = 0; i < 200; i++) {
+    s.add({ ...mem, id: `rapid-${i}`, content: `Rapid content ${i} unique text.`, priority: 5 + (i % 6) });
+    s.keywordSearch(`content ${i}`, { limit: 5 });
+    if (i % 50 === 0) s.remove(`rapid-${i}`);
+  }
+  assert(Date.now() - start < 5000, `200 ops under 5s: ${Date.now() - start}ms`);
+});
 
-  await run("stress: rapid 200 stores + searches — no crash", () => {
-    const s = new MemoryStore();
-    const start = Date.now();
-    for (let i = 0; i < 200; i++) {
-      s.add({ ...mem, id: `rapid-${i}`, content: `Rapid content ${i} unique text.`, priority: 5 + (i % 6) });
-      s.keywordSearch(`content ${i}`, { limit: 5 });
-      if (i % 50 === 0) s.remove(`rapid-${i}`);
-    }
-    assert(Date.now() - start < 5000, `200 ops under 5s: ${Date.now() - start}ms`);
-  });
+await run("stress: 150KB content — no crash", () => {
+  const s = new MemoryStore();
+  const big = "x".repeat(150_000);
+  s.add({ ...mem, id: "big", content: big });
+  assert(s.get("big") !== null, "large content stored");
+  assert(s.get("big")!.content.length === 150_000, "full content preserved");
+});
 
-  await run("stress: 150KB content — no crash", () => {
-    const s = new MemoryStore();
-    const big = "x".repeat(150_000);
-    s.add({ ...mem, id: "big", content: big });
-    assert(s.get("big") !== null, "large content stored");
-    assert(s.get("big")!.content.length === 150_000, "full content preserved");
-  });
-
-  await run("stress: 10 searches across 1000 memories — perf", () => {
-    const s = new MemoryStore();
-    const topics = ["auth","database","deploy","testing","styling","perf","api","config","logging","security"];
-    for (let i = 0; i < 1000; i++) {
-      s.add({ ...mem, id: `perf-${i}`, content: `${topics[i%10]} config for item ${i}.`, access_count: i % 50, priority: 3+(i%8) });
-    }
-    const start = Date.now();
-    for (let i = 0; i < 10; i++) s.keywordSearch(topics[i], { limit: 10 });
-    assert(Date.now() - start < 1000, `10 searches / 1000 memories under 1s: ${Date.now()-start}ms`);
-  });
+await run("stress: 10 searches across 1000 memories — perf", () => {
+  const s = new MemoryStore();
+  const topics = ["auth", "database", "deploy", "testing", "styling", "perf", "api", "config", "logging", "security"];
+  for (let i = 0; i < 1000; i++) {
+    s.add({ ...mem, id: `perf-${i}`, content: `${topics[i % 10]} config for item ${i}.`, access_count: i % 50, priority: 3 + (i % 8) });
+  }
+  const start = Date.now();
+  for (let i = 0; i < 10; i++) s.keywordSearch(topics[i], { limit: 10 });
+  assert(Date.now() - start < 1000, `10 searches / 1000 memories under 1s: ${Date.now() - start}ms`);
+});
 
 await run("multi-category store + filtered recall", () => {
   const s = new MemoryStore();
