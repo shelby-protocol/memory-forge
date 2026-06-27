@@ -62,12 +62,15 @@ export async function pro(): Promise<void> {
     profile.apiKey = apiKey;
     // If user provided a different private key, update the profile
     if (process.env.APTOS_PRIVATE_KEY && profile.privateKey !== process.env.APTOS_PRIVATE_KEY) {
-      const { address } = initShelby(apiKey, process.env.APTOS_PRIVATE_KEY);
+      const result = await initShelby(apiKey, process.env.APTOS_PRIVATE_KEY);
+      if (!result) { console.log("   Failed to initialize Shelby SDK. Pro features disabled."); return; }
+      const { address } = result;
       profile.privateKey = process.env.APTOS_PRIVATE_KEY;
       profile.address = address;
       console.log(`   Account switched to ${address}`);
     }
     fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
+    try { fs.chmodSync(PROFILE_PATH, 0o600); } catch { /* best-effort */ }
     console.log("✅ Pro is active. Syncing memories...");
     await syncAll();
     return;
@@ -100,7 +103,13 @@ export async function pro(): Promise<void> {
   }
 
   console.log("🔄 Initializing Shelby storage...");
-  const { address, generatedKey } = initShelby(apiKey, privateKey);
+  const initResult = await initShelby(apiKey, privateKey);
+  if (!initResult) {
+    console.log("\n❌ Shelby SDK not available. Install with:\n   npm install @shelby-protocol/sdk @aptos-labs/ts-sdk");
+    process.exitCode = 1;
+    return;
+  }
+  const { address, generatedKey } = initResult;
 
   if (generatedKey) {
     // Save generated key for future runs
@@ -180,7 +189,7 @@ export async function syncAll(): Promise<void> {
   }
   const privateKey = process.env.APTOS_PRIVATE_KEY || profile.privateKey;
 
-  initShelby(apiKey, privateKey);
+  await initShelby(apiKey, privateKey);
 
   const blobs = await listBlobs();
   const store = new MemoryStore();
@@ -338,6 +347,7 @@ function updateSyncStamp(up: number, down: number, failed: number, conflicts?: n
     profile.totalFailed = (profile.totalFailed || 0) + failed;
     profile.totalConflicts = (profile.totalConflicts || 0) + (conflicts ?? 0);
     fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
+    try { fs.chmodSync(PROFILE_PATH, 0o600); } catch { /* best-effort */ }
   } catch {
     /* best-effort */
   }
@@ -362,7 +372,9 @@ export async function proAutoActivate(): Promise<void> {
 
   // First time: create account and sync
   let privateKey = process.env.APTOS_PRIVATE_KEY;
-  const { address, generatedKey } = initShelby(cfg.apiKey, privateKey);
+  const initResult = await initShelby(cfg.apiKey, privateKey);
+  if (!initResult) { console.error("[MemoryForge] Shelby SDK not available. Pro auto-activation skipped."); return; }
+  const { address, generatedKey } = initResult;
   if (generatedKey) privateKey = generatedKey;
 
   // Save profile

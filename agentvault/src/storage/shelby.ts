@@ -1,11 +1,13 @@
 /**
- * Shelby 云存储 (Pro 层)。
- * 使用 @shelby-protocol/sdk 官方 SDK + Gas Station 代付。
+ * Shelby cloud storage (Pro tier).
+ * Uses @shelby-protocol/sdk + @aptos-labs/ts-sdk — both optionalDependencies.
+ * All SDK imports are dynamic to prevent crashes for free-tier users
+ * when optional packages fail to install.
  */
 
-import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
-import { Account, Ed25519PrivateKey, Network } from "@aptos-labs/ts-sdk";
 import type { Memory } from "../store.js";
+import type { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
+import type { Account } from "@aptos-labs/ts-sdk";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -13,10 +15,39 @@ const DOWNLOAD_TIMEOUT_MS = 30_000;
 const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
 const PROFILE_PATH = path.join(HOME, ".memory-forge", "pro.json");
 
+// SDK references — populated lazily by loadShelbySdk()
+let ShelbyNCtor: new (...args: any[]) => ShelbyNodeClient | null = null as any;
+let AccountClass: any = null;
+let Ed25519Class: any = null;
+let NetworkEnum: any = null;
+let sdkLoadAttempted = false;
+let sdkLoadFailed = false;
+
 let client: ShelbyNodeClient | null = null;
 let account: Account | null = null;
 let authFailed = false;
 let uploadWarned = false;
+
+async function loadShelbySdk(): Promise<boolean> {
+  if (sdkLoadAttempted) return !sdkLoadFailed;
+  sdkLoadAttempted = true;
+  try {
+    const [shelbyModule, aptosModule] = await Promise.all([
+      import("@shelby-protocol/sdk/node"),
+      import("@aptos-labs/ts-sdk"),
+    ]);
+    ShelbyNCtor = shelbyModule.ShelbyNodeClient;
+    AccountClass = aptosModule.Account;
+    Ed25519Class = aptosModule.Ed25519PrivateKey;
+    NetworkEnum = aptosModule.Network;
+    return true;
+  } catch (err) {
+    sdkLoadFailed = true;
+    console.error("[MemoryForge] Shelby SDK not available. Pro features disabled.");
+    console.error("[MemoryForge] Install with: npm install @shelby-protocol/sdk @aptos-labs/ts-sdk");
+    return false;
+  }
+}
 
 /** Whether the last API call failed with 401/403. */
 export function isAuthFailed(): boolean {
@@ -51,28 +82,31 @@ export function getShelbyConfig(): ShelbyConfig {
   return { apiKey, namespace, accountAddress };
 }
 
-export function initShelby(apiKey: string, privateKey?: string): { address: string; generatedKey?: string } {
+export async function initShelby(apiKey: string, privateKey?: string): Promise<{ address: string; generatedKey?: string } | null> {
+  const ok = await loadShelbySdk();
+  if (!ok) return null;
+
   authFailed = false;
   uploadWarned = false;
-  client = new ShelbyNodeClient({
-    network: Network.SHELBYNET,
+  client = new ShelbyNCtor({
+    network: NetworkEnum.SHELBYNET,
     apiKey,
   });
 
   let generatedKey: string | undefined;
 
   if (privateKey) {
-    account = Account.fromPrivateKey({
-      privateKey: new Ed25519PrivateKey(privateKey),
+    account = AccountClass.fromPrivateKey({
+      privateKey: new Ed25519Class(privateKey),
     });
   } else {
-    const edKey = Ed25519PrivateKey.generate();
-    account = Account.fromPrivateKey({ privateKey: edKey });
+    const edKey = Ed25519Class.generate();
+    account = AccountClass.fromPrivateKey({ privateKey: edKey });
     generatedKey = edKey.toString();
   }
 
   return {
-    address: account.accountAddress.toString(),
+    address: account!.accountAddress.toString(),
     generatedKey,
   };
 }

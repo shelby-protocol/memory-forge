@@ -81,9 +81,9 @@ if (cmd === "setup") {
           let profile: any = null;
           try {
             profile = JSON.parse(rfs(jn(homedir(), ".memory-forge", "pro.json"), "utf-8"));
-          } catch {}
+          } catch { /* ignore */ }
           if (profile?.privateKey) {
-            initShelby(cfg.apiKey, profile.privateKey);
+            await initShelby(cfg.apiKey, profile.privateKey);
             balances = await getBalances();
             storage = await getStorageUsage();
           }

@@ -4,17 +4,25 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
+import { randomUUID } from "node:crypto";
 import type { Memory } from "../store.js";
 
-const BASE = path.join(process.env.MEMORYFORGE_HOME ?? path.join(requireHome(), ".memory-forge"), "memories");
+const HOMEDIR = os.homedir();
+const BASEDIR = path.join(process.env.MEMORYFORGE_HOME ?? path.join(HOMEDIR, ".memory-forge"), "memories");
 
-function requireHome(): string {
-  return process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+/** Atomic write: write to temp file, sync, rename (rename is atomic on all major FS). */
+function atomicWriteSync(filepath: string, content: string): void {
+  const dir = path.dirname(filepath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const tmpPath = path.join(os.tmpdir(), `.mf-atomic-${randomUUID()}`);
+  fs.writeFileSync(tmpPath, content);
+  fs.renameSync(tmpPath, filepath);
 }
 
 function ensureDir(): void {
-  if (!fs.existsSync(BASE)) {
-    fs.mkdirSync(BASE, { recursive: true });
+  if (!fs.existsSync(BASEDIR)) {
+    fs.mkdirSync(BASEDIR, { recursive: true });
   }
 }
 
@@ -33,15 +41,15 @@ export function saveMemory(memory: Memory): void {
     ``,
     memory.content,
   ];
-  fs.writeFileSync(path.join(BASE, `${memory.id}.md`), lines.join("\n"));
+  atomicWriteSync(path.join(BASEDIR, `${memory.id}.md`), lines.join("\n"));
 }
 
 export function loadAllMemories(): Memory[] {
-  if (!fs.existsSync(BASE)) return [];
+  if (!fs.existsSync(BASEDIR)) return [];
   return fs
-    .readdirSync(BASE)
+    .readdirSync(BASEDIR)
     .filter((f) => f.endsWith(".md"))
-    .map((f) => parseMemoryFile(path.join(BASE, f)))
+    .map((f) => parseMemoryFile(path.join(BASEDIR, f)))
     .filter((m): m is Memory => m !== null);
 }
 
@@ -139,7 +147,7 @@ function parseMemoryFile(filepath: string): Memory | null {
 }
 
 export function deleteMemoryFile(id: string): void {
-  const filepath = path.join(BASE, `${id}.md`);
+  const filepath = path.join(BASEDIR, `${id}.md`);
   if (fs.existsSync(filepath)) {
     fs.unlinkSync(filepath);
     addTombstone(id);
@@ -148,7 +156,7 @@ export function deleteMemoryFile(id: string): void {
 
 // --- Tombstone: prevent deleted memories from resurrecting on Pro sync ---
 
-const TOMBSTONE_DIR = path.join(process.env.MEMORYFORGE_HOME ?? path.join(requireHome(), ".memory-forge"));
+const TOMBSTONE_DIR = path.join(process.env.MEMORYFORGE_HOME ?? path.join(HOMEDIR, ".memory-forge"));
 const TOMBSTONE_PATH = path.join(TOMBSTONE_DIR, "tombstones.json");
 const TOMBSTONE_TTL_DAYS = 90;
 

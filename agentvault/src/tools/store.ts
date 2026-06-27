@@ -70,7 +70,7 @@ export function register(server: McpServer, opts: ToolOptions) {
       saveMemory(memory);
       store.add(memory);
 
-      if (hasPro) uploadMemory(memory).catch(() => {});
+      if (hasPro) uploadMemory(memory).catch((err) => console.error("[MemoryForge] Pro upload failed:", (err as Error).message));
 
       const hint = !hasPro && store.size() >= 20 ? "💡 20+ memories! Upgrade to Pro for cross-device sync: memory-forge pro" : null;
 

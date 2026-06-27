@@ -197,8 +197,9 @@ t("isAuthFailed initially false", () => {
 console.log("\n=== initShelby ===");
 import { initShelby } from "./storage/shelby.js";
 
-t("initShelby with generated key creates client", () => {
-  const result = initShelby("test-api-key-mock-12345");
+t("initShelby with generated key creates client", async () => {
+  const result = await initShelby("test-api-key-mock-12345");
+  if (!result) throw new Error("initShelby returned null — SDK load failed");
   if (!result.address) throw new Error("no address returned");
   if (typeof result.address !== "string" || result.address.length < 40) throw new Error(`bad address: "${result.address}"`);
   if (!result.generatedKey) throw new Error("should auto-generate key when not provided");
@@ -206,16 +207,16 @@ t("initShelby with generated key creates client", () => {
   if (getShelbyAccount() === null) throw new Error("account should be set");
 });
 
-t("initShelby with private key uses provided key", () => {
-  // Ed25519 private key hex (64 hex chars = 32 bytes)
+t("initShelby with private key uses provided key", async () => {
   const testKey = "a".repeat(64);
-  const result = initShelby("test-api-key-2", testKey);
+  const result = await initShelby("test-api-key-2", testKey);
+  if (!result) throw new Error("initShelby returned null");
   if (result.generatedKey) throw new Error("should not generate when key provided");
   if (!result.address) throw new Error("no address");
 });
 
-t("initShelby resets authFailed", () => {
-  // isAuthFailed should be false after initShelby (it resets the flag)
+t("initShelby resets authFailed", async () => {
+  await initShelby("test-api-key-reset");
   if (isAuthFailed()) throw new Error("should be reset to false after initShelby");
 });
 

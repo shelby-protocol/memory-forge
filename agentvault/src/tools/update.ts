@@ -80,7 +80,7 @@ export function register(server: McpServer, opts: ToolOptions) {
       saveMemory(memory);
       store.add(memory);
 
-      if (process.env.SHELBY_API_KEY) uploadMemory(memory).catch(() => {});
+      if (process.env.SHELBY_API_KEY) uploadMemory(memory).catch((err) => console.error("[MemoryForge] Pro upload failed:", (err as Error).message));
 
       return {
         content: [

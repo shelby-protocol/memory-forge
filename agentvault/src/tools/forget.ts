@@ -20,7 +20,7 @@ export function register(server: McpServer, opts: ToolOptions) {
       if (existed) {
         deleteMemoryFile(memory_id);
         if (process.env.SHELBY_API_KEY || opts.hasPro) {
-          deleteBlob(getBlobName(memory_id)).catch(() => {});
+          deleteBlob(getBlobName(memory_id)).catch((err) => console.error("[MemoryForge] Cloud tombstone failed:", (err as Error).message));
         }
       }
       return {

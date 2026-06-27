@@ -9,6 +9,7 @@ type EmbedFn = (text: string) => Promise<Float32Array | null>;
 let embedFn: EmbedFn | null = null;
 let loading: Promise<EmbedFn> | null = null;
 let lastAttempt = 0;
+let embedErrorWarned = false;
 const RETRY_MS = 300_000; // 5 min before retry after failure
 
 async function getEmbedder(): Promise<EmbedFn> {
@@ -58,7 +59,8 @@ export async function embed(text: string): Promise<Float32Array | null> {
   const fn = await getEmbedder();
   try {
     return await fn(text);
-  } catch {
+  } catch (err) {
+    if (!embedErrorWarned) { embedErrorWarned = true; console.error("[MemoryForge] Embedding inference failed:", (err as Error).message); }
     return null;
   }
 }
