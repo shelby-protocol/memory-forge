@@ -166,8 +166,8 @@ function formatTranscript(messages: Array<{ role: string; text: string }>, sessi
     let text = msg.text;
     // Truncate long messages for readability
     if (text.length > 2000) {
-      const originalLen = text.length;
-      text = safeTruncate(text, 2000) + `... [truncated, ${originalLen} total chars]`;
+      const graphemeLen = [...text].length; // grapheme count (emoji/ZWS-safe)
+      text = safeTruncate(text, 2000) + `... [truncated, ${graphemeLen} total chars]`;
     }
     const entry = `${prefix}:\n${text}\n`;
     if (charCount + entry.length > MAX_MEMORY_CHARS) {

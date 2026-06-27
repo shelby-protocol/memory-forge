@@ -240,12 +240,13 @@ export async function listBlobs(): Promise<string[]> {
 export async function deleteBlob(blobName: string): Promise<void> {
   if (!client || !account) return;
   // Shelby blobs are immutable once uploaded.
-  // Deletion in our model = upload empty file as tombstone
+  // Tombstone uses stable name (no timestamp) so repeats overwrite, not duplicate
+  const tombstoneName = blobName.replace(/-\d+\.json$/, ".json") + ".deleted";
   try {
     await client.upload({
       signer: account,
       blobData: Buffer.from("{}"),
-      blobName: blobName + ".deleted",
+      blobName: tombstoneName,
       expirationMicros: (Date.now() + 365 * 86400000) * 1000, // 1 year
     });
   } catch {

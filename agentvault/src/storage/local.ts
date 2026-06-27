@@ -24,7 +24,7 @@ function ensureDir(): void {
 export function saveMemory(memory: Memory): void {
   ensureDir();
   const vectorStr = memory.vector?.length
-    ? `> vector: ${JSON.stringify(Array.from(memory.vector))}`
+    ? `> vector: ${JSON.stringify(memory.vector)}`
     : null;
   const lines = [
     `# ${memory.name}`,
@@ -105,7 +105,7 @@ function parseMemoryFile(filepath: string): Memory | null {
       if (line.startsWith("> vector:")) {
         try {
           const arr = JSON.parse(line.slice(10).trim());
-          if (Array.isArray(arr)) vector = arr.map(Number);
+          if (Array.isArray(arr)) vector = arr.map(Number).filter((n) => isFinite(n) && !isNaN(n));
         } catch { /* ignore corrupt vector */ }
         continue;
       }

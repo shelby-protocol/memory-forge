@@ -63,11 +63,12 @@ export async function autoMerge(store: MemoryStore, newMemory: Memory): Promise<
     if (existing.id === newMemory.id) continue;
     const similarity = contentOverlap(existing.content, newMemory.content);
     if (similarity > 0.8) {
+      // Apply mutations then immediately remove + re-add to keep store consistent
       existing.content = newMemory.content;
       existing.access_count++;
       existing.last_accessed = new Date().toISOString();
 
-      saveMemory(existing); // persist before embed (survives embed failure)
+      saveMemory(existing); // persist content before embed (survives embed failure)
 
       const vec = await embed(existing.content);
       if (vec) {
@@ -77,7 +78,7 @@ export async function autoMerge(store: MemoryStore, newMemory: Memory): Promise<
 
       store.remove(existing.id);
       store.add(existing);
-      return existing;
+      return existing; // early return after remove+add ensures no dangling mutations
     }
   }
   return null;
