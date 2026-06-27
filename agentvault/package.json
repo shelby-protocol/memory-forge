@@ -1,13 +1,13 @@
 {
   "name": "memory-forge",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "Forge persistent memories for your AI agent. 8 MCP tools + 5 auto-engines. Powered by Shelby decentralized cloud.",
   "type": "module",
   "license": "MIT",
   "author": "shelby-protocol",
   "repository": {
     "type": "git",
-    "url": "https://github.com/shelby-protocol/memory-forge"
+    "url": "git+https://github.com/shelby-protocol/memory-forge.git"
   },
   "keywords": [
     "mcp",
@@ -28,7 +28,7 @@
   },
   "main": "dist/index.js",
   "bin": {
-    "memory-forge": "./dist/index.js"
+    "memory-forge": "dist/index.js"
   },
   "files": [
     "dist/",

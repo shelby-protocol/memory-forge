@@ -1,2 +1,18 @@
-command:
-  function: node dist/index.js
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      SHELBY_API_KEY:
+        type: string
+        description: Shelby API key for Pro cloud sync (optional — Free tier works without it)
+        default: ""
+  commandFunction: |
+    (config) => ({
+      command: 'npx',
+      args: ['-y', 'memory-forge'],
+      env: config.SHELBY_API_KEY ? { SHELBY_API_KEY: config.SHELBY_API_KEY } : {}
+    })
+build:
+  dockerfile: Dockerfile
+  dockerBuildPath: .

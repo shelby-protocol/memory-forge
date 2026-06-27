@@ -26,10 +26,23 @@ import { cliCaptureTranscript, captureTranscript } from "./transcript.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import * as path from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8")) as { version: string };
+
+import * as fs from "node:fs";
+
+/** Read stdin synchronously if piped (Claude Code hook), null if TTY (direct CLI). */
+function readStdinSync(): string | null {
+  try {
+    if (process.stdin.isTTY) return null;
+    return fs.readFileSync(0, "utf-8").trim() || null;
+  } catch {
+    return null;
+  }
+}
 
 // ─── CLI 命令路由 ──────────────────────────────────────────
 const cmd = process.argv[2];
@@ -52,15 +65,29 @@ if (cmd === "--version" || cmd === "-v") {
 } else if (cmd === "hook") {
   const hookType = process.argv[3];
   if (hookType === "session-start") {
+    // Read stdin for Claude Code hook metadata (cwd, source, session_id)
+    let projectContext = "";
+    try {
+      const stdinData = readStdinSync();
+      if (stdinData) {
+        const hookInput = JSON.parse(stdinData);
+        if (hookInput.cwd) {
+          const projectSlug = path.basename(hookInput.cwd);
+          projectContext = `\nCurrent project: ${projectSlug}`;
+        }
+      }
+    } catch {
+      // stdin not available or not JSON — ignore (called from CLI directly)
+    }
+
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);
     const summary = generateContextSummary(s, 5);
     // Output as hookSpecificOutput for silent, token-efficient context injection
-    // Falls back to plain text if Claude Code version doesn't support JSON hooks
     const output = JSON.stringify({
       hookSpecificOutput: {
         hookEventName: "SessionStart",
-        additionalContext: summary || "[MemoryForge] No memories yet. Start building context by storing decisions and preferences.",
+        additionalContext: (summary || "[MemoryForge] No memories yet.") + projectContext,
       },
     });
     console.log(output);
