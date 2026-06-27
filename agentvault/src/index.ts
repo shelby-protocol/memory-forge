@@ -195,9 +195,9 @@ function startMcpServer() {
       title: "存储记忆",
       description: "存储一条上下文、知识或偏好到持久记忆中。自动向量化以支持语义检索。",
       inputSchema: {
-        content: z.string().min(1).max(100000).describe("要存储的记忆内容（最大 100KB）。"),
+        content: z.string().min(1).max(100000).refine((s) => s.trim().length > 0, "Content must not be whitespace-only").describe("要存储的记忆内容（最大 100KB）。"),
         category: z.string().default("general").describe("分类标签: user-preference, project-context, decision-log, code-pattern。"),
-        tags: z.array(z.string()).default([]).describe("标签列表。"),
+        tags: z.array(z.string().min(1)).default([]).describe("标签列表。"),
         priority: z.number().min(1).max(10).default(5).describe("优先级 1-10。"),
       },
     },
@@ -311,9 +311,14 @@ function startMcpServer() {
     },
     async (params) => {
       const { category, tags, limit, offset } = params;
+      const isFiltered = !!(category || (tags && tags.length > 0));
       const memories = store.list({ category: category ?? null, tags: tags ?? null, limit, offset });
+      // Count total matching (without pagination) when filtered, else full store
+      const matchingTotal = isFiltered
+        ? store.list({ category: category ?? null, tags: tags ?? null, limit: 10000, offset: 0 }).length
+        : store.size();
       return { content: [{ type: "text" as const, text: JSON.stringify({
-        total: store.size(), count: memories.length,
+        total: matchingTotal, count: memories.length,
         memories: memories.map((m) => ({
           memory_id: m.id, name: m.name, category: m.category,
           tags: m.tags, priority: m.priority, access_count: m.access_count,
@@ -476,7 +481,7 @@ function startMcpServer() {
       description: "增量更新一条记忆。只覆盖传入的字段，未传入的字段保持不变。",
       inputSchema: {
         memory_id: z.string().describe("要更新的记忆 ID。"),
-        content: z.string().min(1).max(100000).optional().describe("新内容（可选）。"),
+        content: z.string().min(1).max(100000).refine((s) => s.trim().length > 0, "Content must not be whitespace-only").optional().describe("新内容（可选）。"),
         category: z.string().optional().describe("新分类（可选）。"),
         tags: z.array(z.string()).optional().describe("新标签列表（可选，会完全替换）。"),
         priority: z.number().min(1).max(10).optional().describe("新优先级 1-10（可选）。"),

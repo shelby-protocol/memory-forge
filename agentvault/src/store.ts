@@ -196,10 +196,16 @@ function cosineSimilarity(a: Float32Array, b: Float32Array): number {
 
 /** Character 3-gram Jaccard similarity.
  *  Captures short technical terms ("AI", "DB", "CI") naturally
- *  embedded in n-grams, unlike word-level Jaccard that filters ≤2 chars. */
+ *  embedded in n-grams. Falls back to exact match for strings too
+ *  short to produce n-grams (≤2 chars). */
 export function contentOverlap(a: string, b: string): number {
   const ngramsA = charNgrams(a, 3);
   const ngramsB = charNgrams(b, 3);
+
+  // Both too short for 3-grams → exact match comparison
+  if (ngramsA.size === 0 && ngramsB.size === 0) {
+    return a.toLowerCase().trim() === b.toLowerCase().trim() ? 1.0 : 0.0;
+  }
   if (ngramsA.size === 0 || ngramsB.size === 0) return 0;
   let intersection = 0;
   for (const ng of ngramsA) {
