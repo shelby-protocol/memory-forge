@@ -52,7 +52,7 @@ t("memory has correct category for claude-rules", () => {
 
 t("memory has auto-generated name", () => {
   const rules: ImportedRule[] = [
-    { source: "/home/.claude/CLAUDE.md", key: "test", content: M + "L9P1: Prefer tabs over spaces for Rust and Go indentation" },
+    { source: "/home/.claude/CLAUDE.md", key: "test", content: M + "L9P1-mqw7qfiy: Prefer tabs over spaces for Rust and Go indentation" },
   ];
   const result = rulesToMemories(rules);
   if (!result[0].name || result[0].name === "memory") throw new Error(`bad name: "${result[0].name}"`);
@@ -87,7 +87,7 @@ t("memory has valid UUID", () => {
     {
       source: "/home/.claude/CLAUDE.md",
       key: "test",
-      content: M + "B8N4: GraphQL resolvers must implement DataLoader batching by default",
+      content: M + "B8N4-mqw7qfiy: GraphQL resolvers must implement DataLoader batching by default",
     },
   ];
   const result = rulesToMemories(rules);
@@ -112,12 +112,12 @@ t("similar but different rules NOT deduplicated", () => {
     {
       source: "/home/.claude/CLAUDE.md",
       key: "a",
-      content: M + "FRONTEND-TEST: React 19 with Tailwind v5 and shadcn/ui v3 component architecture decisions",
+      content: M + "FRONTEND-TEST-mqw7qfiy: React 19 with Tailwind v5 and shadcn/ui v3 component architecture decisions",
     },
     {
       source: "/home/.claude/CLAUDE.md",
       key: "b",
-      content: M + "BACKEND-TEST: FastAPI with PostgreSQL v17 and Redis v8 caching layer orchestration patterns",
+      content: M + "BACKEND-TEST-mqw7qfiy: FastAPI with PostgreSQL v17 and Redis v8 caching layer orchestration patterns",
     },
   ];
   const result = rulesToMemories(rules);
@@ -205,12 +205,12 @@ t("mix of valid rules from different sources", () => {
     {
       source: "/home/.claude/CLAUDE.md",
       key: "c1",
-      content: M + "MULTI-1: Nix flakes for reproducible development environments across all machines",
+      content: M + "MULTI-1-mqw7qfiy: Nix flakes for reproducible development environments across all machines",
     },
     {
       source: "/home/.cursor/rules/a.mdc",
       key: "c2",
-      content: M + "MULTI-2: OpenTelemetry tracing required for all gRPC service-to-service calls",
+      content: M + "MULTI-2-mqw7qfiy: OpenTelemetry tracing required for all gRPC service-to-service calls",
     },
   ];
   const result = rulesToMemories(rules);
