@@ -89,18 +89,21 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     "project-context": 1.8,
     "user-preference": 1.2,
     "code-pattern": 1.1,
-    "session-transcript": 0.3,
+    "session-transcript": 0, // excluded — raw transcripts are for deep recall, not quick context
     "general": 1.0,
   };
 
-  // Recency-first with category boost, priority as final tiebreaker
+  // Filter + recency-first with category boost, priority as final tiebreaker
   const top = all
+    .filter((m) => {
+      const boost = CATEGORY_BOOST[m.category];
+      return boost !== undefined ? boost > 0 : true; // exclude categories with boost=0
+    })
     .sort((a, b) => {
       const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
       const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
       const aBoost = CATEGORY_BOOST[a.category] ?? 1.0;
       const bBoost = CATEGORY_BOOST[b.category] ?? 1.0;
-      // Weighted recency score: time * category_boost
       const aScore = aTime * aBoost;
       const bScore = bTime * bBoost;
       if (bScore !== aScore) return bScore - aScore;
@@ -108,7 +111,14 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     })
     .slice(0, limit);
 
-  if (top.length === 0) return "";
+  if (top.length === 0) {
+    return "[MemoryForge] 👋 Welcome! No memories yet.\n\n" +
+      "Store your first memory with memory_store to build context across sessions.\n" +
+      "Tips:\n" +
+      "  • Save project decisions as 'decision-log'\n" +
+      "  • Save user preferences as 'user-preference'\n" +
+      "  • Session transcripts are auto-captured (excluded from context, searchable via memory_search)";
+  }
 
   const lines: string[] = [
     "[MemoryForge] 📋 Recent context from previous sessions:",

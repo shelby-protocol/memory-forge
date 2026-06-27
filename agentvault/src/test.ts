@@ -295,9 +295,12 @@ await run("generateContextSummary recency-first: newer memory appears first", ()
   assert(firstEntryHeader.includes("Jun 27"), "newer memory date should appear first");
 });
 
-await run("generateContextSummary empty store", () => {
+await run("generateContextSummary empty store shows welcome", () => {
   const s = new MemoryStore();
-  assertEq(generateContextSummary(s, 5), "", "empty");
+  const summary = generateContextSummary(s, 5);
+  assert(summary.includes("Welcome"), "empty store should show welcome message");
+  assert(summary.includes("memory_store"), "should mention memory_store");
+  assert(summary.includes("transcripts"), "should mention transcripts");
 });
 
 await run("generateContextSummary limits count", () => {
@@ -327,17 +330,26 @@ await run("generateContextSummary category boost: decision-log beats user-prefer
   assert(summary.includes("Decision"), "decision-log should beat user-preference with same recency");
 });
 
-await run("generateContextSummary session-transcript demoted", () => {
+await run("generateContextSummary session-transcript excluded from context", () => {
   const s = new MemoryStore();
-  const ts = new Date("2026-06-27T00:00:00.000Z").toISOString();
-  s.add({ ...mem, id: "t1", name: "Older decision", content: "Decision",
-    category: "decision-log", priority: 5, created_at: ts, access_count: 0 });
-  s.add({ ...mem, id: "t2", name: "Newer transcript", content: "Transcript dump",
+  s.add({ ...mem, id: "dl", name: "Decision log", content: "Important decision",
+    category: "decision-log", priority: 5, created_at: new Date().toISOString(), access_count: 0 });
+  s.add({ ...mem, id: "tx", name: "Transcript", content: "Raw transcript dump",
     category: "session-transcript", priority: 9, created_at: new Date().toISOString(), access_count: 0 });
   const summary = generateContextSummary(s, 2);
-  const lines = summary.split("\n").filter((l) => l.startsWith("- ["));
-  // Older decision-log (boost 2.0) should beat newer session-transcript (boost 0.3)
-  assert(lines[0].includes("decision-log"), "older decision-log should appear before newer transcript");
+  // session-transcript (boost=0) should be excluded entirely
+  assert(summary.includes("Decision log"), "decision-log should be included");
+  assert(!summary.includes("Transcript"), "session-transcript should be excluded");
+});
+
+await run("generateContextSummary all-transcript store shows welcome", () => {
+  // Use a store with only session-transcript (boost=0, filtered out → treated as empty)
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "tx", name: "Transcript", content: "Raw transcript",
+    category: "session-transcript", priority: 9, access_count: 100,
+    created_at: new Date().toISOString() });
+  const summary = generateContextSummary(s, 5);
+  assert(summary.includes("Welcome"), "should show welcome when no context-eligible memories");
 });
 
 // ═══════════════════════════════════════════════════════════════

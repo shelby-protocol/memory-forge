@@ -58,26 +58,31 @@ if (cmd === "--version" || cmd === "-v") {
     if (summary) console.log(summary);
   } else if (hookType === "stop") {
     const s = new MemoryStore();
-    for (const m of loadAllMemories()) s.add(m);
+    const all = loadAllMemories();
+    for (const m of all) s.add(m);
     let updated = 0, archived = 0;
-    for (const m of loadAllMemories()) {
+    for (const m of all) {
       const newPriority = autoPriority(m);
       const decay = autoDecay(m);
       if (decay === 0) {
-        deleteMemoryFile(m.id);
+        try { deleteMemoryFile(m.id); } catch {}
         archived++;
       } else {
         let changed = false;
         if (newPriority !== m.priority) { m.priority = newPriority; changed = true; }
-        if (changed) { saveMemory(m); updated++; }
+        if (changed) { try { saveMemory(m); updated++; } catch {} }
       }
     }
     console.error(`[MemoryForge] auto-capture: ${updated} updated, ${archived} archived`);
-    // Auto-capture conversation transcript
-    const transcriptResult = captureTranscript();
-    console.error(`[MemoryForge] ${transcriptResult}`);
+    // Auto-capture conversation transcript (best-effort, don't crash hook)
+    try {
+      const transcriptResult = captureTranscript();
+      console.error(`[MemoryForge] ${transcriptResult}`);
+    } catch (err) {
+      console.error(`[MemoryForge] transcript capture failed: ${(err as Error).message}`);
+    }
     // Purge expired tombstones
-    cleanupTombstones();
+    try { cleanupTombstones(); } catch {}
   } else if (hookType === "pre-compact") {
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);
@@ -87,13 +92,22 @@ if (cmd === "--version" || cmd === "-v") {
     // Instruct agent to auto-capture before compaction wipes context
     console.log(`\n[MEMORYFORGE AUTO-CAPTURE] Context window is about to compact. Use memory_store to save key learnings, decisions, and preferences from this session BEFORE continuing. What did you learn about the user? What decisions were made? What preferences did you observe?\n\n[MEMORYFORGE CROSS-DEVICE] If planning to continue on another machine, remind the user to:\n1. git push (code)\n2. Exit normally so Stop hook saves the transcript\n3. On the other machine: git pull + memory-forge pro (memories)`);
     // Safety net: capture transcript now (survives forced terminal close)
-    const preCompactTranscript = captureTranscript();
-    if (!preCompactTranscript.includes("already captured")) {
-      console.error(`[MemoryForge] ${preCompactTranscript}`);
+    try {
+      const preCompactTranscript = captureTranscript();
+      if (!preCompactTranscript.includes("already captured")) {
+        console.error(`[MemoryForge] ${preCompactTranscript}`);
+      }
+    } catch (err) {
+      console.error(`[MemoryForge] pre-compact transcript capture failed: ${(err as Error).message}`);
     }
   } else if (hookType === "capture-transcript") {
-    const result = captureTranscript();
-    console.error(`[MemoryForge] ${result}`);
+    try {
+      const result = captureTranscript();
+      console.error(`[MemoryForge] ${result}`);
+    } catch (err) {
+      console.error(`[MemoryForge] transcript capture failed: ${(err as Error).message}`);
+      process.exit(1);
+    }
   }
   process.exit(0);
 } else {
