@@ -181,3 +181,36 @@ function cosineSimilarity(a: Float32Array, b: Float32Array): number {
   const denom = Math.sqrt(normA) * Math.sqrt(normB);
   return denom === 0 ? 0 : dot / denom;
 }
+
+/** Character 3-gram Jaccard similarity.
+ *  Captures short technical terms ("AI", "DB", "CI") naturally
+ *  embedded in n-grams, unlike word-level Jaccard that filters ≤2 chars. */
+export function contentOverlap(a: string, b: string): number {
+  const ngramsA = charNgrams(a, 3);
+  const ngramsB = charNgrams(b, 3);
+  if (ngramsA.size === 0 || ngramsB.size === 0) return 0;
+  let intersection = 0;
+  for (const ng of ngramsA) {
+    if (ngramsB.has(ng)) intersection++;
+  }
+  return intersection / Math.min(ngramsA.size, ngramsB.size);
+}
+
+function charNgrams(text: string, n: number): Set<string> {
+  const normalized = text.toLowerCase().replace(/\s+/g, " ");
+  const ngrams = new Set<string>();
+  for (let i = 0; i <= normalized.length - n; i++) {
+    ngrams.add(normalized.slice(i, i + n));
+  }
+  return ngrams;
+}
+
+/** Unicode-safe string truncation using Intl.Segmenter (grapheme clusters).
+ *  Never splits surrogate pairs, ZWJ sequences, or combining marks. */
+export function safeTruncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+  const segments = [...segmenter.segment(text)];
+  if (segments.length <= maxLen) return text;
+  return segments.slice(0, maxLen).map((s) => s.segment).join("");
+}

@@ -8,6 +8,7 @@ import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import { saveMemory, loadAllMemories, deleteMemoryFile } from "./storage/local.js";
 import type { Memory } from "./store.js";
+import { safeTruncate } from "./store.js";
 
 const PROJECTS_DIR = path.join(
   process.env.HOME ?? process.env.USERPROFILE ?? "/tmp",
@@ -165,7 +166,8 @@ function formatTranscript(messages: Array<{ role: string; text: string }>, sessi
     let text = msg.text;
     // Truncate long messages for readability
     if (text.length > 2000) {
-      text = text.slice(0, 2000) + `... [truncated, ${msg.text.length} total chars]`;
+      const originalLen = text.length;
+      text = safeTruncate(text, 2000) + `... [truncated, ${originalLen} total chars]`;
     }
     const entry = `${prefix}:\n${text}\n`;
     if (charCount + entry.length > MAX_MEMORY_CHARS) {

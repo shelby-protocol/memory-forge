@@ -25,8 +25,7 @@ import { pro, syncAll } from "./pro.js";
 import { cliCaptureTranscript, captureTranscript } from "./transcript.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import * as path from "node:path";
+import { basename, dirname, join } from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -73,7 +72,7 @@ if (cmd === "--version" || cmd === "-v") {
       if (stdinData) {
         const hookInput = JSON.parse(stdinData);
         if (hookInput.cwd) {
-          projectSlug = path.basename(hookInput.cwd);
+          projectSlug = basename(hookInput.cwd);
           // Only add project note if it differs from default (avoids noise for home dir)
           projectContextNote = `\nCurrent project: ${projectSlug}`;
         }
@@ -196,7 +195,7 @@ function startMcpServer() {
       title: "存储记忆",
       description: "存储一条上下文、知识或偏好到持久记忆中。自动向量化以支持语义检索。",
       inputSchema: {
-        content: z.string().min(1).describe("要存储的记忆内容。"),
+        content: z.string().min(1).max(100000).describe("要存储的记忆内容（最大 100KB）。"),
         category: z.string().default("general").describe("分类标签: user-preference, project-context, decision-log, code-pattern。"),
         tags: z.array(z.string()).default([]).describe("标签列表。"),
         priority: z.number().min(1).max(10).default(5).describe("优先级 1-10。"),
@@ -461,6 +460,56 @@ function startMcpServer() {
     }
   );
 
+  // ── memory_update ────────────────────────────────────────
+  server.registerTool(
+    "memory_update",
+    {
+      title: "更新记忆",
+      description: "增量更新一条记忆。只覆盖传入的字段，未传入的字段保持不变。",
+      inputSchema: {
+        memory_id: z.string().describe("要更新的记忆 ID。"),
+        content: z.string().min(1).max(100000).optional().describe("新内容（可选）。"),
+        category: z.string().optional().describe("新分类（可选）。"),
+        tags: z.array(z.string()).optional().describe("新标签列表（可选，会完全替换）。"),
+        priority: z.number().min(1).max(10).optional().describe("新优先级 1-10（可选）。"),
+      },
+    },
+    async (params) => {
+      const { memory_id, content, category, tags, priority } = params;
+      const memory = store.get(memory_id);
+      if (!memory) {
+        return { content: [{ type: "text" as const, text: JSON.stringify({
+          error: "Not found", memory_id, hint: "Use memory_list to find the correct ID.",
+        }) }] };
+      }
+
+      // Apply partial updates — only override provided fields
+      if (content !== undefined) {
+        memory.content = content;
+        const vec = await embed(content);
+        if (vec) memory.vector = Array.from(vec);
+      }
+      if (category !== undefined) memory.category = category;
+      if (tags !== undefined) memory.tags = tags;
+      if (priority !== undefined) memory.priority = priority;
+      memory.access_count++;
+      memory.last_accessed = new Date().toISOString();
+
+      saveMemory(memory);
+
+      // Pro: sync updated memory to cloud
+      if (process.env.SHELBY_API_KEY) {
+        uploadMemory(memory).catch(() => {});
+      }
+
+      return { content: [{ type: "text" as const, text: JSON.stringify({
+        success: true, memory_id: memory.id, name: memory.name,
+        preview: memory.content.slice(0, 200),
+        updated_fields: Object.keys(params).filter((k) => k !== "memory_id" && params[k as keyof typeof params] !== undefined),
+      }) }] };
+    }
+  );
+
   // ── 启动 ──────────────────────────────────────────────────
   async function main() {
     // Pro: auto-sync on startup (non-blocking — server starts regardless)
@@ -479,7 +528,7 @@ function startMcpServer() {
     await server.connect(transport);
     console.error(`[MemoryForge] MCP Server started — ${store.size()} memories loaded` +
       (proActive ? " (Pro: Shelby cloud sync)" : " (Free: local storage)"));
-    console.error("[MemoryForge] 8 tools: store / search / recall / list / forget / context / export / share");
+    console.error("[MemoryForge] 9 tools: store / search / recall / list / forget / context / export / share / update");
   }
 
   main().catch((err) => {

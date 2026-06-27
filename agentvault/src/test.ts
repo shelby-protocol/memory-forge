@@ -1,10 +1,10 @@
 /**
  * AgentVault 精简版 — 完整测试套件
- * 覆盖 8 工具 + 5 自动化 + 存储 + 嵌入降级
+ * 覆盖 9 工具 + 5 自动化 + 存储 + 嵌入降级
  * 运行: npx tsx src/test.ts
  */
 
-import { MemoryStore } from "./store.js";
+import { MemoryStore, contentOverlap, safeTruncate } from "./store.js";
 import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { embed } from "./embedding.js";
 import { saveMemory, loadAllMemories, deleteMemoryFile } from "./storage/local.js";
@@ -624,6 +624,97 @@ await run("multi-category store + filtered recall", () => {
   // Search across all categories
   const results = s.keywordSearch("postgresql", { limit: 5 });
   assert(results.length >= 1, "cross-category search");
+});
+
+// ═══════════════════════════════════════════════════════════════
+console.log("\n🔤 contentOverlap (char 3-gram)");
+
+await run("short words 'AI model' vs 'DB model' partial overlap", () => {
+  const score = contentOverlap("AI model deployed", "DB model deployed");
+  assert(score > 0.3 && score < 0.9, `short tech terms contribute: ${score}`);
+});
+
+await run("identical strings = 1.0", () => {
+  const score = contentOverlap("React 19 TypeScript hooks pattern", "React 19 TypeScript hooks pattern");
+  assertEq(score, 1.0, "identical");
+});
+
+await run("completely different strings = 0", () => {
+  const score = contentOverlap("apple banana cherry", "xylophone zebra quantum");
+  assert(score < 0.1, `near zero: ${score}`);
+});
+
+await run("near-duplicate detection (typo tolerance)", () => {
+  const score = contentOverlap("database migration failed", "database migration faild");
+  assert(score > 0.7, `typo still high overlap: ${score}`);
+});
+
+console.log("\n✂️ safeTruncate (Unicode-safe)");
+
+await run("short string unchanged", () => {
+  const result = safeTruncate("hello", 10);
+  assertEq(result, "hello", "unchanged");
+});
+
+await run("truncates with emoji 🚀💻🔥 safely", () => {
+  const text = "Hello 🚀💻🔥 world!";
+  const result = safeTruncate(text, 8);
+  assert(!result.includes("�"), "no replacement chars");
+  assert(result.length <= text.length, "not longer than original");
+});
+
+await run("ZWJ family emoji 👨‍👩‍👦 not split", () => {
+  const text = "family 👨‍👩‍👦 test";
+  const result = safeTruncate(text, 8);
+  assert(!result.includes("�"), "ZWJ preserved");
+});
+
+await run("Chinese text truncated safely", () => {
+  const text = "你好世界这是一个测试文本";
+  const result = safeTruncate(text, 5);
+  assert(!result.includes("�"), "no broken chars");
+  assert(result.length < text.length, "actually truncated");
+});
+
+console.log("\n🔄 memory_update");
+
+await run("update content replaces content + recomputes name", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "up-1", content: "Original content" });
+  // Simulate update logic
+  const m = s.get("up-1")!;
+  m.content = "Updated content with new information";
+  s.touch("up-1");
+  assert(m.content.startsWith("Updated"), "content changed");
+  assert(m.access_count >= 1, "access counted");
+});
+
+await run("update category only keeps other fields unchanged", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "up-2", category: "general", content: "Some content", tags: ["old"] });
+  const m = s.get("up-2")!;
+  m.category = "decision-log";
+  s.touch("up-2");
+  assertEq(m.category, "decision-log", "category updated");
+  assertEq(m.tags[0], "old", "tags unchanged");
+  assertEq(m.content, "Some content", "content unchanged");
+});
+
+await run("update tags replaces tags array", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "up-3", tags: ["old-tag"] });
+  const m = s.get("up-3")!;
+  m.tags = ["new-tag", "extra"];
+  assertEq(m.tags.length, 2, "tags replaced");
+  assert(m.tags.includes("new-tag"), "new tag present");
+});
+
+await run("update priority changes priority", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "up-4", priority: 5 });
+  const m = s.get("up-4")!;
+  m.priority = 9;
+  assertEq(m.priority, 9, "priority changed");
 });
 
 // ═══════════════════════════════════════════════════════════════

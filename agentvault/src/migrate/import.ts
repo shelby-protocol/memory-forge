@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Memory } from "../store.js";
 import { autoName } from "../auto/index.js";
-import { MemoryStore } from "../store.js";
+import { MemoryStore, contentOverlap } from "../store.js";
 import { loadAllMemories } from "../storage/local.js";
 
 export interface ImportedRule {
@@ -129,16 +129,4 @@ export function rulesToMemories(rules: ImportedRule[]): Memory[] {
     }
   }
   return result;
-}
-
-/** Quick in-memory overlap check (no embedding needed) */
-function contentOverlap(a: string, b: string): number {
-  const setA = new Set(a.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
-  const setB = new Set(b.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
-  if (setA.size === 0 || setB.size === 0) return 0;
-  let intersection = 0;
-  for (const w of setA) {
-    if (setB.has(w)) intersection++;
-  }
-  return intersection / Math.min(setA.size, setB.size);
 }

@@ -4,7 +4,7 @@
 
 An MCP-standard AI agent persistent memory engine. Free tier runs locally, Pro tier adds Shelby decentralized cloud sync.
 
-## MCP Tools (8)
+## MCP Tools (9)
 
 ### Core Layer
 
@@ -16,6 +16,12 @@ An MCP-standard AI agent persistent memory engine. Free tier runs locally, Pro t
 | `memory_list` | List memories with category/tag filtering |
 | `memory_forget` | Delete memory (local + Shelby tombstone) |
 | `memory_context` | Load top-N session context |
+
+### Editing Layer
+
+| Tool | Description |
+|---|---|
+| `memory_update` | Partial update by ID — only provided fields changed |
 
 ### Collaboration Layer
 

@@ -3,6 +3,7 @@
  */
 
 import type { MemoryStore, Memory } from "../store.js";
+import { contentOverlap, safeTruncate } from "../store.js";
 import { saveMemory } from "../storage/local.js";
 import { embed } from "../embedding.js";
 
@@ -14,21 +15,29 @@ export function autoName(content: string): string {
   return name || "memory";
 }
 
-/** 自动合并: 检测相似内容并合并（异步，重新计算向量） */
+/** 自动合并: 向量预筛 top-10 候选 + Jaccard 确认，避免全扫描。 */
 export async function autoMerge(store: MemoryStore, newMemory: Memory): Promise<Memory | null> {
-  const all = [...store.list({ limit: 100, offset: 0 })];
-  if (all.length === 0) return null;
+  // Vector pre-filter: find top-10 semantically similar candidates
+  let candidates: Memory[];
+  if (newMemory.vector.length > 0) {
+    candidates = store.search("", {
+      limit: 10, minSimilarity: 0.7,
+      queryVec: new Float32Array(newMemory.vector),
+    });
+  } else {
+    // No vector yet — fall back to most recent 20
+    candidates = store.list({ limit: 20, offset: 0 });
+  }
+  if (candidates.length === 0) return null;
 
-  for (const existing of all) {
+  for (const existing of candidates) {
     if (existing.id === newMemory.id) continue;
     const similarity = contentOverlap(existing.content, newMemory.content);
     if (similarity > 0.8) {
-      // Merge: update existing with new content + fresh vector
       existing.content = newMemory.content;
       existing.access_count++;
       existing.last_accessed = new Date().toISOString();
 
-      // Recompute vector for merged content
       const vec = await embed(existing.content);
       if (vec) existing.vector = Array.from(vec);
 
@@ -64,18 +73,6 @@ export function autoDecay(memory: Memory): number {
   if (d <= 30) return 0.5;
   if (d <= 90) return 0.2;
   return 0; // archive
-}
-
-/** 内容重叠度 (Jaccard 近似) */
-function contentOverlap(a: string, b: string): number {
-  const setA = new Set(a.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
-  const setB = new Set(b.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
-  if (setA.size === 0 || setB.size === 0) return 0;
-  let intersection = 0;
-  for (const w of setA) {
-    if (setB.has(w)) intersection++;
-  }
-  return intersection / Math.min(setA.size, setB.size);
 }
 
 /** 生成上下文摘要给 Agent 注入 */
@@ -198,7 +195,7 @@ function smartPreview(content: string, maxLen: number): string {
   if (meaningful.length === 0) {
     // No meaningful paragraphs found — raw truncation
     return content.length > maxLen
-      ? content.slice(0, maxLen).replace(/\n/g, " ").trim() + "…"
+      ? safeTruncate(content, maxLen).replace(/\n/g, " ").trim() + "…"
       : content;
   }
 
