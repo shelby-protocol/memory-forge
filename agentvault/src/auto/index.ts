@@ -7,11 +7,40 @@ import { contentOverlap, safeTruncate } from "../store.js";
 import { saveMemory } from "../storage/local.js";
 import { embed } from "../embedding.js";
 
-/** 自动命名: 从内容中提取前几个字作为名称 */
+/** 自动命名: 首句提取 + 词边界截断。不切词，不停半截。
+ *  用户可通过 memory_store({ name: "..." }) 覆盖。 */
 export function autoName(content: string): string {
-  // Strip code blocks, trim to ~30 chars
-  const clean = content.replace(/```[\s\S]*?```/g, "").replace(/`/g, "").trim();
-  const name = clean.slice(0, 40).replace(/\n/g, " ").trim();
+  // Strip code blocks and inline code
+  const clean = content
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`/g, "")
+    .replace(/\n/g, ". ")     // newlines as sentence boundaries
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return "memory";
+
+  // Find first natural sentence boundary
+  const endMarkers = [". ", "? ", "! ", ".\" ", ".\n"];
+  let end = -1;
+  for (const marker of endMarkers) {
+    const idx = clean.indexOf(marker);
+    if (idx > 0 && (end < 0 || idx < end)) end = idx + 1; // include the marker
+  }
+
+  // Take up to first boundary, capped at 60 chars
+  const maxLen = 60;
+  let name: string;
+  if (end > 0 && end <= maxLen) {
+    name = clean.slice(0, end).trim();
+  } else if (clean.length <= maxLen) {
+    name = clean;
+  } else {
+    // Truncate at last space before maxLen (word boundary)
+    const truncated = clean.slice(0, maxLen);
+    const lastSpace = truncated.lastIndexOf(" ");
+    name = lastSpace > maxLen * 0.5 ? truncated.slice(0, lastSpace) : truncated;
+  }
+
   return name || "memory";
 }
 

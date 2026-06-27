@@ -330,12 +330,13 @@ function startMcpServer() {
         category: z.string().default("general").describe("Category: user-preference, project-context, decision-log, code-pattern."),
         tags: z.array(z.string().min(1)).default([]).describe("Tags list."),
         priority: z.number().min(1).max(10).default(5).describe("Priority 1-10."),
+        name: z.string().min(1).max(120).optional().describe("Custom name (optional — auto-generated from content if not provided)."),
       },
     },
     async (params) => {
-      const { content, category, tags, priority } = params;
+      const { content, category, tags, priority, name: customName } = params;
       const vec = await embed(content);
-      const name = autoName(content);
+      const name = customName || autoName(content);
 
       const memory = {
         id: randomUUID(), name, content, category, tags, priority,
@@ -629,13 +630,14 @@ function startMcpServer() {
         category: z.string().optional().describe("New category (optional)."),
         tags: z.array(z.string()).optional().describe("New tags list (optional, replaces all existing tags)."),
         priority: z.number().min(1).max(10).optional().describe("New priority 1-10 (optional)."),
+        name: z.string().min(1).max(120).optional().describe("New name (optional — auto-generated if not provided)."),
       },
     },
     async (params) => {
-      const { memory_id, content, category, tags, priority } = params;
+      const { memory_id, content, category, tags, priority, name: customName } = params;
 
       // Guard: at least one optional field must be provided
-      if (content === undefined && category === undefined && tags === undefined && priority === undefined) {
+      if (content === undefined && category === undefined && tags === undefined && priority === undefined && customName === undefined) {
         return { content: [{ type: "text" as const, text: JSON.stringify({
           error: "No fields to update", hint: "Provide at least one of: content, category, tags, priority.",
         }) }] };
@@ -651,9 +653,11 @@ function startMcpServer() {
       // Apply partial updates — only override provided fields
       if (content !== undefined) {
         memory.content = content;
-        memory.name = autoName(content);
+        memory.name = customName || autoName(content);
         const vec = await embed(content);
         if (vec) memory.vector = Array.from(vec);
+      } else if (customName !== undefined) {
+        memory.name = customName;
       }
       if (category !== undefined) memory.category = category;
       if (tags !== undefined) memory.tags = tags;

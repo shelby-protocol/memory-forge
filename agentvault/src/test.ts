@@ -211,7 +211,7 @@ await run("autoName empty", () => {
 
 await run("autoName truncates long text", () => {
   const n = autoName("A".repeat(100));
-  assert(n.length <= 40, "capped");
+  assert(n.length <= 60, "capped at 60");
 });
 
 await run("autoMerge 100% identical merges", async () => {
