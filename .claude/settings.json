@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "cd ${PWD}/agentvault && npx prettier --write \"${FILE_PATH}\" 2>/dev/null; true",
+        "description": "Auto-format edited .ts files with prettier"
+      }
+    ]
+  }
+}
