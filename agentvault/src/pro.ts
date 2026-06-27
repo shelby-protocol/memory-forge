@@ -115,10 +115,11 @@ export async function pro(): Promise<void> {
   fs.writeFileSync(
     PROFILE_PATH,
     JSON.stringify({
-      version: 1,
+      version: 2,
       activatedAt: new Date().toISOString(),
       privateKey,
       address,
+      apiKey,
     }, null, 2)
   );
 
@@ -292,10 +293,11 @@ export async function proAutoActivate(): Promise<void> {
   // Save profile
   if (!fs.existsSync(MEMORYFORGE_DIR)) fs.mkdirSync(MEMORYFORGE_DIR, { recursive: true });
   fs.writeFileSync(PROFILE_PATH, JSON.stringify({
-    version: 1,
+    version: 2,
     activatedAt: new Date().toISOString(),
     privateKey,
     address,
+    apiKey: cfg.apiKey,
   }, null, 2));
 
   console.error(`[MemoryForge] Pro activated — Shelby account ${address.slice(0, 10)}…`);

@@ -29,17 +29,19 @@ export interface ShelbyConfig {
 }
 
 export function getShelbyConfig(): ShelbyConfig {
-  const apiKey = process.env.SHELBY_API_KEY ?? null;
+  // Priority: env var → saved in pro.json → null
+  let apiKey = process.env.SHELBY_API_KEY ?? null;
 
   let accountAddress: string | null = null;
   try {
     if (fs.existsSync(PROFILE_PATH)) {
       const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
       accountAddress = profile.address ?? null;
+      // Fall back to saved key if env not set
+      if (!apiKey) apiKey = profile.apiKey ?? null;
     }
   } catch { /* corrupted profile — ignore */ }
 
-  // Namespace: account address for now, license-derived later
   const namespace = accountAddress
     ? `users/${accountAddress}`
     : `users/default`;
