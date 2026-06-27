@@ -29,7 +29,7 @@ export function saveMemory(memory: Memory): void {
   const lines = [
     `# ${memory.name}`,
     `> category: ${memory.category}`,
-    `> tags: ${memory.tags.join(", ")}`,
+    `> tags: ${JSON.stringify(memory.tags)}`,
     `> priority: ${memory.priority}`,
     `> created: ${memory.created_at}`,
     `> access_count: ${memory.access_count}`,
@@ -78,7 +78,12 @@ function parseMemoryFile(filepath: string): Memory | null {
         continue;
       }
       if (line.startsWith("> tags:")) {
-        tags = line.slice(8).trim().split(",").map((t) => t.trim()).filter(Boolean);
+        const raw = line.slice(8).trim();
+        if (raw.startsWith("[")) {
+          try { tags = JSON.parse(raw); } catch { tags = []; }
+        } else {
+          tags = raw.split(",").map((t: string) => t.trim()).filter(Boolean);
+        }
         continue;
       }
       if (line.startsWith("> priority:")) {

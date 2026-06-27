@@ -258,7 +258,7 @@ export async function syncAll(): Promise<void> {
     }
   }
 
-  // Build set of memory IDs already on cloud (versioned blobs — not exact name match) (versioned blobs — not exact name match)
+  // Build set of memory IDs already on cloud (versioned blobs — not exact name match)
   const existingIds = new Set<string>();
   for (const blobName of blobs) {
     const id = getMemoryId(blobName);
@@ -287,7 +287,9 @@ export async function syncAll(): Promise<void> {
   const localIds = new Set(loadAllMemories().map((m) => m.id));
   for (const blobName of blobs) {
     const id = getMemoryId(blobName);
-    if (id && !localIds.has(id) && !tombstoned.has(id)) {
+    if (!id) continue;
+    if (blobName.endsWith(".deleted")) continue;
+    if (!localIds.has(id)) {
       deleteBlob(getBlobName(id)).catch(() => {});
       cleanedBlobs++;
     }
