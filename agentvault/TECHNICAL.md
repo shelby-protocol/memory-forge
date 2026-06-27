@@ -1,6 +1,6 @@
 # MemoryForge — Technical Documentation
 
-> Version 0.4.2 | 9 MCP Tools + 5 Auto-Engines | Free (local) + Pro (Shelby cloud) | 72 tests
+> Version 0.7.1 | 9 MCP Tools + 5 Auto-Engines | Free (local) + Pro (Shelby cloud) | 179 tests (vitest)
 
 ## Table of Contents
 

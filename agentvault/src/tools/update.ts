@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolOptions } from "./types.js";
 import { embed } from "../embedding.js";
-import { autoName } from "../auto/index.js";
+import { autoName, suggestTags, inferCategory } from "../auto/index.js";
 import { safeTruncate } from "../store.js";
 import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
@@ -31,10 +31,11 @@ export function register(server: McpServer, opts: ToolOptions) {
         name: z.string().min(1).max(120).optional().describe("New name (optional — auto-generated if not provided)."),
         branch: z.string().max(120).optional().describe("Git branch (auto-detected if omitted)."),
         related_to: z.array(z.string()).optional().describe("Related memory IDs."),
+        auto_tag: z.boolean().default(true).describe("Auto-suggest tags and category when updating content."),
       },
     },
     async (params) => {
-      const { memory_id, content, category, tags, priority, name: customName, branch: newBranch, related_to } = params;
+      const { memory_id, content, category, tags, priority, name: customName, branch: newBranch, related_to, auto_tag } = params;
 
       if (content === undefined && category === undefined && tags === undefined && priority === undefined && customName === undefined) {
         return {
@@ -79,6 +80,23 @@ export function register(server: McpServer, opts: ToolOptions) {
       if (priority !== undefined) memory.priority = priority;
         if (related_to !== undefined) memory.related_to = related_to;
         if (newBranch !== undefined) memory.branch = newBranch;
+
+      // Auto-tag: supplement with suggestions when user hasn't overridden
+      let suggested_tags: string[] = [];
+      let inferredCategory: string | null = null;
+      if (auto_tag) {
+        const suggested = suggestTags(memory.content);
+        if (tags === undefined) {
+          // User didn't set tags → merge with existing + suggestions
+          const merged = new Set([...memory.tags, ...suggested]);
+          memory.tags = [...merged];
+          suggested_tags = suggested;
+        }
+        if (category === undefined) {
+          inferredCategory = inferCategory(memory.content);
+          if (inferredCategory) memory.category = inferredCategory;
+        }
+      }
       memory.access_count++;
       memory.last_accessed = new Date().toISOString();
 
@@ -96,6 +114,8 @@ export function register(server: McpServer, opts: ToolOptions) {
               memory_id: memory.id,
               name: memory.name,
               preview: safeTruncate(memory.content, 200),
+              inferred_category: inferredCategory ? inferredCategory : undefined,
+              suggested_tags: suggested_tags.length > 0 ? suggested_tags : undefined,
               updated_fields: Object.keys(params).filter((k) => k !== "memory_id" && params[k as keyof typeof params] !== undefined),
             }),
           },

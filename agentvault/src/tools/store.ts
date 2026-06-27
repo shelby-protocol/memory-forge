@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { safeTruncate } from "../store.js";
 import type { ToolOptions } from "./types.js";
 import { embed } from "../embedding.js";
-import { autoName, autoMerge } from "../auto/index.js";
+import { autoName, autoMerge, suggestTags, inferCategory } from "../auto/index.js";
 import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
 import { execSync } from "node:child_process";
@@ -30,19 +30,38 @@ export function register(server: McpServer, opts: ToolOptions) {
         name: z.string().min(1).max(120).optional().describe("Custom name (optional — auto-generated from content if not provided)."),
         branch: z.string().max(120).optional().describe("Git branch for context scoping (auto-detected if omitted)."),
         related_to: z.array(z.string()).optional().describe("IDs of related memories."),
+        auto_tag: z.boolean().default(true).describe("Auto-suggest tags and category from content. Set false to use only explicit tags/category."),
       },
     },
     async (params) => {
-      const { content, category, tags, priority, name: customName } = params;
+      const { content, category, tags, priority, name: customName, auto_tag } = params;
       const vec = await embed(content);
       const name = customName || autoName(content);
+
+      // Auto-tag: suggest tags and category when user hasn't explicitly set them
+      let effectiveCategory = category;
+      let effectiveTags = tags;
+      const suggested_tags: string[] = [];
+
+      if (auto_tag) {
+        const suggested = suggestTags(content);
+        // Merge: user-provided tags + auto-suggested (no duplicates)
+        const merged = new Set([...tags, ...suggested]);
+        effectiveTags = [...merged];
+
+        if (category === "general") {
+          const inferred = inferCategory(content);
+          if (inferred) effectiveCategory = inferred;
+        }
+        suggested_tags.push(...suggested);
+      }
 
       const memory = {
         id: randomUUID(),
         name,
         content,
-        category,
-        tags,
+        category: effectiveCategory,
+        tags: effectiveTags,
         priority,
         vector: vec ? Array.from(vec) : [],
         created_at: new Date().toISOString(),
@@ -86,6 +105,8 @@ export function register(server: McpServer, opts: ToolOptions) {
               memory_id: memory.id,
               name: memory.name,
               preview: safeTruncate(content, 200),
+              inferred_category: effectiveCategory !== category ? effectiveCategory : undefined,
+              suggested_tags: suggested_tags.length > 0 ? suggested_tags : undefined,
               ...(hint ? { hint } : {}),
             }),
           },

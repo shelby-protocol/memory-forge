@@ -8,10 +8,17 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: ["18", "20", "22"]
+        exclude:
+          # Reduce matrix: only test Node 18/22 on windows/macos
+          - os: windows-latest
+            node-version: "20"
+          - os: macos-latest
+            node-version: "20"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,8 +28,14 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm run lint
-      - run: npx tsc --noEmit
-      - run: npm run test:all
+      - run: npx tsc -p tsconfig.build.json --noEmit
+      - run: npm run test:coverage
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '22'
+        with:
+          name: coverage
+          path: coverage/
 
   publish:
     needs: test

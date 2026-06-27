@@ -1,6 +1,8 @@
 /**
- * 记忆索引层: LRU 缓存 + 余弦相似度 + 关键词 fallback。
+ * 记忆索引层: LRU 缓存 + 余弦相似度 + BM25 混合搜索 + 关键词 fallback。
  */
+
+import { Bm25 } from "./search/bm25.js";
 
 export interface Memory {
   id: string;
@@ -28,6 +30,8 @@ interface SearchOptions {
   tags?: string[] | null;
   minSimilarity?: number;
   queryVec?: Float32Array;
+  /** Hybrid search: alpha controls vector vs BM25 weight. 1 = pure vector, 0 = pure BM25. Default 0.7. */
+  alpha?: number;
 }
 
 export class MemoryStore {
@@ -98,10 +102,62 @@ export class MemoryStore {
 
   search(rawQuery: string, options: SearchOptions): Memory[] {
     const queryVec = options.queryVec;
+    const alpha = options.alpha ?? 0.7;
+
+    // Both vector and BM25 available → hybrid
     if (queryVec) {
-      return this.vectorSearch(queryVec, options);
+      return this.hybridSearch(rawQuery, queryVec, options);
     }
+    // Only BM25 possible (no vector), alpha effectively 0
     return this.keywordSearch(rawQuery, options);
+  }
+
+  /** 混合搜索: alpha × cosine + (1-alpha) × BM25。
+   *  alpha=1 → pure vector, alpha=0 → pure BM25. Default 0.7. */
+  private hybridSearch(rawQuery: string, queryVec: Float32Array, options: SearchOptions): Memory[] {
+    const { limit, category, tags, minSimilarity } = options;
+    const alpha = options.alpha ?? 0.7;
+    let candidates = [...this.memories.values()];
+
+    if (category) candidates = candidates.filter((m) => m.category === category);
+    if (tags?.length) candidates = candidates.filter((m) => tags.some((t) => m.tags.includes(t)));
+
+    // Build BM25 index from candidates
+    const bm25 = new Bm25();
+    bm25.index(candidates.map((m) => ({ id: m.id, tokens: Bm25.tokenize(m.content) })));
+
+    // Get BM25 scores for query
+    const bm25Results = new Map<string, number>();
+    for (const r of bm25.search(rawQuery, candidates.length)) {
+      bm25Results.set(r.id, r.score);
+    }
+    // Normalize BM25 scores to [0,1]
+    const bm25Max = bm25Results.size > 0 ? Math.max(...bm25Results.values()) : 1;
+
+    const scored = candidates.map((m) => {
+      const mv = this.vectorCache.get(m.id);
+      const vSim = mv ? cosineSimilarity(queryVec, mv) : 0;
+      const vScore = vSim * ((m.priority || 5) / 5) * (1 + Math.min(m.access_count, 10) * 0.05);
+
+      const bmRaw = bm25Results.get(m.id) ?? 0;
+      const bmNorm = bm25Max > 0 ? bmRaw / bm25Max : 0;
+
+      const hybridScore = alpha * vScore + (1 - alpha) * bmNorm;
+      return { memory: m, similarity: vSim, score: hybridScore };
+    });
+
+    return scored
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(
+        (s): Memory => ({
+          ...s.memory,
+          similarity: s.similarity,
+          _score: s.score,
+          _fallback: alpha < 0.01 ? "bm25" : "hybrid",
+        }),
+      );
   }
 
   /** 余弦相似度检索 */

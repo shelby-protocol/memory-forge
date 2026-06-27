@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.8.0 (2026-06-27)
+
+### Features
+- **vitest migration**: 14 test files, 197 tests, coverage thresholds (40%+)
+- **CI matrix**: ubuntu/windows/macos + Node 18/20/22
+- **tsconfig.build.json**: separated build config from test config
+- **BM25 hybrid search**: `src/search/bm25.ts` (pure TS, zero deps) + hybrid scoring (α=0.7 vector, 0.3 BM25)
+- **Query expansion**: `src/search/expand.ts` — static synonym map for broader recall
+- **`memory_search` tool**: new `search_method` (hybrid/vector/bm25) and `alpha` parameters
+- **Auto-tag engine**: `src/auto/tagger.ts` — rule-driven tag suggestion + category inference (20 tag patterns, 4 category heuristics)
+- **`memory_store` / `memory_update`**: new `auto_tag` parameter (default: true), returns `suggested_tags` and `inferred_category`
+
+### Removed
+- 7 old `tsx` test files removed from `src/`
+
+---
+
 ## v0.5.2 (2026-06-27)
 
 ### Bug Fixes

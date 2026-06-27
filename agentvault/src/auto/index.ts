@@ -9,6 +9,8 @@ import { embed } from "../embedding.js";
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 
+export { normalizeContent, inferCategory, suggestTags, analyzeMemory } from "./tagger.js";
+
 /** Get current git branch. Returns empty string on failure (not a git repo, etc). */
 function currentGitBranch(): string {
   try {
