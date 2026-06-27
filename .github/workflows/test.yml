@@ -3,18 +3,21 @@ name: Test
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: agentvault
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: ["18", "20", "22"]
         exclude:
-          # Reduce matrix: only test Node 18/22 on windows/macos
           - os: windows-latest
             node-version: "20"
           - os: macos-latest
@@ -25,6 +28,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
+          cache-dependency-path: agentvault/package-lock.json
       - run: npm ci
       - run: npm run format:check
       - run: npm run lint
@@ -35,7 +39,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.node-version == '22'
         with:
           name: coverage
-          path: coverage/
+          path: agentvault/coverage/
 
   publish:
     needs: test
@@ -43,12 +47,17 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       id-token: write
+    defaults:
+      run:
+        working-directory: agentvault
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: agentvault/package-lock.json
       - run: npm ci
       - run: npm publish --provenance --access public
         env:
