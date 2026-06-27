@@ -55,7 +55,7 @@ async function getEmbedder(): Promise<EmbedFn> {
 }
 
 /** 重试模型加载（后台调用，不阻塞） */
-export function retryEmbedder(): void {
+function retryEmbedder(): void {
   if (!embedFn || lastAttempt === 0) return;
   if (Date.now() - lastAttempt < RETRY_MS) return;
 

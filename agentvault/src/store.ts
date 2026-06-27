@@ -181,7 +181,7 @@ export class MemoryStore {
       .slice(0, options.limit)
       .map((s): Memory => ({
         ...s.memory,
-        similarity: s.score / 10,
+        similarity: Math.min(s.score / 10, 1.0),
         _score: s.score,
         _fallback: "keyword",
       }));

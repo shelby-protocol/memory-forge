@@ -220,11 +220,11 @@ export async function syncAll(): Promise<void> {
 
       if (remote.content !== local.content) {
         merged.content = remote.content;
-        if (local.content !== merged.content) fieldConflicts.push("content");
+        fieldConflicts.push("content");
       }
       if (remote.category !== local.category) {
         merged.category = remote.category;
-        if (local.category !== merged.category) fieldConflicts.push("category");
+        fieldConflicts.push("category");
       }
       if (JSON.stringify(remote.tags) !== JSON.stringify(local.tags)) {
         merged.tags = remote.tags;
