@@ -81,11 +81,14 @@ if (cmd === "--version" || cmd === "-v") {
           }
         }
 
-        console.log("Pro: active ✅");
+        const keyStatus = s.apiKeyValid === false ? "❌ invalid"
+          : s.apiKeyValid ? "✅ valid"
+          : "⚠️  not set (sync paused)";
+        console.log(`Pro: ${s.apiKeyValid ? "active ✅" : "paused ⚠️"}`);
         console.log("");
         console.log("  ── Account ──");
         console.log(`  Address:            ${s.address}`);
-        console.log(`  API key:            ${s.apiKeyValid === false ? "❌ invalid" : s.apiKeyValid ? "✅ valid" : "—"}`);
+        console.log(`  API key:            ${keyStatus}`);
         if (balances) {
           console.log(`  APT balance:        ${balances.apt}`);
           console.log(`  ShelbyUSD balance:  ${balances.shelbyUsd}`);
