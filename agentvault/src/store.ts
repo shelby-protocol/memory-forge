@@ -158,7 +158,9 @@ export class MemoryStore {
       // (e.g. "video editing" → "Premiere Pro" needs vector, not keyword)
       const q = rawQuery.toLowerCase();
       const isRecQuery =
-        /\b(recommend|suggest|suggestion|advice|tips?|ideas?|what should|which one|trying to decide|do you think|do you have any|i('m| am) (thinking|planning|trying|looking)|what('s| is) (a |the )?(good|best)|how (can|do|should) i|could there be)\b/i.test(q);
+        /\b(recommend|suggest|suggestion|advice|tips?|ideas?|what should|which one|trying to decide|do you think|do you have any|i('m| am) (thinking|planning|trying|looking)|what('s| is) (a |the )?(good|best)|how (can|do|should) i|could there be)\b/i.test(
+          q,
+        );
       const effectiveAlpha = isRecQuery ? 0.9 : alpha;
 
       const hybridScore = effectiveAlpha * vScore + (1 - effectiveAlpha) * bmNorm;
