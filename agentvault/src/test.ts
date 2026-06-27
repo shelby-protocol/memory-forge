@@ -274,13 +274,25 @@ await run("autoDecay 100 days archived = 0", () => {
   assertEq(autoDecay({ ...mem, last_accessed: d }), 0, "100d archived");
 });
 
-await run("generateContextSummary tiebreaker: same access, higher priority wins", () => {
+await run("generateContextSummary tiebreaker: same recency, higher priority wins", () => {
   const s = new MemoryStore();
   s.add({ ...mem, id: "a", content: "Winner", priority: 9, access_count: 5 });
   s.add({ ...mem, id: "b", content: "Loser", priority: 2, access_count: 5 });
   const summary = generateContextSummary(s, 1);
   assert(summary.includes("Winner"), "higher priority wins tiebreaker");
   assert(!summary.includes("Loser"), "lower priority excluded");
+});
+
+await run("generateContextSummary recency-first: newer memory appears first", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "old", content: "Old content", priority: 9, access_count: 100,
+    created_at: "2026-01-01T00:00:00.000Z", last_accessed: "2026-01-01T00:00:00.000Z" });
+  s.add({ ...mem, id: "new", content: "New content", priority: 1, access_count: 0,
+    created_at: "2026-06-27T00:00:00.000Z", last_accessed: "2026-06-27T00:00:00.000Z" });
+  const summary = generateContextSummary(s, 2);
+  // First entry should be the newer memory (header line contains name, date, category)
+  const firstEntryHeader = summary.split("\n").find((l) => l.startsWith("- [")) || "";
+  assert(firstEntryHeader.includes("Jun 27"), "newer memory date should appear first");
 });
 
 await run("generateContextSummary empty store", () => {
@@ -292,13 +304,14 @@ await run("generateContextSummary limits count", () => {
   const s = new MemoryStore();
   for (let i = 0; i < 10; i++) s.add({ ...mem, id: `g-${i}`, content: `Memory ${i}`, priority: i });
   const summary = generateContextSummary(s, 3);
-  const lines = summary.split("\n").filter(Boolean);
-  assert(lines.length <= 3, `lines ${lines.length} <= 3`);
+  // Each entry is 2 lines (header + preview), separated by blank line
+  const entryCount = summary.split("\n").filter((l) => l.startsWith("- [")).length;
+  assertEq(entryCount, 3, "entry count");
 });
 
 await run("generateContextSummary truncates long content", () => {
   const s = new MemoryStore();
-  s.add({ ...mem, id: "g1", content: "X".repeat(200), priority: 9, access_count: 10 });
+  s.add({ ...mem, id: "g1", content: "X".repeat(400), priority: 9, access_count: 10 });
   const summary = generateContextSummary(s, 1);
   assert(summary.includes("…"), "should truncate with …");
 });

@@ -81,13 +81,31 @@ function contentOverlap(a: string, b: string): number {
 /** 生成上下文摘要给 Agent 注入 */
 export function generateContextSummary(store: MemoryStore, limit: number = 5): string {
   const all = store.list({ limit: 100, offset: 0 });
+
+  // Recency-first sort: most recently accessed/created memories first, priority as tiebreaker
   const top = all
-    .sort((a, b) => (b.access_count - a.access_count) || ((b.priority || 5) - (a.priority || 5)))
+    .sort((a, b) => {
+      const aTime = a.last_accessed ? new Date(a.last_accessed).getTime() : new Date(a.created_at).getTime();
+      const bTime = b.last_accessed ? new Date(b.last_accessed).getTime() : new Date(b.created_at).getTime();
+      if (bTime !== aTime) return bTime - aTime;
+      return (b.priority || 5) - (a.priority || 5);
+    })
     .slice(0, limit);
 
   if (top.length === 0) return "";
 
-  return top
-    .map((m) => `- [${m.name}] ${m.content.slice(0, 150)}${m.content.length > 150 ? "…" : ""}`)
-    .join("\n");
+  const lines: string[] = [];
+  for (const m of top) {
+    const time = m.last_accessed || m.created_at;
+    const dateStr = new Date(time).toLocaleDateString("en-US", {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    const preview = m.content.length > 300
+      ? m.content.slice(0, 300).replace(/\n/g, " ").trim() + "…"
+      : m.content;
+
+    lines.push(`- [${m.name}] ${dateStr} | p${m.priority} | ${m.category}\n  ${preview}`);
+  }
+
+  return lines.join("\n\n");
 }

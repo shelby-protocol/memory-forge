@@ -272,7 +272,7 @@ function startMcpServer() {
     "memory_context",
     {
       title: "加载上下文",
-      description: "加载当前会话的上下文——返回最近访问的高优先级记忆。",
+      description: "加载当前会话的上下文——返回最近创建或访问的高优先级记忆。",
       inputSchema: { limit: z.number().min(1).max(20).default(5) },
     },
     async (params) => {
