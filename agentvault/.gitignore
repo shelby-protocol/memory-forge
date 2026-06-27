@@ -5,3 +5,7 @@ dist/
 article-early-access.md
 shelby-application.md
 coverage/
+bench/longmemeval*.json
+bench/results-*.json
+bench/LongMemEval/
+!bench/synthetic_dataset.json
