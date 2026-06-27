@@ -250,14 +250,18 @@ export async function syncAll(): Promise<void> {
     downloaded++;
   }
 
+  // Build set of memory IDs already on cloud (versioned blobs — not exact name match)
+  const existingIds = new Set<string>();
+  for (const blobName of blobs) {
+    const id = getMemoryId(blobName);
+    if (id) existingIds.add(id);
+  }
+
   // Upload any local-only memories (batch: log summary, not per-memory spam)
   let uploaded = 0;
   let uploadFailed = 0;
   for (const m of loadAllMemories()) {
-    const newName = getBlobName(m.id);
-    const oldName = `memories/${m.id}.json`;
-    // Skip if already on Shelby (either old or new format)
-    if (blobs.includes(newName) || blobs.includes(oldName)) continue;
+    if (existingIds.has(m.id)) continue;
     const result = await uploadMemory(m);
     if (result) uploaded++; else uploadFailed++;
   }

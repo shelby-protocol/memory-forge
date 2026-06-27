@@ -725,7 +725,7 @@ function startMcpServer() {
   // ── 启动 ──────────────────────────────────────────────────
   async function main() {
     // Pro: auto-activate + sync before server starts (so all memories are loaded)
-    const proActive = !!process.env.SHELBY_API_KEY;
+    const proActive = !!(process.env.SHELBY_API_KEY || getShelbyConfig().apiKey);
     if (proActive) {
       try {
         await proAutoActivate();

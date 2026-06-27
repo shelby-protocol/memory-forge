@@ -70,7 +70,10 @@ export async function autoMerge(store: MemoryStore, newMemory: Memory): Promise<
       saveMemory(existing); // persist before embed (survives embed failure)
 
       const vec = await embed(existing.content);
-      if (vec) existing.vector = Array.from(vec);
+      if (vec) {
+        existing.vector = Array.from(vec);
+        saveMemory(existing); // re-save with fresh vector
+      }
 
       store.remove(existing.id);
       store.add(existing);
