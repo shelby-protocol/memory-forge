@@ -21,7 +21,9 @@ describe("Scenario 1: Corrupted memory file", () => {
   });
 
   afterAll(() => {
-    try { fs.unlinkSync(corruptPath); } catch {}
+    try {
+      fs.unlinkSync(corruptPath);
+    } catch {}
   });
 
   it("does not crash loader", () => {
@@ -39,14 +41,28 @@ describe("Scenario 1: Corrupted memory file", () => {
 describe("Scenario 2: Duplicate import resilience", () => {
   const s = new MemoryStore();
   const dup1: Memory = {
-    id: randomUUID(), name: "Pref", content: "Always use React 19 with TypeScript strict mode",
-    category: "user-preference", tags: ["react"], priority: 8, vector: [],
-    created_at: now, access_count: 0, last_accessed: null,
+    id: randomUUID(),
+    name: "Pref",
+    content: "Always use React 19 with TypeScript strict mode",
+    category: "user-preference",
+    tags: ["react"],
+    priority: 8,
+    vector: [],
+    created_at: now,
+    access_count: 0,
+    last_accessed: null,
   };
   const dup2: Memory = {
-    id: randomUUID(), name: "Pref", content: "Always use React 19 with TypeScript strict mode",
-    category: "user-preference", tags: ["react"], priority: 8, vector: [],
-    created_at: now, access_count: 0, last_accessed: null,
+    id: randomUUID(),
+    name: "Pref",
+    content: "Always use React 19 with TypeScript strict mode",
+    category: "user-preference",
+    tags: ["react"],
+    priority: 8,
+    vector: [],
+    created_at: now,
+    access_count: 0,
+    last_accessed: null,
   };
 
   it("both stored with different IDs", () => {
@@ -64,9 +80,16 @@ describe("Scenario 3: Full memory lifecycle", () => {
   const s = new MemoryStore();
   const lifeId = randomUUID();
   const life: Memory = {
-    id: lifeId, name: "Lifecycle Test", content: "Original content v1",
-    category: "general", tags: ["test"], priority: 5, vector: [],
-    created_at: now, access_count: 0, last_accessed: null,
+    id: lifeId,
+    name: "Lifecycle Test",
+    content: "Original content v1",
+    category: "general",
+    tags: ["test"],
+    priority: 5,
+    vector: [],
+    created_at: now,
+    access_count: 0,
+    last_accessed: null,
   };
 
   it("create", () => {
@@ -103,8 +126,30 @@ describe("Scenario 3: Full memory lifecycle", () => {
 describe("Scenario 4: Context summary ranking", () => {
   it("high priority wins over low", () => {
     const s = new MemoryStore();
-    s.add({ id: "high", name: "High Priority", content: "Critical security config", category: "decision-log", tags: [], priority: 10, vector: [], created_at: now, access_count: 100, last_accessed: now });
-    s.add({ id: "low", name: "Low Priority", content: "Casual note", category: "general", tags: [], priority: 1, vector: [], created_at: "2020-01-01T00:00:00Z", access_count: 0, last_accessed: null });
+    s.add({
+      id: "high",
+      name: "High Priority",
+      content: "Critical security config",
+      category: "decision-log",
+      tags: [],
+      priority: 10,
+      vector: [],
+      created_at: now,
+      access_count: 100,
+      last_accessed: now,
+    });
+    s.add({
+      id: "low",
+      name: "Low Priority",
+      content: "Casual note",
+      category: "general",
+      tags: [],
+      priority: 1,
+      vector: [],
+      created_at: "2020-01-01T00:00:00Z",
+      access_count: 0,
+      last_accessed: null,
+    });
     const summary = generateContextSummary(s, 1);
     expect(summary).toContain("High Priority");
     expect(summary).not.toContain("Low Priority");
@@ -115,8 +160,30 @@ describe("Scenario 5: Concurrent write safety", () => {
   it("last write wins", () => {
     const s = new MemoryStore();
     const cid = randomUUID();
-    s.add({ id: cid, name: "First", content: "First write", category: "general", tags: [], priority: 5, vector: [], created_at: now, access_count: 0, last_accessed: null });
-    s.add({ id: cid, name: "Second", content: "Second write", category: "general", tags: [], priority: 5, vector: [], created_at: now, access_count: 0, last_accessed: null });
+    s.add({
+      id: cid,
+      name: "First",
+      content: "First write",
+      category: "general",
+      tags: [],
+      priority: 5,
+      vector: [],
+      created_at: now,
+      access_count: 0,
+      last_accessed: null,
+    });
+    s.add({
+      id: cid,
+      name: "Second",
+      content: "Second write",
+      category: "general",
+      tags: [],
+      priority: 5,
+      vector: [],
+      created_at: now,
+      access_count: 0,
+      last_accessed: null,
+    });
     expect(s.get(cid)!.content).toBe("Second write");
   });
 });
@@ -124,7 +191,18 @@ describe("Scenario 5: Concurrent write safety", () => {
 describe("Scenario 6: Export/import round-trip", () => {
   it("preserves content and tags", () => {
     const s1 = new MemoryStore();
-    s1.add({ id: "e1", name: "Export Test", content: "Data for export", category: "general", tags: ["export"], priority: 5, vector: [], created_at: now, access_count: 0, last_accessed: null });
+    s1.add({
+      id: "e1",
+      name: "Export Test",
+      content: "Data for export",
+      category: "general",
+      tags: ["export"],
+      priority: 5,
+      vector: [],
+      created_at: now,
+      access_count: 0,
+      last_accessed: null,
+    });
     const exported = s1.list({ limit: 100, offset: 0 });
     const s2 = new MemoryStore();
     for (const em of exported) s2.add({ ...em });
@@ -136,9 +214,42 @@ describe("Scenario 6: Export/import round-trip", () => {
 describe("Scenario 7: Multi-tag filtering", () => {
   const s = new MemoryStore();
   beforeAll(() => {
-    s.add({ id: "t1", name: "A", content: "x", category: "general", tags: ["react", "typescript", "tailwind"], priority: 5, vector: [], created_at: now, access_count: 0, last_accessed: null });
-    s.add({ id: "t2", name: "B", content: "x", category: "general", tags: ["react", "vue"], priority: 5, vector: [], created_at: now, access_count: 0, last_accessed: null });
-    s.add({ id: "t3", name: "C", content: "x", category: "general", tags: ["python", "django"], priority: 5, vector: [], created_at: now, access_count: 0, last_accessed: null });
+    s.add({
+      id: "t1",
+      name: "A",
+      content: "x",
+      category: "general",
+      tags: ["react", "typescript", "tailwind"],
+      priority: 5,
+      vector: [],
+      created_at: now,
+      access_count: 0,
+      last_accessed: null,
+    });
+    s.add({
+      id: "t2",
+      name: "B",
+      content: "x",
+      category: "general",
+      tags: ["react", "vue"],
+      priority: 5,
+      vector: [],
+      created_at: now,
+      access_count: 0,
+      last_accessed: null,
+    });
+    s.add({
+      id: "t3",
+      name: "C",
+      content: "x",
+      category: "general",
+      tags: ["python", "django"],
+      priority: 5,
+      vector: [],
+      created_at: now,
+      access_count: 0,
+      last_accessed: null,
+    });
   });
 
   it("single tag", () => expect(s.list({ tags: ["react"], limit: 10, offset: 0 })).toHaveLength(2));
@@ -151,7 +262,18 @@ describe("Scenario 8: Large batch performance", () => {
     const s = new MemoryStore();
     const start = Date.now();
     for (let i = 0; i < 500; i++) {
-      s.add({ id: `perf-${i}`, name: `Memory ${i}`, content: `Content for memory ${i}`, category: i % 4 === 0 ? "decision-log" : i % 4 === 1 ? "user-preference" : i % 4 === 2 ? "code-pattern" : "general", tags: [`tag-${i % 10}`], priority: 1 + (i % 10), vector: [], created_at: now, access_count: i, last_accessed: null });
+      s.add({
+        id: `perf-${i}`,
+        name: `Memory ${i}`,
+        content: `Content for memory ${i}`,
+        category: i % 4 === 0 ? "decision-log" : i % 4 === 1 ? "user-preference" : i % 4 === 2 ? "code-pattern" : "general",
+        tags: [`tag-${i % 10}`],
+        priority: 1 + (i % 10),
+        vector: [],
+        created_at: now,
+        access_count: i,
+        last_accessed: null,
+      });
     }
     expect(Date.now() - start).toBeLessThan(500);
   });
@@ -159,7 +281,18 @@ describe("Scenario 8: Large batch performance", () => {
   it("50 searches under 200ms", () => {
     const s = new MemoryStore();
     for (let i = 0; i < 500; i++) {
-      s.add({ id: `perf-${i}`, name: `Memory ${i}`, content: `Content for memory ${i}`, category: "general", tags: [], priority: 5, vector: [], created_at: now, access_count: i, last_accessed: null });
+      s.add({
+        id: `perf-${i}`,
+        name: `Memory ${i}`,
+        content: `Content for memory ${i}`,
+        category: "general",
+        tags: [],
+        priority: 5,
+        vector: [],
+        created_at: now,
+        access_count: i,
+        last_accessed: null,
+      });
     }
     const start = Date.now();
     for (let i = 0; i < 50; i++) s.keywordSearch(`content ${i}`, { limit: 10 });
@@ -196,7 +329,18 @@ describe("Scenario 10: LRU eviction stress", () => {
   it("capped at 5000", () => {
     const s = new MemoryStore();
     for (let i = 0; i < 5100; i++) {
-      s.add({ id: `lru-${i}`, name: `Memory ${i}`, content: `Content ${i}`, category: "general", tags: [], priority: 5, vector: [], created_at: now, access_count: i, last_accessed: null });
+      s.add({
+        id: `lru-${i}`,
+        name: `Memory ${i}`,
+        content: `Content ${i}`,
+        category: "general",
+        tags: [],
+        priority: 5,
+        vector: [],
+        created_at: now,
+        access_count: i,
+        last_accessed: null,
+      });
     }
     expect(s.size()).toBeLessThanOrEqual(5000);
   });
@@ -204,7 +348,18 @@ describe("Scenario 10: LRU eviction stress", () => {
   it("evicted lowest access", () => {
     const s = new MemoryStore();
     for (let i = 0; i < 5100; i++) {
-      s.add({ id: `lru-${i}`, name: `Memory ${i}`, content: `Content ${i}`, category: "general", tags: [], priority: 5, vector: [], created_at: now, access_count: i, last_accessed: null });
+      s.add({
+        id: `lru-${i}`,
+        name: `Memory ${i}`,
+        content: `Content ${i}`,
+        category: "general",
+        tags: [],
+        priority: 5,
+        vector: [],
+        created_at: now,
+        access_count: i,
+        last_accessed: null,
+      });
     }
     const all = s.list({ limit: 5000, offset: 0 });
     const minAccess = Math.min(...all.map((m) => m.access_count));

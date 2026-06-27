@@ -30,7 +30,10 @@ export function register(server: McpServer, opts: ToolOptions) {
         name: z.string().min(1).max(120).optional().describe("Custom name (optional — auto-generated from content if not provided)."),
         branch: z.string().max(120).optional().describe("Git branch for context scoping (auto-detected if omitted)."),
         related_to: z.array(z.string()).optional().describe("IDs of related memories."),
-        auto_tag: z.boolean().default(true).describe("Auto-suggest tags and category from content. Set false to use only explicit tags/category."),
+        auto_tag: z
+          .boolean()
+          .default(true)
+          .describe("Auto-suggest tags and category from content. Set false to use only explicit tags/category."),
       },
     },
     async (params) => {

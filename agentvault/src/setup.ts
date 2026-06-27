@@ -42,9 +42,7 @@ export async function setup(): Promise<void> {
   console.log("\n🪝  Installing Claude Code hooks…");
   const hooksOk = installHooks();
   console.log(
-    hooksOk
-      ? "   ✅ Hooks installed (SessionStart / Stop / PreCompact / PostToolUse)"
-      : "   ⚠️  Hooks skipped (Claude Code not found)",
+    hooksOk ? "   ✅ Hooks installed (SessionStart / Stop / PreCompact / PostToolUse)" : "   ⚠️  Hooks skipped (Claude Code not found)",
   );
 
   // 3. Import existing rules

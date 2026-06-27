@@ -81,7 +81,9 @@ if (cmd === "setup") {
           let profile: any = null;
           try {
             profile = JSON.parse(rfs(jn(homedir(), ".memory-forge", "pro.json"), "utf-8"));
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
           if (profile?.privateKey) {
             await initShelby(cfg.apiKey, profile.privateKey);
             balances = await getBalances();
@@ -176,7 +178,9 @@ if (cmd === "setup") {
   const s = new MemoryStore();
   for (const m of loadAllMemories()) s.add(m);
   const st = s.stats();
-  console.log(`Total: ${st.total}  |  Accesses: ${st.total_accesses}  |  Weekly new: ${st.weekly_new}  |  Oldest: ${st.oldest ?? "—"}  |  Newest: ${st.newest ?? "—"}`);
+  console.log(
+    `Total: ${st.total}  |  Accesses: ${st.total_accesses}  |  Weekly new: ${st.weekly_new}  |  Oldest: ${st.oldest ?? "—"}  |  Newest: ${st.newest ?? "—"}`,
+  );
   console.log(
     "Categories:",
     Object.entries(st.categories)
@@ -188,7 +192,13 @@ if (cmd === "setup") {
     "Decay:",
     `active=${st.decay_distribution.active} fading=${st.decay_distribution.fading} stale=${st.decay_distribution.stale} archived=${st.decay_distribution.archived}`,
   );
-  if (st.branches) console.log("Branches:", Object.entries(st.branches).map(([k, v]) => `${k}(${v})`).join("  "));
+  if (st.branches)
+    console.log(
+      "Branches:",
+      Object.entries(st.branches)
+        .map(([k, v]) => `${k}(${v})`)
+        .join("  "),
+    );
   if (st.with_relations > 0) console.log(`Relations: ${st.with_relations} memories linked`);
   if (st.top_accessed.length) console.log("Top accessed:", st.top_accessed.map((a) => `${a.name}(${a.count})`).join("  "));
   process.exit(0);
@@ -295,12 +305,14 @@ if (cmd === "setup") {
       }
     }
   } else if (hookType === "post-tool-use") {
-    console.log(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "PostToolUse",
-        additionalContext: "[MemoryForge] 💡 Consider saving key changes or decisions with memory_store.",
-      },
-    }));
+    console.log(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: "[MemoryForge] 💡 Consider saving key changes or decisions with memory_store.",
+        },
+      }),
+    );
   } else if (hookType === "pre-compact") {
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);
@@ -309,7 +321,7 @@ if (cmd === "setup") {
     const preCompactContext =
       summary +
       "\n\n[MEMORYFORGE HANDOFF] Create a session handoff summary BEFORE the context compacts. " +
-      "Use memory_store with category=\"session-handoff\" and priority=10. Include:\n" +
+      'Use memory_store with category="session-handoff" and priority=10. Include:\n' +
       "1. What we worked on this session\n" +
       "2. Key decisions made and why\n" +
       "3. File paths modified (for git context)\n" +

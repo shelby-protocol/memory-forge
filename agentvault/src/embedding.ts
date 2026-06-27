@@ -60,7 +60,10 @@ export async function embed(text: string): Promise<Float32Array | null> {
   try {
     return await fn(text);
   } catch (err) {
-    if (!embedErrorWarned) { embedErrorWarned = true; console.error("[MemoryForge] Embedding inference failed:", (err as Error).message); }
+    if (!embedErrorWarned) {
+      embedErrorWarned = true;
+      console.error("[MemoryForge] Embedding inference failed:", (err as Error).message);
+    }
     return null;
   }
 }
@@ -69,11 +72,13 @@ export async function embed(text: string): Promise<Float32Array | null> {
 export function preload(): void {
   getEmbedder().then((fn) => {
     // Test with a lightweight string to warm the pipeline
-    fn("warmup").then(() => {
-      console.error("[MemoryForge] Embedding model ready — semantic search active");
-    }).catch(() => {
-      console.error("[MemoryForge] Embedding warmup failed — keyword search fallback active");
-    });
+    fn("warmup")
+      .then(() => {
+        console.error("[MemoryForge] Embedding model ready — semantic search active");
+      })
+      .catch(() => {
+        console.error("[MemoryForge] Embedding warmup failed — keyword search fallback active");
+      });
   });
 }
 

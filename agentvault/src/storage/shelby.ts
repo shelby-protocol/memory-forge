@@ -32,10 +32,7 @@ async function loadShelbySdk(): Promise<boolean> {
   if (sdkLoadAttempted) return !sdkLoadFailed;
   sdkLoadAttempted = true;
   try {
-    const [shelbyModule, aptosModule] = await Promise.all([
-      import("@shelby-protocol/sdk/node"),
-      import("@aptos-labs/ts-sdk"),
-    ]);
+    const [shelbyModule, aptosModule] = await Promise.all([import("@shelby-protocol/sdk/node"), import("@aptos-labs/ts-sdk")]);
     ShelbyNCtor = shelbyModule.ShelbyNodeClient;
     AccountClass = aptosModule.Account;
     Ed25519Class = aptosModule.Ed25519PrivateKey;

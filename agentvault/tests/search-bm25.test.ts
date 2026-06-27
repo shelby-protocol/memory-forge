@@ -142,8 +142,24 @@ describe("MemoryStore hybrid search", () => {
   it("scores relevant content higher with BM25 boost", () => {
     const s = new MemoryStore();
     // Vector points to "a", but query text matches "b" better
-    s.add({ ...mem, id: "a", content: "random words zebra xylophone quantum", vector: [0.1, 0.2, 0.3, 0.4], tags: [], priority: 5, access_count: 0 });
-    s.add({ ...mem, id: "b", content: "react typescript hooks component pattern deployment", vector: [0.5, 0.6, 0.7, 0.8], tags: [], priority: 5, access_count: 0 });
+    s.add({
+      ...mem,
+      id: "a",
+      content: "random words zebra xylophone quantum",
+      vector: [0.1, 0.2, 0.3, 0.4],
+      tags: [],
+      priority: 5,
+      access_count: 0,
+    });
+    s.add({
+      ...mem,
+      id: "b",
+      content: "react typescript hooks component pattern deployment",
+      vector: [0.5, 0.6, 0.7, 0.8],
+      tags: [],
+      priority: 5,
+      access_count: 0,
+    });
 
     const qv = new Float32Array([0.1, 0.2, 0.3, 0.4]);
     const results = s.search("react typescript hooks", {

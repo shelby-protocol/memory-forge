@@ -24,12 +24,7 @@ export function register(server: McpServer, opts: ToolOptions) {
           .enum(["hybrid", "vector", "bm25"])
           .default("hybrid")
           .describe("Search method: hybrid (default), vector-only, or BM25-only."),
-        alpha: z
-          .number()
-          .min(0)
-          .max(1)
-          .default(0.7)
-          .describe("Hybrid weight: 1 = pure vector, 0 = pure BM25. Default 0.7."),
+        alpha: z.number().min(0).max(1).default(0.7).describe("Hybrid weight: 1 = pure vector, 0 = pure BM25. Default 0.7."),
       },
     },
     async (params) => {

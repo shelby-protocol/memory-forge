@@ -177,10 +177,10 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     const bHalf = CATEGORY_HALFLIFE[b.category] ?? 14;
     const aDecay = Math.pow(0.5, aDays / aHalf);
     const bDecay = Math.pow(0.5, bDays / bHalf);
-    const aBranchBoost = (currentBranch && a.branch === currentBranch) ? 1.5 : 1;
-          const aScore = aDecay * (a.priority || 5) * aBranchBoost;
-    const bBranchBoost = (currentBranch && b.branch === currentBranch) ? 1.5 : 1;
-          const bScore = bDecay * (b.priority || 5) * bBranchBoost;
+    const aBranchBoost = currentBranch && a.branch === currentBranch ? 1.5 : 1;
+    const aScore = aDecay * (a.priority || 5) * aBranchBoost;
+    const bBranchBoost = currentBranch && b.branch === currentBranch ? 1.5 : 1;
+    const bScore = bDecay * (b.priority || 5) * bBranchBoost;
     return bScore - aScore;
   });
 
@@ -219,23 +219,22 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     });
 
     let staleNote = "";
-      const pathRE = /\b(?:src\/|lib\/|app\/|config\/|docs\/)[\w.\-\/]+\.[a-z]{1,6}\b/gi;
-      const refs = m.content.match(pathRE) || [];
-      const staleRefs = refs.filter((p) => { try { return !existsSync(p); } catch { return false; } });
-      if (staleRefs.length > 0) staleNote = " ⚠️ stale: " + staleRefs.slice(0, 3).join(", ");
+    const pathRE = /\b(?:src\/|lib\/|app\/|config\/|docs\/)[\w.\-\/]+\.[a-z]{1,6}\b/gi;
+    const refs = m.content.match(pathRE) || [];
+    const staleRefs = refs.filter((p) => {
+      try {
+        return !existsSync(p);
+      } catch {
+        return false;
+      }
+    });
+    if (staleRefs.length > 0) staleNote = " ⚠️ stale: " + staleRefs.slice(0, 3).join(", ");
 
-      if (m.category === "session-handoff") {
+    if (m.category === "session-handoff") {
       hasHandoff = true;
       // Handoff: show full content (not truncated preview) with distinct header
       const body = redactSecrets(m.content) + staleNote;
-      lines.push(
-        "",
-        `## 📋 Last session (${dateStr})`,
-        body,
-        "---",
-        "",
-        "Other recent memories:",
-      );
+      lines.push("", `## 📋 Last session (${dateStr})`, body, "---", "", "Other recent memories:");
     } else {
       const btag = m.branch ? " [" + m.branch + "]" : "";
       const preview = smartPreview(redactSecrets(m.content) + staleNote, 300);

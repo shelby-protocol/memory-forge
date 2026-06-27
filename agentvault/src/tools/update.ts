@@ -78,8 +78,8 @@ export function register(server: McpServer, opts: ToolOptions) {
       if (category !== undefined) memory.category = category;
       if (tags !== undefined) memory.tags = tags;
       if (priority !== undefined) memory.priority = priority;
-        if (related_to !== undefined) memory.related_to = related_to;
-        if (newBranch !== undefined) memory.branch = newBranch;
+      if (related_to !== undefined) memory.related_to = related_to;
+      if (newBranch !== undefined) memory.branch = newBranch;
 
       // Auto-tag: supplement with suggestions when user hasn't overridden
       let suggested_tags: string[] = [];
@@ -103,7 +103,8 @@ export function register(server: McpServer, opts: ToolOptions) {
       saveMemory(memory);
       store.add(memory);
 
-      if (process.env.SHELBY_API_KEY) uploadMemory(memory).catch((err) => console.error("[MemoryForge] Pro upload failed:", (err as Error).message));
+      if (process.env.SHELBY_API_KEY)
+        uploadMemory(memory).catch((err) => console.error("[MemoryForge] Pro upload failed:", (err as Error).message));
 
       return {
         content: [

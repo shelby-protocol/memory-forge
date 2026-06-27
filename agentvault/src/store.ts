@@ -255,7 +255,9 @@ export class MemoryStore {
 
   stats() {
     const all = [...this.memories.values()];
-    const categories: Record<string, number> = {}, tagCounts: Record<string, number> = {}, branches: Record<string, number> = {};
+    const categories: Record<string, number> = {},
+      tagCounts: Record<string, number> = {},
+      branches: Record<string, number> = {};
     let withRelations = 0;
     for (const m of all) {
       categories[m.category] = (categories[m.category] || 0) + 1;
@@ -275,12 +277,14 @@ export class MemoryStore {
       else if (days <= 90) decayDist.stale++;
       else decayDist.archived++;
     }
-    const weeklyNew = all.filter(m => new Date(m.created_at).getTime() > now - 7 * 86400000).length;
+    const weeklyNew = all.filter((m) => new Date(m.created_at).getTime() > now - 7 * 86400000).length;
     return {
       total: all.length,
       categories,
-      top_tags: Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 10),
-      top_accessed: sortedByAccess.slice(0, 10).map(m => ({ id: m.id.slice(0, 8), name: m.name, count: m.access_count })),
+      top_tags: Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10),
+      top_accessed: sortedByAccess.slice(0, 10).map((m) => ({ id: m.id.slice(0, 8), name: m.name, count: m.access_count })),
       oldest: sorted[sorted.length - 1]?.created_at ?? null,
       newest: sorted[0]?.created_at ?? null,
       total_accesses: all.reduce((s, m) => s + m.access_count, 0),

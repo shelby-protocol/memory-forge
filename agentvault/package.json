@@ -47,8 +47,8 @@
     "test:coverage": "vitest run --coverage",
     "test:all": "vitest run",
     "lint": "npx eslint src/",
-    "format": "npx prettier --write \"src/**/*.ts\"",
-    "format:check": "npx prettier --check \"src/**/*.ts\"",
+    "format": "npx prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "npx prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

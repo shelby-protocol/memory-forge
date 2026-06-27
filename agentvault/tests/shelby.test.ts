@@ -1,5 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { getMemoryId, getCloudTombstones, getBlobName, getShelbyConfig, uploadMemory, downloadMemory, listBlobs, deleteBlob, getShelbyClient, getShelbyAccount, isAuthFailed, initShelby, getBalances, getStorageUsage } from "../src/storage/shelby.js";
+import {
+  getMemoryId,
+  getCloudTombstones,
+  getBlobName,
+  getShelbyConfig,
+  uploadMemory,
+  downloadMemory,
+  listBlobs,
+  deleteBlob,
+  getShelbyClient,
+  getShelbyAccount,
+  isAuthFailed,
+  initShelby,
+  getBalances,
+  getStorageUsage,
+} from "../src/storage/shelby.js";
 import type { Memory } from "../src/store.js";
 
 const testMem: Memory = {
@@ -17,15 +32,21 @@ const testMem: Memory = {
 
 describe("getMemoryId", () => {
   it("new format: users/ns/memories/uuid-ts.json", () => {
-    expect(getMemoryId("users/0xabc/memories/550e8400-e29b-41d4-a716-446655440000-1719000000000.json")).toBe("550e8400-e29b-41d4-a716-446655440000");
+    expect(getMemoryId("users/0xabc/memories/550e8400-e29b-41d4-a716-446655440000-1719000000000.json")).toBe(
+      "550e8400-e29b-41d4-a716-446655440000",
+    );
   });
 
   it("new format with .deleted suffix", () => {
-    expect(getMemoryId("users/0xabc/memories/550e8400-e29b-41d4-a716-446655440000-1719000000000.json.deleted")).toBe("550e8400-e29b-41d4-a716-446655440000");
+    expect(getMemoryId("users/0xabc/memories/550e8400-e29b-41d4-a716-446655440000-1719000000000.json.deleted")).toBe(
+      "550e8400-e29b-41d4-a716-446655440000",
+    );
   });
 
   it("new format with @address prefix", () => {
-    expect(getMemoryId("@0xabc/users/ns/memories/660e8400-e29b-41d4-a716-446655440001-100.json")).toBe("660e8400-e29b-41d4-a716-446655440001");
+    expect(getMemoryId("@0xabc/users/ns/memories/660e8400-e29b-41d4-a716-446655440001-100.json")).toBe(
+      "660e8400-e29b-41d4-a716-446655440001",
+    );
   });
 
   it("old format: memories/id.json", () => {

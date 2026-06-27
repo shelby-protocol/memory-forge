@@ -25,17 +25,13 @@ export class Bm25 {
   /** Tokenize text: lowercase, split on whitespace/punctuation, keep tokens >=2 chars. */
   static tokenize(text: string): string[] {
     const cleaned = text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ");
-    return cleaned
-      .split(/\s+/)
-      .filter((t) => t.length >= 2);
+    return cleaned.split(/\s+/).filter((t) => t.length >= 2);
   }
 
   /** Add documents to the corpus and recompute IDF. */
   index(docs: Bm25Doc[]): void {
     this.docs = docs;
-    this.avgDocLen = docs.length > 0
-      ? docs.reduce((s, d) => s + d.tokens.length, 0) / docs.length
-      : 0;
+    this.avgDocLen = docs.length > 0 ? docs.reduce((s, d) => s + d.tokens.length, 0) / docs.length : 0;
 
     // IDF: log((N - df + 0.5) / (df + 0.5) + 1)
     const N = docs.length;
@@ -68,7 +64,7 @@ export class Bm25 {
       const tf = doc.tokens.filter((t) => t === qt).length;
       // BM25 TF saturation
       const numerator = (this.k1 + 1) * tf;
-      const denominator = this.k1 * ((1 - this.b) + this.b * docLenRatio) + tf;
+      const denominator = this.k1 * (1 - this.b + this.b * docLenRatio) + tf;
       total += idfVal * (numerator / denominator);
     }
     return total;

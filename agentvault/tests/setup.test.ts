@@ -14,7 +14,9 @@ afterAll(() => {
   if (origBackup) {
     fs.writeFileSync(settingsPath, origBackup);
   } else if (!origExists) {
-    try { fs.unlinkSync(settingsPath); } catch {}
+    try {
+      fs.unlinkSync(settingsPath);
+    } catch {}
   }
 });
 

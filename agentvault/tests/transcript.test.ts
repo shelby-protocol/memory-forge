@@ -12,7 +12,9 @@ const cwd = process.cwd();
 const projectSlug = cwd
   .replace(/^([A-Za-z]):\\/, "$1--")
   .replace(/^([A-Za-z]):/, "$1--")
-  .replace(/\\/g, "-").replace(/\//g, "-").replace(/^-+/, "");
+  .replace(/\\/g, "-")
+  .replace(/\//g, "-")
+  .replace(/^-+/, "");
 const testProjectDir = path.join(projectsDir, projectSlug);
 const sessionId = randomUUID();
 const jsonlPath = path.join(testProjectDir, sessionId + ".jsonl");
@@ -41,7 +43,9 @@ afterAll(() => {
       deleteMemoryFile(m.id);
     }
   }
-  try { fs.unlinkSync(jsonlPath); } catch {}
+  try {
+    fs.unlinkSync(jsonlPath);
+  } catch {}
 });
 
 describe("captureTranscript", () => {
@@ -84,9 +88,15 @@ describe("captureTranscript", () => {
   });
 
   it("deleted JSONL returns no transcript", () => {
-    try { fs.unlinkSync(jsonlPath); } catch {}
+    try {
+      fs.unlinkSync(jsonlPath);
+    } catch {}
     const result = captureTranscript();
-    expect(result === "No recent transcript found." || result === "Transcript already captured (dedup same session)." || result.startsWith("Transcript saved:")).toBe(true);
+    expect(
+      result === "No recent transcript found." ||
+        result === "Transcript already captured (dedup same session)." ||
+        result.startsWith("Transcript saved:"),
+    ).toBe(true);
   });
 
   it("garbage JSONL does not crash", () => {

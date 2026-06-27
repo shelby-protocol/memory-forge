@@ -63,14 +63,21 @@ export async function pro(): Promise<void> {
     // If user provided a different private key, update the profile
     if (process.env.APTOS_PRIVATE_KEY && profile.privateKey !== process.env.APTOS_PRIVATE_KEY) {
       const result = await initShelby(apiKey, process.env.APTOS_PRIVATE_KEY);
-      if (!result) { console.log("   Failed to initialize Shelby SDK. Pro features disabled."); return; }
+      if (!result) {
+        console.log("   Failed to initialize Shelby SDK. Pro features disabled.");
+        return;
+      }
       const { address } = result;
       profile.privateKey = process.env.APTOS_PRIVATE_KEY;
       profile.address = address;
       console.log(`   Account switched to ${address}`);
     }
     fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
-    try { fs.chmodSync(PROFILE_PATH, 0o600); } catch { /* best-effort */ }
+    try {
+      fs.chmodSync(PROFILE_PATH, 0o600);
+    } catch {
+      /* best-effort */
+    }
     console.log("✅ Pro is active. Syncing memories...");
     await syncAll();
     return;
@@ -347,7 +354,11 @@ function updateSyncStamp(up: number, down: number, failed: number, conflicts?: n
     profile.totalFailed = (profile.totalFailed || 0) + failed;
     profile.totalConflicts = (profile.totalConflicts || 0) + (conflicts ?? 0);
     fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
-    try { fs.chmodSync(PROFILE_PATH, 0o600); } catch { /* best-effort */ }
+    try {
+      fs.chmodSync(PROFILE_PATH, 0o600);
+    } catch {
+      /* best-effort */
+    }
   } catch {
     /* best-effort */
   }
@@ -373,7 +384,10 @@ export async function proAutoActivate(): Promise<void> {
   // First time: create account and sync
   let privateKey = process.env.APTOS_PRIVATE_KEY;
   const initResult = await initShelby(cfg.apiKey, privateKey);
-  if (!initResult) { console.error("[MemoryForge] Shelby SDK not available. Pro auto-activation skipped."); return; }
+  if (!initResult) {
+    console.error("[MemoryForge] Shelby SDK not available. Pro auto-activation skipped.");
+    return;
+  }
   const { address, generatedKey } = initResult;
   if (generatedKey) privateKey = generatedKey;
 
