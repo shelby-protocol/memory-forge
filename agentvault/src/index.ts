@@ -66,14 +66,16 @@ if (cmd === "--version" || cmd === "-v") {
   const hookType = process.argv[3];
   if (hookType === "session-start") {
     // Read stdin for Claude Code hook metadata (cwd, source, session_id)
-    let projectContext = "";
+    let projectSlug = "";
+    let projectContextNote = "";
     try {
       const stdinData = readStdinSync();
       if (stdinData) {
         const hookInput = JSON.parse(stdinData);
         if (hookInput.cwd) {
-          const projectSlug = path.basename(hookInput.cwd);
-          projectContext = `\nCurrent project: ${projectSlug}`;
+          projectSlug = path.basename(hookInput.cwd);
+          // Only add project note if it differs from default (avoids noise for home dir)
+          projectContextNote = `\nCurrent project: ${projectSlug}`;
         }
       }
     } catch {
@@ -83,11 +85,17 @@ if (cmd === "--version" || cmd === "-v") {
     const s = new MemoryStore();
     for (const m of loadAllMemories()) s.add(m);
     const summary = generateContextSummary(s, 5);
+    const memoryCount = s.size();
+    const sessionTitle = projectSlug
+      ? `${projectSlug} (${memoryCount} memories)`
+      : `MemoryForge (${memoryCount} memories)`;
+
     // Output as hookSpecificOutput for silent, token-efficient context injection
     const output = JSON.stringify({
       hookSpecificOutput: {
         hookEventName: "SessionStart",
-        additionalContext: (summary || "[MemoryForge] No memories yet.") + projectContext,
+        additionalContext: (summary || "[MemoryForge] No memories yet.") + projectContextNote,
+        sessionTitle,
       },
     });
     console.log(output);

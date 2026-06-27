@@ -94,7 +94,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   };
 
   // Filter + recency-first with category boost, priority as final tiebreaker
-  const top = all
+  const ranked = all
     .filter((m) => {
       const boost = CATEGORY_BOOST[m.category];
       return boost !== undefined ? boost > 0 : true; // exclude categories with boost=0
@@ -108,8 +108,15 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
       const bScore = bTime * bBoost;
       if (bScore !== aScore) return bScore - aScore;
       return (b.priority || 5) - (a.priority || 5);
-    })
-    .slice(0, limit);
+    });
+
+  // Dedup: skip entries too similar to ones already selected (keep more recent)
+  const top: typeof ranked = [];
+  for (const m of ranked) {
+    if (top.some((t) => contentOverlap(t.content, m.content) > 0.6)) continue;
+    top.push(m);
+    if (top.length >= limit) break;
+  }
 
   if (top.length === 0) {
     return "[MemoryForge] 👋 Welcome! No memories yet.\n\n" +
@@ -128,11 +135,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     const dateStr = new Date(time).toLocaleDateString("en-US", {
       month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
-    // Redact BEFORE flattening newlines (line-anchored regex needs real newlines)
-    const sanitized = redactSecrets(m.content);
-    const preview = sanitized.length > 300
-      ? sanitized.slice(0, 300).replace(/\n/g, " ").trim() + "…"
-      : sanitized;
+    const preview = smartPreview(redactSecrets(m.content), 300);
 
     lines.push(`- [${m.name}] ${dateStr} | ${m.category}\n  ${preview}`);
   }
@@ -174,4 +177,45 @@ function redactSecrets(text: string): string {
     .replace(/\bAG-[A-Z0-9]{20,}\b/g, "[REDACTED-TOKEN]")
     // BIP39 mnemonics: 12-24 word phrases
     .replace(/\b(?:\w+\s+){11,23}\w+\s*(?:mnemonic|seed phrase|recovery phrase)/gi, "[REDACTED-MNEMONIC]");
+}
+
+/** Extract a smart preview: first meaningful paragraph, not raw character truncation. */
+function smartPreview(content: string, maxLen: number): string {
+  // Split by double newline (paragraph)
+  const paragraphs = content.split(/\n\n+/);
+  const meaningful: string[] = [];
+
+  for (const para of paragraphs) {
+    const trimmed = para.replace(/\n/g, " ").trim();
+    if (!trimmed) continue;
+    // Skip markdown headings and divider lines as standalone previews
+    if (/^(#+\s|[=-]{3,}|[-*_]{3,})/.test(trimmed)) continue;
+    meaningful.push(trimmed);
+  }
+
+  if (meaningful.length === 0) {
+    // No meaningful paragraphs found — raw truncation
+    return content.length > maxLen
+      ? content.slice(0, maxLen).replace(/\n/g, " ").trim() + "…"
+      : content;
+  }
+
+  // Build preview from first meaningful paragraph(s)
+  let preview = "";
+  for (let i = 0; i < meaningful.length; i++) {
+    const candidate = preview ? preview + " " + meaningful[i] : meaningful[i];
+    if (candidate.length <= maxLen) {
+      preview = candidate;
+    } else if (!preview) {
+      // First paragraph is too long — truncate at sentence boundary
+      const cutoff = meaningful[i].slice(0, maxLen);
+      const m = cutoff.match(/[.!?。！？]/g);
+      const lastPunct = m ? cutoff.lastIndexOf(m[m.length - 1]) + 1 : 0;
+      return (lastPunct > maxLen * 0.5 ? cutoff.slice(0, lastPunct) : cutoff.slice(0, maxLen)).trim() + "…";
+    } else {
+      return preview + "…";
+    }
+  }
+
+  return preview;
 }

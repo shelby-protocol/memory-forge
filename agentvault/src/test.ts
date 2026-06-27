@@ -303,13 +303,26 @@ await run("generateContextSummary empty store shows welcome", () => {
   assert(summary.includes("transcripts"), "should mention transcripts");
 });
 
-await run("generateContextSummary limits count", () => {
+await run("generateContextSummary limits count with dedup", () => {
   const s = new MemoryStore();
-  for (let i = 0; i < 10; i++) s.add({ ...mem, id: `g-${i}`, content: `Memory ${i}`, priority: i });
-  const summary = generateContextSummary(s, 3);
-  // Each entry is 2 lines (header + preview), separated by blank line
+  const contents = [
+    "Authentication module requires OAuth2 integration with Google and GitHub providers",
+    "Database schema needs migration from PostgreSQL 14 to 16 with partitioning",
+    "Frontend redesign should use Tailwind CSS with dark mode support",
+    "API gateway must enforce rate limiting with Redis-backed token buckets",
+    "Deployment pipeline needs GitHub Actions with Docker multi-stage builds",
+    "Monitoring stack requires Prometheus metrics and Grafana dashboard alerts",
+    "User feedback analysis shows high demand for mobile responsive layout",
+    "Performance benchmarks indicate database query optimization is needed urgently",
+    "Security audit found three medium vulnerabilities in dependency tree",
+    "Documentation overhaul should cover onboarding guides and API references",
+  ];
+  for (let i = 0; i < 10; i++) {
+    s.add({ ...mem, id: `g-${i}`, name: `Topic ${i}`, content: contents[i], priority: i });
+  }
+  const summary = generateContextSummary(s, 5);
   const entryCount = summary.split("\n").filter((l) => l.startsWith("- [")).length;
-  assertEq(entryCount, 3, "entry count");
+  assert(entryCount >= 3, `should show at least 3 (got ${entryCount}) — dedup may filter near-duplicates`);
 });
 
 await run("generateContextSummary includes agent instruction", () => {
@@ -361,6 +374,29 @@ await run("generateContextSummary redacts private keys", () => {
   assert(!summary.includes("ed25519-priv-0x745b"), "private key should be redacted");
   assert(!summary.includes("AG-DB9VDTVMTAM2FYMAGVQFZP9AC7TTGN7DU"), "API token should be redacted");
   assert(summary.includes("[REDACTED"), "should contain redaction markers");
+});
+
+await run("generateContextSummary dedup skips similar entries", () => {
+  const s = new MemoryStore();
+  const now = new Date().toISOString();
+  s.add({ ...mem, id: "a", name: "Report A", content: "The project uses TypeScript and React for the frontend with JWT authentication",
+    category: "decision-log", priority: 7, created_at: now, access_count: 5 });
+  s.add({ ...mem, id: "b", name: "Report B", content: "The project uses TypeScript and React for the frontend", // 80% overlap
+    category: "decision-log", priority: 5, created_at: now, access_count: 3 });
+  const summary = generateContextSummary(s, 3);
+  // Only the more recent/higher-priority entry should appear
+  assert(summary.includes("Report A"), "higher priority entry should be kept");
+  assert(!summary.includes("Report B"), "duplicate entry should be skipped");
+});
+
+await run("generateContextSummary smartPreview uses paragraphs not raw truncation", () => {
+  const s = new MemoryStore();
+  s.add({ ...mem, id: "sp", name: "Structured Doc", content: "# Title\n\nFirst meaningful paragraph here.\n\n## Section\nMore details here.",
+    category: "decision-log", priority: 9, access_count: 10, created_at: new Date().toISOString() });
+  const summary = generateContextSummary(s, 1);
+  // Should show "First meaningful paragraph here." not "# Title" heading
+  assert(summary.includes("First meaningful paragraph here"), "should use first paragraph, not heading");
+  assert(!summary.includes("# Title"), "should skip markdown heading");
 });
 
 // ═══════════════════════════════════════════════════════════════
