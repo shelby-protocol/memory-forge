@@ -6,13 +6,43 @@
 import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
 import { Account, Ed25519PrivateKey, Network } from "@aptos-labs/ts-sdk";
 import type { Memory } from "../store.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
-const DOWNLOAD_TIMEOUT_MS = 30_000; // 30s
+const DOWNLOAD_TIMEOUT_MS = 30_000;
+const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+const PROFILE_PATH = path.join(HOME, ".memory-forge", "pro.json");
 
 let client: ShelbyNodeClient | null = null;
 let account: Account | null = null;
 let authFailed = false;
-let uploadWarned = false; // only warn once per session for generic failures
+let uploadWarned = false;
+
+/** Central Shelby config — single switch point for API key → license key migration. */
+export interface ShelbyConfig {
+  apiKey: string | null;
+  namespace: string; // blob prefix for user isolation
+  accountAddress: string | null;
+}
+
+export function getShelbyConfig(): ShelbyConfig {
+  const apiKey = process.env.SHELBY_API_KEY ?? null;
+
+  let accountAddress: string | null = null;
+  try {
+    if (fs.existsSync(PROFILE_PATH)) {
+      const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+      accountAddress = profile.address ?? null;
+    }
+  } catch { /* corrupted profile — ignore */ }
+
+  // Namespace: account address for now, license-derived later
+  const namespace = accountAddress
+    ? `users/${accountAddress}`
+    : `users/default`;
+
+  return { apiKey, namespace, accountAddress };
+}
 
 export function initShelby(apiKey: string, privateKey?: string): { address: string; generatedKey?: string } {
   authFailed = false;
@@ -48,13 +78,19 @@ export function getShelbyAccount(): Account | null {
   return account;
 }
 
+/** Build namespaced blob name: users/{namespace}/memories/{id}.json */
+function blobNameFor(memoryId: string): string {
+  const cfg = getShelbyConfig();
+  return `${cfg.namespace}/memories/${memoryId}.json`;
+}
+
 /** 上传记忆到 Shelby */
 export async function uploadMemory(memory: Memory): Promise<string | null> {
   if (!client || !account) return null;
-  if (authFailed) return null; // fail fast after 401
+  if (authFailed) return null;
 
   const blobData = Buffer.from(JSON.stringify(memory));
-  const blobName = `memories/${memory.id}.json`;
+  const blobName = blobNameFor(memory.id);
 
   try {
     await client.upload({
@@ -163,13 +199,17 @@ export async function deleteBlob(blobName: string): Promise<void> {
   }
 }
 
-/** 将本地记忆导出为 blob 名称列表 */
+/** 将本地记忆导出为 blob 名称（含命名空间） */
 export function getBlobName(memoryId: string): string {
-  return `memories/${memoryId}.json`;
+  return blobNameFor(memoryId);
 }
 
-/** 从 blob 名称解析 memory_id */
+/** 从 blob 名称解析 memory_id（兼容新旧格式） */
 export function getMemoryId(blobName: string): string | null {
-  const match = blobName.match(/memories\/(.+)\.json$/);
-  return match ? match[1] : null;
+  // New format: users/{ns}/memories/{id}.json
+  const newMatch = blobName.match(/memories\/(.+)\.json$/);
+  if (newMatch) return newMatch[1];
+  // Old format: memories/{id}.json (legacy, pre-namespace)
+  const oldMatch = blobName.match(/^memories\/(.+)\.json$/);
+  return oldMatch ? oldMatch[1] : null;
 }

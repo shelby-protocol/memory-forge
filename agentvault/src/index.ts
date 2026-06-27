@@ -21,7 +21,7 @@ import { saveMemory, loadAllMemories, deleteMemoryFile, cleanupTombstones } from
 import { uploadMemory, deleteBlob, getBlobName } from "./storage/shelby.js";
 import { autoName, autoMerge, autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
-import { pro, syncAll, proStatus } from "./pro.js";
+import { pro, syncAll, proStatus, proAutoActivate } from "./pro.js";
 import { cliCaptureTranscript, captureTranscript } from "./transcript.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -601,14 +601,12 @@ function startMcpServer() {
 
   // ── 启动 ──────────────────────────────────────────────────
   async function main() {
-    // Pro: auto-sync on startup (non-blocking — server starts regardless)
+    // Pro: auto-activate + sync on startup (non-blocking)
     const proActive = !!process.env.SHELBY_API_KEY;
     if (proActive) {
-      console.error("[MemoryForge] Pro: Syncing with Shelby cloud...");
-      syncAll()
+      proAutoActivate()
         .then(() => {
           for (const m of loadAllMemories()) store.add(m);
-          console.error(`[MemoryForge] Pro sync complete — ${store.size()} memories`);
         })
         .catch((err) => console.error("[MemoryForge] Pro sync failed (server still available):", (err as Error).message));
     }
@@ -616,7 +614,7 @@ function startMcpServer() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error(`[MemoryForge] MCP Server started — ${store.size()} memories loaded` +
-      (proActive ? " (Pro: Shelby cloud sync)" : " (Free: local storage)"));
+      (proActive ? " (Pro: cross-device sync)" : " (Free: local storage)"));
     console.error("[MemoryForge] 9 tools: store / search / recall / list / forget / context / export / share / update");
   }
 

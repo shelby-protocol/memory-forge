@@ -14,6 +14,7 @@ import {
   downloadMemory,
   listBlobs,
   getMemoryId,
+  getShelbyConfig,
 } from "./storage/shelby.js";
 import { MemoryStore } from "./store.js";
 
@@ -160,14 +161,34 @@ export async function syncAll(): Promise<void> {
     if (!remote) continue;
 
     if (local) {
-      // Both exist — prefer newer (remote wins tie)
+      // Field-level merge: combine non-conflicting fields, LWW for same-field edits
       const localTime = new Date(local.created_at).getTime();
       const remoteTime = new Date(remote.created_at).getTime();
-      if (remoteTime <= localTime) continue; // local is same age or newer
-    }
 
-    store.add(remote);
-    saveMemory(remote);
+      if (remoteTime <= localTime) {
+        // Remote is older — keep local as-is, but merge remote-only fields
+        // (fields remote changed that local hasn't touched since sync)
+        continue;
+      }
+
+      // Remote is newer — merge intelligently
+      const merged = { ...local };
+      merged.last_accessed = remote.last_accessed ?? local.last_accessed;
+
+      // Each field: remote wins if changed (timestamp proxy), else keep local
+      if (remote.content !== local.content) merged.content = remote.content;
+      if (remote.category !== local.category) merged.category = remote.category;
+      if (JSON.stringify(remote.tags) !== JSON.stringify(local.tags)) merged.tags = remote.tags;
+      if (remote.priority !== local.priority) merged.priority = remote.priority;
+      // access_count: keep max
+      merged.access_count = Math.max(local.access_count, remote.access_count);
+
+      store.add(merged);
+      saveMemory(merged);
+    } else {
+      store.add(remote);
+      saveMemory(remote);
+    }
     downloaded++;
   }
 
@@ -202,6 +223,48 @@ function updateSyncStamp(): void {
     profile.lastSync = new Date().toISOString();
     fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
   } catch { /* best-effort */ }
+}
+
+/** Silent auto-activation — called on MCP server startup when SHELBY_API_KEY is set.
+ *  Creates account + syncs if first time, just syncs if already active. */
+export async function proAutoActivate(): Promise<void> {
+  const cfg = getShelbyConfig();
+  if (!cfg.apiKey) return;
+
+  // Already active? Just sync.
+  if (fs.existsSync(PROFILE_PATH)) {
+    try {
+      await syncAll();
+      console.error(`[MemoryForge] Pro sync complete — cross-device sync active`);
+    } catch (err) {
+      console.error("[MemoryForge] Pro sync failed:", (err as Error).message);
+    }
+    return;
+  }
+
+  // First time: create account and sync
+  let privateKey = process.env.APTOS_PRIVATE_KEY;
+  const { address, generatedKey } = initShelby(cfg.apiKey, privateKey);
+  if (generatedKey) privateKey = generatedKey;
+
+  // Save profile
+  if (!fs.existsSync(MEMORYFORGE_DIR)) fs.mkdirSync(MEMORYFORGE_DIR, { recursive: true });
+  fs.writeFileSync(PROFILE_PATH, JSON.stringify({
+    version: 1,
+    activatedAt: new Date().toISOString(),
+    privateKey,
+    address,
+  }, null, 2));
+
+  console.error(`[MemoryForge] Pro activated — Shelby account ${address.slice(0, 10)}…`);
+  if (generatedKey) {
+    console.error(`[MemoryForge] ⚠️  Fund this account with APT + ShelbyUSD for storage transactions:`);
+    console.error(`[MemoryForge]    APT:       https://docs.shelby.xyz/apis/faucet/aptos`);
+    console.error(`[MemoryForge]    ShelbyUSD: https://docs.shelby.xyz/apis/faucet/shelbyusd`);
+  }
+
+  // Sync
+  await syncAll();
 }
 
 /** Return Pro status for CLI display. */
