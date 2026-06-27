@@ -256,7 +256,7 @@ function smartPreview(content: string, maxLen: number): string {
       // First paragraph is too long — truncate at sentence boundary
       const cutoff = meaningful[i].slice(0, maxLen);
       const m = cutoff.match(/[.!?。！？]/g);
-      const lastPunct = m ? cutoff.lastIndexOf(m[m.length - 1]) + 1 : 0;
+      const lastPunct = m ? Math.max(...m.map((p) => cutoff.lastIndexOf(p))) + 1 : 0;
       return (lastPunct > maxLen * 0.5 ? cutoff.slice(0, lastPunct) : cutoff.slice(0, maxLen)).trim() + "…";
     } else {
       return preview + "…";

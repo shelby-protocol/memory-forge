@@ -20,6 +20,7 @@ import {
   isAuthFailed,
   deleteBlob,
   getBlobName,
+  getCloudTombstones,
 } from "./storage/shelby.js";
 import { MemoryStore } from "./store.js";
 
@@ -179,15 +180,26 @@ export async function syncAll(): Promise<void> {
     store.add(m);
   }
 
-  // Load tombstones once for this sync
+  // Load tombstones: local + cloud (cross-device delete propagation)
   const tombstoned = getTombstonedIds();
+  for (const id of getCloudTombstones(blobs)) tombstoned.add(id);
+
+  // Deduplicate blobs by memoryId — keep latest version (timestamp in blob name)
+  const latestBlobs = new Map<string, string>(); // memoryId → blobName
+  for (const blobName of blobs) {
+    const memoryId = getMemoryId(blobName);
+    if (!memoryId) continue;
+    if (blobName.endsWith(".deleted")) continue;
+    const existing = latestBlobs.get(memoryId);
+    if (!existing || blobName > existing) {
+      latestBlobs.set(memoryId, blobName);
+    }
+  }
 
   // Download and merge blob memories (skip tombstoned, prefer newer remote)
   let downloaded = 0;
   let mergeConflicts = 0;
-  for (const blobName of blobs) {
-    const memoryId = getMemoryId(blobName);
-    if (!memoryId) continue;
+  for (const [memoryId, blobName] of latestBlobs) {
     if (tombstoned.has(memoryId)) continue;
 
     const local = store.get(memoryId);
@@ -198,12 +210,13 @@ export async function syncAll(): Promise<void> {
       const localTime = new Date(local.created_at).getTime();
       const remoteTime = new Date(remote.created_at).getTime();
 
-      if (remoteTime <= localTime) continue;
+      if (remoteTime < localTime) continue;
 
       // Field-level merge: track which fields conflict (both sides changed)
       const fieldConflicts: string[] = [];
       const merged = { ...local };
       merged.last_accessed = remote.last_accessed ?? local.last_accessed;
+      if (remote.vector?.length) merged.vector = remote.vector; // restore vector for search
 
       if (remote.content !== local.content) {
         merged.content = remote.content;
@@ -233,6 +246,7 @@ export async function syncAll(): Promise<void> {
     } else {
       store.add(remote);
       saveMemory(remote);
+      downloaded++;
     }
     downloaded++;
   }

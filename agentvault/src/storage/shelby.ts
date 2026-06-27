@@ -83,10 +83,11 @@ export function getShelbyAccount(): Account | null {
   return account;
 }
 
-/** Build namespaced blob name: users/{namespace}/memories/{id}.json */
+/** Build namespaced blob name: users/{namespace}/memories/{id}-{timestamp}.json
+ *  Timestamp enables versioning — Shelby blobs are immutable, so updates create new blobs. */
 function blobNameFor(memoryId: string): string {
   const cfg = getShelbyConfig();
-  return `${cfg.namespace}/memories/${memoryId}.json`;
+  return `${cfg.namespace}/memories/${memoryId}-${Date.now()}.json`;
 }
 
 const SHELBYUSD_FA = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1";
@@ -257,12 +258,23 @@ export function getBlobName(memoryId: string): string {
   return blobNameFor(memoryId);
 }
 
-/** 从 blob 名称解析 memory_id（兼容新旧格式） */
+/** 从 blob 名称解析 memory_id（兼容新旧格式 + 版本时间戳） */
 export function getMemoryId(blobName: string): string | null {
-  // New format: users/{ns}/memories/{id}.json
-  const newMatch = blobName.match(/memories\/(.+)\.json$/);
-  if (newMatch) return newMatch[1];
+  // New format: users/{ns}/memories/{uuid}-{ts}.json  or  .deleted
+  const uuidMatch = blobName.match(/memories\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/);
+  if (uuidMatch) return uuidMatch[1];
   // Old format: memories/{id}.json (legacy, pre-namespace)
   const oldMatch = blobName.match(/^memories\/(.+)\.json$/);
   return oldMatch ? oldMatch[1] : null;
+}
+
+/** Extract cloud tombstone IDs from blob list (entries ending with .deleted) */
+export function getCloudTombstones(blobs: string[]): Set<string> {
+  const ids = new Set<string>();
+  for (const name of blobs) {
+    if (!name.endsWith(".deleted")) continue;
+    const id = getMemoryId(name); // getMemoryId already handles .deleted suffix via regex
+    if (id) ids.add(id);
+  }
+  return ids;
 }

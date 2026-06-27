@@ -720,14 +720,15 @@ function startMcpServer() {
 
   // ── 启动 ──────────────────────────────────────────────────
   async function main() {
-    // Pro: auto-activate + sync on startup (non-blocking)
+    // Pro: auto-activate + sync before server starts (so all memories are loaded)
     const proActive = !!process.env.SHELBY_API_KEY;
     if (proActive) {
-      proAutoActivate()
-        .then(() => {
-          for (const m of loadAllMemories()) store.add(m);
-        })
-        .catch((err) => console.error("[MemoryForge] Pro sync failed (server still available):", (err as Error).message));
+      try {
+        await proAutoActivate();
+        for (const m of loadAllMemories()) store.add(m);
+      } catch (err) {
+        console.error("[MemoryForge] Pro sync failed (server still available):", (err as Error).message);
+      }
     }
 
     const transport = new StdioServerTransport();

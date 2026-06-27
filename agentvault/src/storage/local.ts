@@ -155,7 +155,8 @@ function loadTombstonesRaw(): Tombstone[] {
   try {
     if (fs.existsSync(TOMBSTONE_PATH)) {
       const raw = fs.readFileSync(TOMBSTONE_PATH, "utf-8");
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
     }
   } catch {
     // Corrupted — reset
