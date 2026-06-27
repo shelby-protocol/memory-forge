@@ -96,8 +96,8 @@ if (cmd === "setup") {
         if (balances) {
           const aptVal = parseFloat(balances.apt),
             usdVal = parseFloat(balances.shelbyUsd);
-          const aptWarn = aptVal < 0.01 ? " ⚠️  low (Gas Station sponsors tx fees)" : "";
-          const usdWarn = usdVal < 1.0 ? " ⚠️  low (fund for direct storage payments)" : "";
+          const aptWarn = aptVal < 0.01 ? " ⚠️  low — faucet: https://docs.shelby.xyz/apis/faucet/aptos" : "";
+          const usdWarn = usdVal < 1.0 ? " ⚠️  low — faucet: https://docs.shelby.xyz/apis/faucet/shelbyusd" : "";
           console.log(`  APT balance:        ${balances.apt}${aptWarn}`);
           console.log(`  ShelbyUSD balance:  ${balances.shelbyUsd}${usdWarn}`);
         } else if (cfg.apiKey) {

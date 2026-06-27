@@ -219,7 +219,7 @@ t("mix of valid rules from different sources", () => {
 
 t("tags derived from source filename", () => {
   const rules: ImportedRule[] = [
-    { source: "/Users/test/CLAUDE.md", key: "r1", content: M + "TAG-TEST: Some rule content specifically for tag extraction verification" },
+    { source: "/Users/test/CLAUDE.md", key: "r1-" + Date.now(), content: "ZZQQYYXX-" + Date.now() + "-TAG-EXTRACTION-TEST-QRSTUVWXYZ9876543210: Specific rule content for verifying tag derivation from source filenames in the import pipeline" },
   ];
   const result = rulesToMemories(rules);
   if (result[0].tags.length === 0) throw new Error("should have at least 1 tag");

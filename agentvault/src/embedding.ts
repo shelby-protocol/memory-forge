@@ -65,5 +65,19 @@ export async function embed(text: string): Promise<Float32Array | null> {
 
 /** 预加载模型（后台运行，不阻塞） */
 export function preload(): void {
-  getEmbedder();
+  getEmbedder().then((fn) => {
+    // Test with a lightweight string to warm the pipeline
+    fn("warmup").then(() => {
+      console.error("[MemoryForge] Embedding model ready — semantic search active");
+    }).catch(() => {
+      console.error("[MemoryForge] Embedding warmup failed — keyword search fallback active");
+    });
+  });
+}
+
+/** Current model status for diagnostics. */
+export function modelStatus(): "loading" | "ready" | "degraded" {
+  if (embedFn && lastAttempt === 0) return "ready";
+  if (lastAttempt > 0) return "degraded";
+  return "loading";
 }
