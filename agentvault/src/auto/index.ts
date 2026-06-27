@@ -94,7 +94,9 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
 
   if (top.length === 0) return "";
 
-  const lines: string[] = [];
+  const lines: string[] = [
+    "[MemoryForge] 📋 Recent context (most recent first):",
+  ];
   for (const m of top) {
     const time = m.last_accessed || m.created_at;
     const dateStr = new Date(time).toLocaleDateString("en-US", {
