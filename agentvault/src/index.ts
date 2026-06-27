@@ -59,11 +59,27 @@ if (cmd === "--version" || cmd === "-v") {
   if (sub === "status") {
     const s = proStatus();
     if (!s.active) {
-      console.log("Pro: not active. Run memory-forge pro to set up.");
+      console.log("Pro: not active");
+      console.log("  Set SHELBY_API_KEY and restart your session to auto-activate.");
+      console.log("  Or run: SHELBY_API_KEY=\"...\" memory-forge pro");
     } else {
-      console.log("Pro: active");
-      console.log(`  Address:  ${s.address}`);
-      if (s.lastSync) console.log(`  Last sync: ${s.lastSync}`);
+      console.log("Pro: active ✅");
+      console.log(`  Address:            ${s.address}`);
+      console.log(`  Local memories:     ${s.localCount}`);
+      console.log(`  Total uploaded:     ${s.totalUploaded}`);
+      console.log(`  Total downloaded:   ${s.totalDownloaded}`);
+      console.log(`  Total failed:       ${s.totalFailed || "—"}`);
+      console.log(`  Last sync:          ${s.lastSync || "never"}`);
+      if (s.syncHistory && s.syncHistory.length > 0) {
+        console.log(`  Recent syncs:`);
+        for (const entry of s.syncHistory.slice(-5).reverse()) {
+          const parts: string[] = [];
+          if (entry.up > 0) parts.push(`↑${entry.up}`);
+          if (entry.down > 0) parts.push(`↓${entry.down}`);
+          if (entry.failed > 0) parts.push(`✗${entry.failed}`);
+          console.log(`    ${entry.time.slice(0, 19).replace("T", " ")}  ${parts.join(" ") || "—"}`);
+        }
+      }
     }
     process.exit(0);
   }

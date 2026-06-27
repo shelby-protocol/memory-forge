@@ -210,17 +210,29 @@ export async function syncAll(): Promise<void> {
     console.error(`[MemoryForge] Sync: ${parts.join(" ")}`);
   }
 
-  // Touch last-sync timestamp
-  updateSyncStamp();
+  // Touch last-sync timestamp with stats
+  updateSyncStamp(uploaded, downloaded, uploadFailed);
 
   // Purge expired tombstones
   cleanupTombstones();
 }
 
-function updateSyncStamp(): void {
+interface SyncEntry { time: string; up: number; down: number; failed: number }
+
+function updateSyncStamp(up: number, down: number, failed: number): void {
   try {
-    const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+    const profile = fs.existsSync(PROFILE_PATH)
+      ? JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"))
+      : { version: 1 };
     profile.lastSync = new Date().toISOString();
+    profile.syncHistory = profile.syncHistory || [];
+    profile.syncHistory.push({ time: profile.lastSync, up, down, failed });
+    // Keep last 10 entries
+    if (profile.syncHistory.length > 10) profile.syncHistory = profile.syncHistory.slice(-10);
+    // Running totals
+    profile.totalUploaded = (profile.totalUploaded || 0) + up;
+    profile.totalDownloaded = (profile.totalDownloaded || 0) + down;
+    profile.totalFailed = (profile.totalFailed || 0) + failed;
     fs.writeFileSync(PROFILE_PATH, JSON.stringify(profile, null, 2));
   } catch { /* best-effort */ }
 }
@@ -268,7 +280,11 @@ export async function proAutoActivate(): Promise<void> {
 }
 
 /** Return Pro status for CLI display. */
-export function proStatus(): { active: boolean; address?: string; lastSync?: string } {
+export function proStatus(): {
+  active: boolean; address?: string; lastSync?: string;
+  totalUploaded?: number; totalDownloaded?: number; totalFailed?: number;
+  syncHistory?: SyncEntry[]; localCount?: number;
+} {
   if (!fs.existsSync(PROFILE_PATH)) return { active: false };
   try {
     const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
@@ -276,6 +292,11 @@ export function proStatus(): { active: boolean; address?: string; lastSync?: str
       active: true,
       address: profile.address,
       lastSync: profile.lastSync ?? null,
+      totalUploaded: profile.totalUploaded ?? 0,
+      totalDownloaded: profile.totalDownloaded ?? 0,
+      totalFailed: profile.totalFailed ?? 0,
+      syncHistory: profile.syncHistory ?? [],
+      localCount: loadAllMemories().length,
     };
   } catch {
     return { active: false };
