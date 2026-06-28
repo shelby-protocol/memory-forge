@@ -4,3 +4,16 @@ node_modules/
 *.mjs
 *.cjs
 *.d.ts
+# Docs — formatting churn not useful
+ARCHITECTURE.md
+CHANGELOG.md
+MARKET.md
+SPEC.md
+TECHNICAL.md
+TUTORIAL.md
+TUTORIAL.zh-CN.md
+article-*.md
+bench/
+results-*.json
+versions/
+shelby-application*.md

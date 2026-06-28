@@ -1,10 +1,16 @@
 # MemoryForge
 
-> Persistent memory engine for AI agents. 9 MCP tools + 5 auto-engines. Free tier runs locally. Pro tier adds Shelby decentralized cloud sync.
+> Persistent memory engine for AI agents. 10 MCP tools + 5 auto-engines. Free tier runs locally. Pro tier adds Shelby decentralized cloud sync.
 
 <p>
+  <a href="https://github.com/shelby-protocol/memory-forge/actions"><img src="https://img.shields.io/github/actions/workflow/status/shelby-protocol/memory-forge/test.yml?branch=main" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/memory-forge"><img src="https://img.shields.io/npm/v/memory-forge" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/memory-forge"><img src="https://img.shields.io/npm/dm/memory-forge" alt="downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/npm/l/memory-forge" alt="license"></a>
+  <br>
   <img src="https://img.shields.io/badge/LongMemEval-95.6%25-brightgreen" alt="LongMemEval Recall@5">
   <img src="https://img.shields.io/badge/rank-2%2F25+-blue" alt="Rank #2 of 25+ MCP memory tools">
+  <img src="https://img.shields.io/badge/tests-319%20passed-green" alt="319 tests">
 </p>
 
 ## Install
@@ -19,18 +25,20 @@ Free tier has no external service dependencies. Pro tier requires a `SHELBY_API_
 
 ## Core Capabilities
 
-**9 MCP Tools (invoked by agent directly):**
+**10 MCP Tools (invoked by agent directly):**
 
-| Tool             | Description                                                 |
-| ---------------- | ----------------------------------------------------------- |
-| `memory_store`   | Store memories with auto-embedding, naming, and dedup merge |
-| `memory_search`  | Semantic search (vector + keyword dual-mode)                |
-| `memory_recall`  | Exact recall by memory ID                                   |
-| `memory_list`    | List memories with category/tag filtering                   |
-| `memory_forget`  | Delete a memory (local + Shelby tombstone)                  |
-| `memory_context` | Load current session context                                |
-| `memory_export`  | Export as JSON or Markdown                                  |
-| `memory_share`   | Package a memory for teammate import                        |
+| Tool                | Description                                                 |
+| ------------------- | ----------------------------------------------------------- |
+| `memory_store`      | Store memories with auto-embedding, naming, and dedup merge |
+| `memory_search`     | Semantic search (vector + keyword dual-mode)                |
+| `memory_recall`     | Exact recall by memory ID                                   |
+| `memory_list`       | List memories with category/tag filtering + local timezone  |
+| `memory_forget`     | Delete a memory (local + Shelby tombstone)                  |
+| `memory_context`    | Load current session context                                |
+| `memory_export`     | Export as JSON or Markdown                                  |
+| `memory_share`      | Package a memory for teammate import                        |
+| `memory_update`     | Update existing memory with re-embedding                    |
+| `memory_model_info` | Show embedding model status, dims, and health               |
 
 **5 Auto-Engines (zero user awareness):**
 
@@ -78,5 +86,5 @@ Pro is currently on Shelbynet testnet.
 ## Tests
 
 ```bash
-npm test   # 72 tests, 100% pass
+npm test   # 319 tests, 31 files, 100% pass
 ```
