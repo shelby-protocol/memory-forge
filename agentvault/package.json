@@ -1,6 +1,6 @@
 {
   "name": "memory-forge",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Forge persistent memories for your AI agent. 9 MCP tools + 5 auto-engines. Powered by Shelby decentralized cloud.",
   "type": "module",
   "license": "MIT",
@@ -66,7 +66,7 @@
     "@shelby-protocol/sdk": "^0.3.1"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9.39.4",
     "prettier": "^3.8.5",
