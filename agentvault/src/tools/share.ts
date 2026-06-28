@@ -12,7 +12,10 @@ export function register(server: McpServer, opts: ToolOptions) {
       description:
         "Package a single memory into a shareable JSON bundle for teammates or other agents to import via memory_store.",
       inputSchema: {
-        memory_id: z.string().describe("Memory ID to share."),
+        memory_id: z
+          .string()
+          .regex(/^[^\x00-\x1f\/\\]+$/)
+          .describe("Memory ID to share."),
         recipient: z
           .string()
           .optional()

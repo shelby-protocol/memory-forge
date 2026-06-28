@@ -26,6 +26,7 @@ export function register(server: McpServer, opts: ToolOptions) {
           .describe("Memory content (max 100KB)."),
         category: z
           .string()
+          .max(50)
           .default("general")
           .describe("Category: user-preference, project-context, decision-log, code-pattern."),
         tags: z.array(z.string().min(1)).default([]).describe("Tags list."),

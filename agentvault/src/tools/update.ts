@@ -17,7 +17,10 @@ export function register(server: McpServer, opts: ToolOptions) {
       description:
         "Partially update a memory by ID. Only provided fields are changed — unset fields stay untouched.",
       inputSchema: {
-        memory_id: z.string().describe("Memory ID to update."),
+        memory_id: z
+          .string()
+          .regex(/^[^\x00-\x1f\/\\]+$/)
+          .describe("Memory ID to update."),
         content: z
           .string()
           .min(1)

@@ -4,6 +4,7 @@ import type { ToolOptions } from "./types.js";
 import { embed } from "../embedding.js";
 import { saveMemory } from "../storage/local.js";
 import { expandQuery } from "../search/expand.js";
+import { redactSecrets } from "../auto/index.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
   const { store } = opts;
@@ -15,7 +16,7 @@ export function register(server: McpServer, opts: ToolOptions) {
       description:
         "Hybrid search — vector (70%) + BM25 keyword (30%). Auto-falls back to keyword-only when embedding model unavailable. Query expansion adds synonyms for broader recall.",
       inputSchema: {
-        query: z.string().describe("Natural language search query."),
+        query: z.string().max(5000).describe("Natural language search query."),
         limit: z.number().min(1).max(20).default(5),
         min_similarity: z.number().min(0).max(1).default(0.3),
         category: z.string().optional(),
@@ -83,7 +84,7 @@ export function register(server: McpServer, opts: ToolOptions) {
                 name: r.name,
                 similarity: typeof r.similarity === "number" ? Number(r.similarity.toFixed(3)) : 0,
                 _score: r._score ?? null,
-                content: r.content,
+                content: redactSecrets(r.content),
                 _method:
                   r._fallback ||
                   (effectiveAlpha === 0 ? "bm25" : effectiveAlpha === 1 ? "vector" : "hybrid"),

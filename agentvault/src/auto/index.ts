@@ -281,7 +281,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
 }
 
 /** Redact sensitive patterns from context preview to prevent key leakage to LLM APIs */
-function redactSecrets(text: string): string {
+export function redactSecrets(text: string): string {
   return (
     text
       // Private key hex strings (ed25519, secp256k1, etc.)

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolOptions } from "./types.js";
 import { saveMemory } from "../storage/local.js";
+import { redactSecrets } from "../auto/index.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
   const { store } = opts;
@@ -11,7 +12,12 @@ export function register(server: McpServer, opts: ToolOptions) {
     {
       title: "Recall memory",
       description: "Retrieve a single memory by its exact ID with full content.",
-      inputSchema: { memory_id: z.string().describe("Memory ID.") },
+      inputSchema: {
+        memory_id: z
+          .string()
+          .regex(/^[^\x00-\x1f\/\\]+$/)
+          .describe("Memory ID."),
+      },
     },
     async (params) => {
       const { memory_id } = params;
@@ -31,7 +37,7 @@ export function register(server: McpServer, opts: ToolOptions) {
             text: JSON.stringify({
               memory_id: memory.id,
               name: memory.name,
-              content: memory.content,
+              content: redactSecrets(memory.content),
               category: memory.category,
               tags: memory.tags,
               priority: memory.priority,

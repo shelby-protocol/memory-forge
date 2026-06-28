@@ -12,7 +12,12 @@ export function register(server: McpServer, opts: ToolOptions) {
     {
       title: "Forget memory",
       description: "Delete a memory by ID — removes local file + uploads cloud tombstone.",
-      inputSchema: { memory_id: z.string().describe("Memory ID to delete.") },
+      inputSchema: {
+        memory_id: z
+          .string()
+          .regex(/^[^\x00-\x1f\/\\]+$/)
+          .describe("Memory ID to delete."),
+      },
     },
     async (params) => {
       const { memory_id } = params;

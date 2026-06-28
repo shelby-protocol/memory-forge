@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolOptions } from "./types.js";
 import { safeTruncate } from "../store.js";
+import { redactSecrets } from "../auto/index.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
   const { store } = opts;
@@ -47,7 +48,7 @@ export function register(server: McpServer, opts: ToolOptions) {
                 access_count: m.access_count,
                 created_at: m.created_at,
                 last_accessed: m.last_accessed,
-                preview: safeTruncate(m.content, 200),
+                preview: safeTruncate(redactSecrets(m.content), 200),
               })),
             }),
           },

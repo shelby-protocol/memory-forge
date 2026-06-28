@@ -13,7 +13,7 @@ export function register(server: McpServer, opts: ToolOptions) {
         "Export memories to portable JSON or Markdown. Free users can move between machines; Pro users can backup. Exports all if no memory_ids specified.",
       inputSchema: {
         memory_ids: z
-          .array(z.string())
+          .array(z.string().regex(/^[^\x00-\x1f\/\\]+$/))
           .optional()
           .describe("Memory IDs to export. Exports all if not specified."),
         format: z
