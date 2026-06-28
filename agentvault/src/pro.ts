@@ -25,6 +25,7 @@ import {
   deleteBlob,
   getBlobName,
   getCloudTombstones,
+  getBalances,
 } from "./storage/shelby.js";
 import { MemoryStore } from "./store.js";
 
@@ -129,19 +130,36 @@ export async function pro(): Promise<void> {
     privateKey = generatedKey;
     console.log("   ℹ️  Auto-generated Shelbynet account");
     console.log(`   ℹ️  Address: ${address}`);
-    console.log("   ⚠️  Fund this account with APT + ShelbyUSD:");
-    console.log("      APT:       https://docs.shelby.xyz/apis/faucet/aptos");
-    console.log("      ShelbyUSD: https://docs.shelby.xyz/apis/faucet/shelbyusd");
-    console.log("");
   } else {
     console.log(`   ℹ️  Using account: ${address}`);
   }
 
-  console.log("📤 Uploading existing memories to Shelby...");
+  // Check balances before uploading — unfunded accounts will fail silently
+  let balances: { apt: string; shelbyUsd: string } | null = null;
+  try {
+    balances = await getBalances();
+  } catch {
+    // Network issue — proceed optimistically
+  }
+
+  const isUnfunded = balances && parseFloat(balances.apt) === 0 && parseFloat(balances.shelbyUsd) === 0;
+
   let uploaded = 0;
-  for (const m of loadAllMemories()) {
-    const result = await uploadMemory(m);
-    if (result) uploaded++;
+
+  if (isUnfunded) {
+    console.log("");
+    console.log("   💰 Account needs gas to upload:");
+    console.log("      APT:       https://docs.shelby.xyz/apis/faucet/aptos");
+    console.log("      ShelbyUSD: https://docs.shelby.xyz/apis/faucet/shelbyusd");
+    console.log("");
+    console.log("   ℹ️  Profile saved — sync starts after funding. Re-run:");
+    console.log("      npx memory-forge pro");
+  } else {
+    console.log("📤 Uploading existing memories to Shelby...");
+    for (const m of loadAllMemories()) {
+      const result = await uploadMemory(m);
+      if (result) uploaded++;
+    }
   }
 
   // Save Pro profile
@@ -164,6 +182,11 @@ export async function pro(): Promise<void> {
   );
 
   const syncIcon = uploaded > 0 ? "✅" : "⚠️";
+  const hintLine = isUnfunded
+    ? `  Wallet: ${address.slice(0, 10)}… needs gas (see above) `
+    : uploaded === 0
+      ? "⚠️  Check SHELBY_API_KEY if sync didn't work"
+      : " ".repeat(43);
   console.log(`
   ┌──────────────────────────────────────┐
   │  MemoryForge Pro is active!           │
@@ -172,7 +195,7 @@ export async function pro(): Promise<void> {
   │  ✅ Auto-sync on every session       │
   │  ✅ Memories survive across devices  │
   │                                      │
-  │  ${uploaded === 0 ? "⚠️  Check SHELBY_API_KEY if sync didn't work" : " "}   │
+  │  ${hintLine}   │
   └──────────────────────────────────────┘
   `);
 }
