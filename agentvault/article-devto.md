@@ -61,21 +61,21 @@ Day 7:  Switch computers. Open Claude Code.
 Day 30: Old memories auto-archive. New ones auto-reinforce.
 ```
 
-## Built In 2 Weeks
+## Built and Battle-Tested
 
-I built MemoryForge over two weeks as a solo developer. The stack is intentionally minimal:
+MemoryForge is open source (MIT) and actively maintained. Current state:
 
-- **MCP server**: eight tools (store, search, recall, list, forget, context, export, share)
-- **Embeddings**: Transformers.js running in-process (23MB model, no external service)
-- **Storage (Free)**: Local markdown files (~/.memory-forge/memories/)
-- **Storage (Pro)**: Shelby decentralized cloud via @shelby-protocol/sdk
-- **Auth (Pro)**: Shelby API key + on-chain account (testnet faucet for gas)
+- **10 MCP tools**: store, search, recall, list, forget, context, export, share, update, model_info
+- **5 auto-engines**: naming, dedup merge, priority scoring, decay archiving, context summary
+- **319 tests**, 3-platform CI (macOS/Windows/Ubuntu), npm provenance signed
+- **LongMemEval Recall@5: 95.6%** — ranked #2 of 25+ MCP memory tools
+- **npm v0.10.x**, 7,000+ weekly downloads
 
-Zero external SaaS dependencies. Everything runs on your machine.
+The stack is intentionally minimal — Transformers.js embeddings in-process (23MB model), local markdown storage for free tier, Shelby decentralized cloud for Pro. Zero external SaaS dependencies. Everything runs on your machine.
 
 ## The Hardest Part Wasn't the Code
 
-It was avoiding feature creep. I started with 20 tools, 15 competitive advantages, and 6 revenue engines. I cut it to 8 tools, 2 tiers (Free + Pro), and 1 install command.
+It was avoiding feature creep. I started with 20 tools, 15 competitive advantages, and 6 revenue engines. I cut to what matters — one install command, two tiers, and automated everything.
 
 The best product is the one nobody has to think about.
 
