@@ -59,10 +59,18 @@ describe("proStatus", () => {
   });
 
   it("returns active with profile data", () => {
-    mockFs.files.set("pro.json", JSON.stringify({
-      address: "0xabc123", lastSync: "2026-06-01T00:00:00Z",
-      totalUploaded: 10, totalDownloaded: 5, totalFailed: 0, totalConflicts: 0, syncHistory: [],
-    }));
+    mockFs.files.set(
+      "pro.json",
+      JSON.stringify({
+        address: "0xabc123",
+        lastSync: "2026-06-01T00:00:00Z",
+        totalUploaded: 10,
+        totalDownloaded: 5,
+        totalFailed: 0,
+        totalConflicts: 0,
+        syncHistory: [],
+      }),
+    );
     const status = proStatus();
     expect(status.active).toBe(true);
     expect(status.address).toBe("0xabc123");
@@ -76,7 +84,9 @@ describe("proStatus", () => {
 });
 
 describe("proAutoActivate", () => {
-  beforeEach(() => { mockFs.files.clear(); });
+  beforeEach(() => {
+    mockFs.files.clear();
+  });
 
   it("skips when no API key", async () => {
     await proAutoActivate();
@@ -92,9 +102,14 @@ describe("proAutoActivate", () => {
   });
 
   it("syncs when already active", async () => {
-    mockFs.files.set("pro.json", JSON.stringify({
-      address: "0xexisting", privateKey: "0xkey", apiKey: "AG-test",
-    }));
+    mockFs.files.set(
+      "pro.json",
+      JSON.stringify({
+        address: "0xexisting",
+        privateKey: "0xkey",
+        apiKey: "AG-test",
+      }),
+    );
     const { getShelbyConfig } = await import("../src/storage/shelby.js");
     vi.mocked(getShelbyConfig).mockReturnValue({ apiKey: "AG-test" } as any);
     vi.spyOn(console, "error").mockImplementation(() => {});

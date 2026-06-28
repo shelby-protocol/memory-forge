@@ -72,7 +72,7 @@ export async function setup(): Promise<void> {
   const lang = (process.env.LANG ?? process.env.LC_ALL ?? process.env.LANGUAGE ?? "").toLowerCase();
   if (lang.startsWith("zh") || lang.startsWith("ja") || lang.startsWith("ko")) {
     console.log(
-      '   💡 CJK users: set MEMORY_FORGE_MODEL=e5 for Chinese/Japanese/Korean semantic search (~118MB, one-time)',
+      "   💡 CJK users: set MEMORY_FORGE_MODEL=e5 for Chinese/Japanese/Korean semantic search (~118MB, one-time)",
     );
   }
 
