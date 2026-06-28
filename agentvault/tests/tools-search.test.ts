@@ -16,7 +16,12 @@ vi.mock("../src/search/expand.js", () => ({
 vi.mock("../src/storage/local.js", () => ({ saveMemory: vi.fn() }));
 
 /** Add memory with matching vector so vector/hybrid search can find it. */
-function addMem(store: MemoryStore, id: string, content: string, overrides: Record<string, unknown> = {}) {
+function addMem(
+  store: MemoryStore,
+  id: string,
+  content: string,
+  overrides: Record<string, unknown> = {},
+) {
   store.add(
     makeMemory({
       id,
@@ -29,16 +34,16 @@ function addMem(store: MemoryStore, id: string, content: string, overrides: Reco
 
 function captureSearch() {
   const store = new MemoryStore();
-  let captured: ((params: Record<string, unknown>) => Promise<{
-    content: Array<{ type: string; text: string }>;
-  }>) | null = null;
+  let captured:
+    | ((params: Record<string, unknown>) => Promise<{
+        content: Array<{ type: string; text: string }>;
+      }>)
+    | null = null;
 
   const mockServer = {
-    registerTool: vi.fn(
-      (_name: string, _config: unknown, handler: typeof captured) => {
-        captured = handler;
-      },
-    ),
+    registerTool: vi.fn((_name: string, _config: unknown, handler: typeof captured) => {
+      captured = handler;
+    }),
   } as unknown as McpServer;
 
   registerSearch(mockServer, { store, version: "0.8.2", hasPro: false });
@@ -61,7 +66,7 @@ describe("memory_search tool", () => {
     expect(body.count).toBeGreaterThanOrEqual(0);
     // BM25-only mode — fallback may be "keyword" since store uses keywordSearch internally
     for (const r of body.results) {
-      expect([ "bm25", "keyword" ]).toContain(r._method);
+      expect(["bm25", "keyword"]).toContain(r._method);
     }
   });
 
@@ -144,13 +149,16 @@ describe("memory_search tool", () => {
     });
     const body = JSON.parse(result.content[0].text);
     for (const r of body.results) {
-      expect([ "vector", "hybrid" ]).toContain(r._method);
+      expect(["vector", "hybrid"]).toContain(r._method);
     }
   });
 
   it("results include similarity and score metadata", async () => {
     const { store, handler } = captureSearch();
-    addMem(store, "meta1", "Kubernetes pod networking service mesh", { priority: 8, access_count: 10 });
+    addMem(store, "meta1", "Kubernetes pod networking service mesh", {
+      priority: 8,
+      access_count: 10,
+    });
     const result = await handler({ query: "kubernetes", limit: 1, search_method: "bm25" });
     const body = JSON.parse(result.content[0].text);
     if (body.results.length > 0) {

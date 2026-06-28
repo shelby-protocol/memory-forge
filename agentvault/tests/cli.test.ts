@@ -18,9 +18,11 @@ vi.mock("node:fs", async () => {
   const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
   return {
     ...actual,
-    readFileSync: vi.fn().mockImplementation((p: string) =>
-      p.endsWith("package.json") ? '{"version":"0.8.2"}' : actual.readFileSync(p),
-    ),
+    readFileSync: vi
+      .fn()
+      .mockImplementation((p: string) =>
+        p.endsWith("package.json") ? '{"version":"0.8.2"}' : actual.readFileSync(p),
+      ),
   };
 });
 vi.mock("../src/embedding.js", () => ({ preload: vi.fn() }));
@@ -63,7 +65,9 @@ vi.mock("@modelcontextprotocol/sdk/server/stdio.js", () => ({
 }));
 
 describe("CLI — sync commands", () => {
-  afterAll(() => { process.exit = origExit; });
+  afterAll(() => {
+    process.exit = origExit;
+  });
 
   async function run(argv: string[]) {
     mockExit(); // throw on exit (sync commands)
@@ -138,7 +142,9 @@ describe("CLI — sync commands", () => {
 });
 
 describe("CLI — hooks (async)", () => {
-  afterAll(() => { process.exit = origExit; });
+  afterAll(() => {
+    process.exit = origExit;
+  });
 
   async function run(argv: string[]) {
     mockExitNoThrow(); // don't throw — async commands rely on event loop

@@ -7,16 +7,16 @@ import { makeMemory } from "./test-helpers.js";
 
 function captureTool(register: (server: McpServer, opts: ToolOptions) => void, hasPro = false) {
   const store = new MemoryStore();
-  let capturedHandler: ((params: Record<string, unknown>) => Promise<{
-    content: Array<{ type: string; text: string }>;
-  }>) | null = null;
+  let capturedHandler:
+    | ((params: Record<string, unknown>) => Promise<{
+        content: Array<{ type: string; text: string }>;
+      }>)
+    | null = null;
 
   const mockServer = {
-    registerTool: vi.fn(
-      (_name: string, _config: unknown, handler: typeof capturedHandler) => {
-        capturedHandler = handler;
-      },
-    ),
+    registerTool: vi.fn((_name: string, _config: unknown, handler: typeof capturedHandler) => {
+      capturedHandler = handler;
+    }),
   } as unknown as McpServer;
 
   register(mockServer, { store, version: "0.8.2", hasPro });

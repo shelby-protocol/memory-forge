@@ -10,16 +10,16 @@ vi.mock("../src/storage/local.js", () => ({ saveMemory: vi.fn() }));
 
 function captureTool(register: (server: McpServer, opts: ToolOptions) => void) {
   const store = new MemoryStore();
-  let capturedHandler: ((params: Record<string, unknown>) => Promise<{
-    content: Array<{ type: string; text: string }>;
-  }>) | null = null;
+  let capturedHandler:
+    | ((params: Record<string, unknown>) => Promise<{
+        content: Array<{ type: string; text: string }>;
+      }>)
+    | null = null;
 
   const mockServer = {
-    registerTool: vi.fn(
-      (_name: string, _config: unknown, handler: typeof capturedHandler) => {
-        capturedHandler = handler;
-      },
-    ),
+    registerTool: vi.fn((_name: string, _config: unknown, handler: typeof capturedHandler) => {
+      capturedHandler = handler;
+    }),
   } as unknown as McpServer;
 
   register(mockServer, { store, version: "0.8.2", hasPro: false });

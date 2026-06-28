@@ -8,9 +8,11 @@ import { makeMemory } from "./test-helpers.js";
 /** Mock McpServer.registerTool to capture handler, then test it directly. */
 function captureTool<I, O>(register: (server: McpServer, opts: ToolOptions) => void) {
   const store = new MemoryStore();
-  let capturedHandler: ((params: I) => Promise<{
-    content: Array<{ type: string; text: string }>;
-  }>) | null = null;
+  let capturedHandler:
+    | ((params: I) => Promise<{
+        content: Array<{ type: string; text: string }>;
+      }>)
+    | null = null;
 
   const mockServer = {
     registerTool: vi.fn(

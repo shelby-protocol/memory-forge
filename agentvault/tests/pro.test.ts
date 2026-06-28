@@ -177,18 +177,31 @@ describe("syncAll", () => {
     const { loadAllMemories, saveMemory } = await import("../src/storage/local.js");
     loadAllMemories.mockReturnValue([
       {
-        id: "local-1", name: "Local Mem", content: "local content",
-        category: "general", tags: [], priority: 5, vector: [],
-        created_at: "2026-01-01T00:00:00Z", access_count: 1, last_accessed: null,
+        id: "local-1",
+        name: "Local Mem",
+        content: "local content",
+        category: "general",
+        tags: [],
+        priority: 5,
+        vector: [],
+        created_at: "2026-01-01T00:00:00Z",
+        access_count: 1,
+        last_accessed: null,
       },
     ]);
     getMemoryId.mockReturnValue("remote-1");
     listBlobs.mockResolvedValue(["blob-remote-1_v2026-06-28"]);
     downloadMemory.mockResolvedValue({
-      id: "remote-1", name: "Remote Mem", content: "remote content",
-      category: "decision-log", tags: ["remote-tag"], priority: 8,
-      vector: [0.1, 0.2], created_at: "2026-06-15T00:00:00Z",
-      access_count: 5, last_accessed: "2026-06-20T00:00:00Z",
+      id: "remote-1",
+      name: "Remote Mem",
+      content: "remote content",
+      category: "decision-log",
+      tags: ["remote-tag"],
+      priority: 8,
+      vector: [0.1, 0.2],
+      created_at: "2026-06-15T00:00:00Z",
+      access_count: 5,
+      last_accessed: "2026-06-20T00:00:00Z",
     });
     const logs: string[] = [];
     vi.spyOn(console, "error").mockImplementation((s: string) => logs.push(s));

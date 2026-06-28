@@ -20,9 +20,9 @@ vi.mock("../src/hooks/install.js", () => ({
   ]),
 }));
 vi.mock("../src/migrate/import.js", () => ({
-  importRules: vi.fn().mockReturnValue([
-    { source: "CLAUDE.md", key: "coding-style", content: "Use tabs" },
-  ]),
+  importRules: vi
+    .fn()
+    .mockReturnValue([{ source: "CLAUDE.md", key: "coding-style", content: "Use tabs" }]),
   rulesToMemories: vi.fn().mockReturnValue([
     {
       id: "rule-1",
@@ -50,8 +50,12 @@ vi.mock("node:child_process", () => ({
 
 // Suppress console output during test
 const origLog = console.log;
-beforeAll(() => { console.log = vi.fn(); });
-afterAll(() => { console.log = origLog; });
+beforeAll(() => {
+  console.log = vi.fn();
+});
+afterAll(() => {
+  console.log = origLog;
+});
 
 import { setup } from "../src/setup.js";
 

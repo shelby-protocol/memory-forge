@@ -21,16 +21,16 @@ vi.mock("../src/storage/shelby.js", () => ({
 
 function captureUpdate() {
   const store = new MemoryStore();
-  let captured: ((params: Record<string, unknown>) => Promise<{
-    content: Array<{ type: string; text: string }>;
-  }>) | null = null;
+  let captured:
+    | ((params: Record<string, unknown>) => Promise<{
+        content: Array<{ type: string; text: string }>;
+      }>)
+    | null = null;
 
   const mockServer = {
-    registerTool: vi.fn(
-      (_name: string, _config: unknown, handler: typeof captured) => {
-        captured = handler;
-      },
-    ),
+    registerTool: vi.fn((_name: string, _config: unknown, handler: typeof captured) => {
+      captured = handler;
+    }),
   } as unknown as McpServer;
 
   registerUpdate(mockServer, { store, version: "0.8.2", hasPro: false });
