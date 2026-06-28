@@ -17,16 +17,16 @@ describe("model_info tool", () => {
     store.add(makeMemory({ id: "a", vector: [0.1, 0.2, 0.3] }));
     store.add(makeMemory({ id: "b", vector: [] }));
 
-    let capturedHandler: ((params: unknown) => Promise<{
-      content: Array<{ type: string; text: string }>;
-    }>) | null = null;
+    let capturedHandler:
+      | ((params: unknown) => Promise<{
+          content: Array<{ type: string; text: string }>;
+        }>)
+      | null = null;
 
     const mockServer = {
-      registerTool: vi.fn(
-        (_name: string, _config: unknown, handler: typeof capturedHandler) => {
-          capturedHandler = handler;
-        },
-      ),
+      registerTool: vi.fn((_name: string, _config: unknown, handler: typeof capturedHandler) => {
+        capturedHandler = handler;
+      }),
     } as unknown as McpServer;
 
     registerModelInfo(mockServer, { store, version: "0.8.2", hasPro: false });
@@ -49,16 +49,16 @@ describe("model_info tool", () => {
     vi.mocked(modelStatus).mockReturnValue("degraded");
 
     const store = new MemoryStore();
-    let capturedHandler: ((params: unknown) => Promise<{
-      content: Array<{ type: string; text: string }>;
-    }>) | null = null;
+    let capturedHandler:
+      | ((params: unknown) => Promise<{
+          content: Array<{ type: string; text: string }>;
+        }>)
+      | null = null;
 
     const mockServer = {
-      registerTool: vi.fn(
-        (_name: string, _config: unknown, handler: typeof capturedHandler) => {
-          capturedHandler = handler;
-        },
-      ),
+      registerTool: vi.fn((_name: string, _config: unknown, handler: typeof capturedHandler) => {
+        capturedHandler = handler;
+      }),
     } as unknown as McpServer;
 
     registerModelInfo(mockServer, { store, version: "0.8.2", hasPro: false });

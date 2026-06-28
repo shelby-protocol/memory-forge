@@ -142,7 +142,8 @@ export async function pro(): Promise<void> {
     // Network issue — proceed optimistically
   }
 
-  const isUnfunded = balances && parseFloat(balances.apt) === 0 && parseFloat(balances.shelbyUsd) === 0;
+  const isUnfunded =
+    balances && parseFloat(balances.apt) === 0 && parseFloat(balances.shelbyUsd) === 0;
 
   let uploaded = 0;
 

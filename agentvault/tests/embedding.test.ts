@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { embed, preload, modelName, modelDimension, modelLabel, modelStatus } from "../src/embedding.js";
+import {
+  embed,
+  preload,
+  modelName,
+  modelDimension,
+  modelLabel,
+  modelStatus,
+} from "../src/embedding.js";
 
 describe("embedding engine", () => {
   it("embed short text returns null or Float32Array", async () => {

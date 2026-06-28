@@ -71,9 +71,7 @@ async function getEmbedder(): Promise<EmbedFn> {
     try {
       const desc = resolveModel();
       modelDescriptor = desc;
-      console.error(
-        `[MemoryForge] Loading embedding model: ${desc.label}…`,
-      );
+      console.error(`[MemoryForge] Loading embedding model: ${desc.label}…`);
       const { pipeline, env } = await import("@huggingface/transformers");
       // Use HF mirror in blocked regions via HF_MIRROR env var
       if (process.env.HF_MIRROR) {
