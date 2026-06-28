@@ -13,7 +13,7 @@ import { basename, dirname, join } from "node:path";
 import * as fs from "node:fs";
 
 import { MemoryStore } from "./store.js";
-import { preload, modelName, modelLabel } from "./embedding.js";
+import { preload, modelLabel } from "./embedding.js";
 import { loadAllMemories, cleanupTombstones, deleteMemoryFile } from "./storage/local.js";
 import { deleteBlob, getBlobName, getShelbyConfig } from "./storage/shelby.js";
 import { autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
