@@ -13,7 +13,7 @@ import { basename, dirname, join } from "node:path";
 import * as fs from "node:fs";
 
 import { MemoryStore } from "./store.js";
-import { preload } from "./embedding.js";
+import { preload, modelName, modelLabel } from "./embedding.js";
 import { loadAllMemories, cleanupTombstones, deleteMemoryFile } from "./storage/local.js";
 import { deleteBlob, getBlobName, getShelbyConfig } from "./storage/shelby.js";
 import { autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
@@ -32,6 +32,7 @@ import { register as registerContext } from "./tools/context.js";
 import { register as registerExport } from "./tools/export.js";
 import { register as registerShare } from "./tools/share.js";
 import { register as registerUpdate } from "./tools/update.js";
+import { register as registerModelInfo } from "./tools/model-info.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -438,6 +439,7 @@ function startMcpServer() {
   registerExport(server, toolOpts);
   registerShare(server, toolOpts);
   registerUpdate(server, toolOpts);
+  registerModelInfo(server, toolOpts);
 
   async function main() {
     if (hasPro) {
@@ -458,8 +460,9 @@ function startMcpServer() {
         (hasPro ? " (Pro: cross-device sync)" : " (Free: local storage)"),
     );
     console.error(
-      "[MemoryForge] 9 tools: store / search / recall / list / forget / context / export / share / update",
+      "[MemoryForge] 10 tools: store / search / recall / list / forget / context / export / share / update / model_info",
     );
+    console.error(`[MemoryForge] Embedding model: ${modelLabel() ?? "loading…"}`);
   }
 
   main().catch((err) => {

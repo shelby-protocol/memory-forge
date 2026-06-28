@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { embed, preload } from "../src/embedding.js";
+import { describe, it, expect, vi } from "vitest";
+import { embed, preload, modelName, modelDimension, modelLabel, modelStatus } from "../src/embedding.js";
 
 describe("embedding engine", () => {
   it("embed short text returns null or Float32Array", async () => {
@@ -60,5 +60,26 @@ describe("embedding engine", () => {
   it("embed 10KB text does not crash", async () => {
     const r = await embed("A".repeat(10_000));
     expect(r === null || r instanceof Float32Array).toBe(true);
+  });
+});
+
+describe("model resolution", () => {
+  it("modelDimension returns 384 (from MODEL_MAP default)", () => {
+    expect(modelDimension()).toBe(384);
+  });
+
+  it("modelName returns default model after embed", () => {
+    // Earlier tests already triggered embed() — singleton state is loaded
+    expect(modelName()).toBe("Xenova/all-MiniLM-L6-v2");
+  });
+
+  it("modelLabel contains model description", () => {
+    const label = modelLabel();
+    expect(label).toContain("all-MiniLM-L6-v2");
+    expect(label).toContain("384d");
+  });
+
+  it("modelStatus is ready after successful load", () => {
+    expect(modelStatus()).toBe("ready");
   });
 });
