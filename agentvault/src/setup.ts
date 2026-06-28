@@ -8,6 +8,8 @@ import { importRules, rulesToMemories } from "./migrate/import.js";
 import { preload } from "./embedding.js";
 import { saveMemory } from "./storage/local.js";
 import { execSync } from "node:child_process";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 export async function setup(): Promise<void> {
   console.log(`
@@ -68,11 +70,18 @@ export async function setup(): Promise<void> {
   preload();
   console.log("   ℹ️  Model will download on first use (~23MB, one-time)");
 
-  // 4a. CJK language hint
+  // 4a. CJK auto-config
   const lang = (process.env.LANG ?? process.env.LC_ALL ?? process.env.LANGUAGE ?? "").toLowerCase();
-  if (lang.startsWith("zh") || lang.startsWith("ja") || lang.startsWith("ko")) {
+  const isCJK = lang.startsWith("zh") || lang.startsWith("ja") || lang.startsWith("ko");
+  if (isCJK) {
+    const home = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+    const mfDir = join(home, ".memory-forge");
+    const configPath = join(mfDir, "config.json");
+    const config = { embedModel: "e5", hfMirror: "https://hf-mirror.com" };
+    if (!existsSync(mfDir)) mkdirSync(mfDir, { recursive: true });
+    writeFileSync(configPath, JSON.stringify(config, null, 2));
     console.log(
-      "   💡 CJK users: set MEMORY_FORGE_MODEL=e5 for Chinese/Japanese/Korean semantic search (~118MB, one-time)",
+      "   🌐 CJK detected — multilingual model + HF mirror configured (~118MB, auto-download on first use)",
     );
   }
 

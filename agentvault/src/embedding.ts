@@ -3,11 +3,12 @@
  * 延迟加载: 首次调用时加载模型，后续毫秒级。
  * 降级: 加载失败 → 返回 null，memory_search 自动回退到关键词匹配。
  *
- * 模型选择: 设置 MEMORY_FORGE_MODEL 环境变量切换模型。
- *   - 不设 / "default": Xenova/all-MiniLM-L6-v2 (23MB, 英文, 384d)
- *   - "e5": Xenova/multilingual-e5-small (~118MB, 94 语言含 CJK, 384d)
- *   - 也接受完整模型名: "Xenova/all-MiniLM-L6-v2", "Xenova/multilingual-e5-small"
+ * 模型选择优先级: env > ~/.memory-forge/config.json > default
+ * 镜像优先级: env HF_MIRROR > config.json hfMirror
  */
+
+import { existsSync as fsExistsSync, readFileSync as fsReadFileSync } from "node:fs";
+import { join as pathJoin } from "node:path";
 
 type EmbedFn = (text: string) => Promise<Float32Array | null>;
 
@@ -30,8 +31,24 @@ const MODEL_MAP: Record<string, ModelDescriptor> = {
   },
 };
 
+function loadConfig(): { embedModel?: string; hfMirror?: string } | null {
+  try {
+    const home = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+    const configPath = pathJoin(home, ".memory-forge", "config.json");
+    if (!fsExistsSync(configPath)) return null;
+    return JSON.parse(fsReadFileSync(configPath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
 function resolveModel(): ModelDescriptor {
-  const input = process.env.MEMORY_FORGE_MODEL?.trim();
+  // Priority: env var > config.json > default
+  let input = process.env.MEMORY_FORGE_MODEL?.trim();
+  if (!input) {
+    const cfg = loadConfig();
+    input = cfg?.embedModel?.trim();
+  }
   if (!input) return MODEL_MAP["default"];
 
   // By alias
@@ -43,7 +60,7 @@ function resolveModel(): ModelDescriptor {
   }
 
   console.error(
-    `[MemoryForge] Unknown MEMORY_FORGE_MODEL="${input}". Use "default" or "e5". Falling back to default.`,
+    `[MemoryForge] Unknown model "${input}". Use "default" or "e5". Falling back to default.`,
   );
   return MODEL_MAP["default"];
 }
@@ -73,10 +90,11 @@ async function getEmbedder(): Promise<EmbedFn> {
       modelDescriptor = desc;
       console.error(`[MemoryForge] Loading embedding model: ${desc.label}…`);
       const { pipeline, env } = await import("@huggingface/transformers");
-      // Use HF mirror in blocked regions via HF_MIRROR env var
-      if (process.env.HF_MIRROR) {
-        env.remoteHost = process.env.HF_MIRROR;
-        console.error(`[MemoryForge] Using mirror: ${process.env.HF_MIRROR}`);
+      // Mirror priority: env HF_MIRROR > config.json hfMirror
+      const mirror = process.env.HF_MIRROR ?? loadConfig()?.hfMirror;
+      if (mirror) {
+        env.remoteHost = mirror;
+        console.error(`[MemoryForge] Using mirror: ${mirror}`);
       }
       const engine = await pipeline("feature-extraction", desc.name, {
         progress_callback: (progress: any) => {
