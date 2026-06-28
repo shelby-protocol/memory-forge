@@ -13,6 +13,7 @@ import { basename, dirname, join } from "node:path";
 import * as fs from "node:fs";
 
 import { MemoryStore } from "./store.js";
+import { formatTimestamp, formatDateTime } from "./lib/timezone.js";
 import { preload, modelLabel } from "./embedding.js";
 import { loadAllMemories, cleanupTombstones, deleteMemoryFile } from "./storage/local.js";
 import { deleteBlob, getBlobName, getShelbyConfig } from "./storage/shelby.js";
@@ -143,9 +144,7 @@ if (cmd === "setup") {
             if (entry.down > 0) parts.push(`↓${entry.down}`);
             if (entry.failed > 0) parts.push(`✗${entry.failed}`);
             if (entry.conflicts && entry.conflicts > 0) parts.push(`⚡${entry.conflicts}`);
-            console.log(
-              `    ${entry.time.slice(0, 19).replace("T", " ")}  ${parts.join(" ") || "—"}`,
-            );
+            console.log(`    ${formatDateTime(entry.time)}  ${parts.join(" ") || "—"}`);
           }
         }
       }
@@ -174,10 +173,7 @@ if (cmd === "setup") {
   } else {
     console.log(`${memories.length} memories${cat ? ` (category: ${cat})` : ""}:`);
     for (const m of memories) {
-      const date = new Date(m.created_at).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
+      const date = formatTimestamp(m.created_at);
       console.log(`  ${m.id.slice(0, 8)}  ${date}  [${m.category}]  ${m.name}`);
     }
   }

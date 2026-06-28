@@ -31,7 +31,13 @@ const MODEL_MAP: Record<string, ModelDescriptor> = {
   },
 };
 
-function loadConfig(): { embedModel?: string; hfMirror?: string } | null {
+export interface MFConfig {
+  embedModel?: string;
+  hfMirror?: string;
+  timezone?: string;
+}
+
+export function loadConfig(): MFConfig | null {
   try {
     const home = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
     const configPath = pathJoin(home, ".memory-forge", "config.json");
@@ -114,7 +120,7 @@ async function getEmbedder(): Promise<EmbedFn> {
             );
           }
         }
-        return new Float32Array(result.data);
+        return result.data as unknown as Float32Array;
       };
       lastAttempt = 0;
       return embedFn;

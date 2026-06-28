@@ -9,6 +9,19 @@ import * as path from "node:path";
 
 const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
 
+/**
+ * Resolve the memory-forge command for hooks/MCP config.
+ *
+ * Always returns `npx memory-forge`. Rationale:
+ * - Absolute paths break across shells (cmd.exe vs Git Bash vs WSL)
+ * - Bare `memory-forge` requires npm global bin in PATH (not in Git Bash)
+ * - `npx` works uniformly from every shell on every platform
+ * - First download is cached; subsequent invocations are fast (~50ms)
+ */
+function resolveMemoryForgeCommand(): string {
+  return "npx memory-forge";
+}
+
 /** Tools that use the standard MCP mcp.json format. */
 const MCP_TOOLS: { name: string; dir: string }[] = [
   { name: "Claude Code", dir: path.join(HOME, ".claude") },
@@ -45,7 +58,7 @@ export function installMcpServers(): { installed: string[]; updated: string[] } 
         continue;
       }
 
-      config.mcpServers["memory-forge"] = { command: "memory-forge" };
+      config.mcpServers["memory-forge"] = { command: resolveMemoryForgeCommand() };
       fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2));
       updated.push(tool.name);
     } catch {
@@ -70,37 +83,29 @@ export function installHooks(): boolean {
 
     if (!config.hooks) config.hooks = {};
 
-    const mfCmd = "memory-forge";
+    const mfCmd = resolveMemoryForgeCommand();
 
     config.hooks.SessionStart = config.hooks.SessionStart || [];
-    if (!hasHook(config.hooks.SessionStart, "memory-forge")) {
-      config.hooks.SessionStart.push({
-        matcher: "startup",
-        hooks: [{ type: "command", command: `${mfCmd} hook session-start` }],
-      });
-    }
+    setHook(config.hooks.SessionStart, "memory-forge", {
+      matcher: "startup",
+      hooks: [{ type: "command", command: `${mfCmd} hook session-start` }],
+    });
 
     config.hooks.Stop = config.hooks.Stop || [];
-    if (!hasHook(config.hooks.Stop, "memory-forge")) {
-      config.hooks.Stop.push({
-        hooks: [{ type: "command", command: `${mfCmd} hook stop` }],
-      });
-    }
+    setHook(config.hooks.Stop, "memory-forge", {
+      hooks: [{ type: "command", command: `${mfCmd} hook stop` }],
+    });
 
     config.hooks.PostToolUse = config.hooks.PostToolUse || [];
-    if (!hasHook(config.hooks.PostToolUse, "memory-forge")) {
-      config.hooks.PostToolUse.push({
-        matcher: "",
-        hooks: [{ type: "command", command: `${mfCmd} hook post-tool-use` }],
-      });
-    }
+    setHook(config.hooks.PostToolUse, "memory-forge", {
+      matcher: "",
+      hooks: [{ type: "command", command: `${mfCmd} hook post-tool-use` }],
+    });
 
     config.hooks.PreCompact = config.hooks.PreCompact || [];
-    if (!hasHook(config.hooks.PreCompact, "memory-forge")) {
-      config.hooks.PreCompact.push({
-        hooks: [{ type: "command", command: `${mfCmd} hook pre-compact` }],
-      });
-    }
+    setHook(config.hooks.PreCompact, "memory-forge", {
+      hooks: [{ type: "command", command: `${mfCmd} hook pre-compact` }],
+    });
 
     fs.writeFileSync(CLAUDE_SETTINGS, JSON.stringify(config, null, 2));
     return true;
@@ -110,8 +115,21 @@ export function installHooks(): boolean {
   }
 }
 
+/** Check if a hook exists for this name (any command). */
 function hasHook(hooks: any[], name: string): boolean {
   return hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes(name)));
+}
+
+/**
+ * Set a hook block — replaces existing entry with same name, or appends.
+ * This ensures `setup` can update stale commands (e.g., bare `memory-forge` → resolved path).
+ */
+function setHook(hooks: any[], name: string, entry: any): void {
+  const idx = hooks.findIndex((h: any) =>
+    h.hooks?.some((inner: any) => inner.command?.includes(name)),
+  );
+  if (idx >= 0) hooks[idx] = entry;
+  else hooks.push(entry);
 }
 
 // ═══ Status ═════════════════════════════════════════════════

@@ -8,8 +8,12 @@ import { importRules, rulesToMemories } from "./migrate/import.js";
 import { preload } from "./embedding.js";
 import { saveMemory } from "./storage/local.js";
 import { execSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { getLocalTimezone } from "./lib/timezone.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export async function setup(): Promise<void> {
   console.log(`
@@ -18,13 +22,18 @@ export async function setup(): Promise<void> {
   ╚══════════════════════════╝
   `);
 
-  // 0. Install globally
-  console.log("📦 Installing memory-forge globally (background)…");
+  // 0. Install globally (npm link for dev, npm i -g for published)
+  console.log("📦 Installing memory-forge globally…");
   try {
-    execSync("npm i -g memory-forge@latest", { stdio: "pipe", timeout: 30000 });
-    console.log("   ✅ Global install complete");
+    execSync("npm link", { stdio: "pipe", timeout: 30000, cwd: join(__dirname, "..") });
+    console.log("   ✅ Global link complete");
   } catch {
-    console.log("   ⚠️  Global install skipped — hooks work with npx too");
+    try {
+      execSync("npm i -g memory-forge@latest", { stdio: "pipe", timeout: 30000 });
+      console.log("   ✅ Global install complete (from registry)");
+    } catch {
+      console.log("   ⚠️  Global install skipped — hooks work with npx too");
+    }
   }
 
   // 1. Install MCP servers for all detected tools
@@ -70,20 +79,40 @@ export async function setup(): Promise<void> {
   preload();
   console.log("   ℹ️  Model will download on first use (~23MB, one-time)");
 
-  // 4a. CJK auto-config
+  // 4a. CJK auto-config + timezone persistence
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+  const mfDir = join(home, ".memory-forge");
+  const configPath = join(mfDir, "config.json");
+  const tz = getLocalTimezone();
+
   const lang = (process.env.LANG ?? process.env.LC_ALL ?? process.env.LANGUAGE ?? "").toLowerCase();
   const isCJK = lang.startsWith("zh") || lang.startsWith("ja") || lang.startsWith("ko");
+
+  // Load existing config or start fresh
+  let config: Record<string, string> = {};
+  if (existsSync(configPath)) {
+    try {
+      config = JSON.parse(readFileSync(configPath, "utf-8"));
+    } catch {
+      /* overwrite */
+    }
+  }
+
   if (isCJK) {
-    const home = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
-    const mfDir = join(home, ".memory-forge");
-    const configPath = join(mfDir, "config.json");
-    const config = { embedModel: "e5", hfMirror: "https://hf-mirror.com" };
-    if (!existsSync(mfDir)) mkdirSync(mfDir, { recursive: true });
-    writeFileSync(configPath, JSON.stringify(config, null, 2));
+    config.embedModel = "e5";
+    config.hfMirror = "https://hf-mirror.com";
+  }
+  config.timezone = tz;
+
+  if (!existsSync(mfDir)) mkdirSync(mfDir, { recursive: true });
+  writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+  if (isCJK) {
     console.log(
       "   🌐 CJK detected — multilingual model + HF mirror configured (~118MB, auto-download on first use)",
     );
   }
+  console.log(`   🕐 Timezone: ${tz}`);
 
   // 5. Verify everything
   console.log("\n🔍 Verifying setup…");

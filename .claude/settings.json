@@ -3,8 +3,12 @@
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
-        "command": "cd ${PWD}/agentvault && npx prettier --write \"${FILE_PATH}\" 2>/dev/null; true",
-        "description": "Auto-format edited .ts files with prettier"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f package.json ]; then npx prettier --write \"${FILE_PATH}\"; else cd ${PWD}/agentvault && npx prettier --write \"${FILE_PATH}\"; fi 2>/dev/null; true"
+          }
+        ]
       }
     ]
   }

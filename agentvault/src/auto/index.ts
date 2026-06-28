@@ -8,6 +8,7 @@ import { saveMemory } from "../storage/local.js";
 import { embed } from "../embedding.js";
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { formatTimestamp } from "../lib/timezone.js";
 
 export { normalizeContent, inferCategory, suggestTags, analyzeMemory } from "./tagger.js";
 
@@ -221,12 +222,7 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   let hasHandoff = false;
   for (const m of top) {
     const time = m.last_accessed || m.created_at;
-    const dateStr = new Date(time).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const dateStr = formatTimestamp(time);
 
     let staleNote = "";
     const pathRE = /\b(?:src\/|lib\/|app\/|config\/|docs\/)[\w.\-\/]+\.[a-z]{1,6}\b/gi;
