@@ -86,10 +86,13 @@ export async function autoMerge(store: MemoryStore, newMemory: Memory): Promise<
 
       saveMemory(existing); // persist content before embed (survives embed failure)
 
-      const vec = await embed(existing.content);
-      if (vec) {
-        existing.vector = Array.from(vec);
-        saveMemory(existing); // re-save with fresh vector
+      // Only re-embed if content actually changed (avoids unnecessary model load in tests/CI)
+      if (similarity < 1.0) {
+        const vec = await embed(existing.content);
+        if (vec) {
+          existing.vector = Array.from(vec);
+          saveMemory(existing); // re-save with fresh vector
+        }
       }
 
       store.remove(existing.id);
