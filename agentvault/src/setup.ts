@@ -8,7 +8,7 @@ import { importRules, rulesToMemories } from "./migrate/import.js";
 import { preload } from "./embedding.js";
 import { saveMemory, hasLegacyMemories } from "./storage/local.js";
 import { execSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getLocalTimezone } from "./lib/timezone.js";
@@ -118,9 +118,7 @@ export async function setup(): Promise<void> {
   if (hasLegacyMemories()) {
     const legacyDir = join(mfDir, "memories");
     const count = existsSync(legacyDir)
-      ? require("node:fs")
-          .readdirSync(legacyDir)
-          .filter((f: string) => f.endsWith(".md")).length
+      ? readdirSync(legacyDir).filter((f) => f.endsWith(".md")).length
       : 0;
     console.log(`\n💡 ${count} legacy-format memories detected.`);
     console.log("   Run `memory-forge migrate` to scope them to this project.");

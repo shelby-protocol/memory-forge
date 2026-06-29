@@ -7,7 +7,7 @@ import { expandQuery } from "../search/expand.js";
 import { redactSecrets } from "../auto/index.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
-  const { store, scopedStore, projectName } = opts;
+  const { store, scopedStore } = opts;
 
   server.registerTool(
     "memory_search",

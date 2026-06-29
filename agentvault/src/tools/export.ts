@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ToolOptions } from "./types.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
-  const { store, version, hasPro, scopedStore, projectName } = opts;
+  const { store, version, hasPro, scopedStore } = opts;
 
   server.registerTool(
     "memory_export",

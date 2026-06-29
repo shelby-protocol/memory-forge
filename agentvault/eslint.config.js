@@ -8,6 +8,7 @@ export default tseslint.config(
     rules: {
       "no-console": "off",
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     },
   },
 );

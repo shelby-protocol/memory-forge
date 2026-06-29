@@ -8,7 +8,7 @@ import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
-  const { store, scopedStore, projectHash } = opts;
+  const { store, scopedStore } = opts;
 
   server.registerTool(
     "memory_update",
