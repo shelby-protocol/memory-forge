@@ -3,14 +3,13 @@ import { z } from "zod";
 import type { ToolOptions } from "./types.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
-  const { store, version, hasPro } = opts;
+  const { store, version, hasPro, scopedStore, projectName } = opts;
 
   server.registerTool(
     "memory_export",
     {
       title: "Export memories",
-      description:
-        "Export memories to portable JSON or Markdown. Free users can move between machines; Pro users can backup. Exports all if no memory_ids specified.",
+      description: "Export memories to portable JSON or Markdown. Project-scoped by default.",
       inputSchema: {
         memory_ids: z
           .array(z.string().regex(/^[^\x00-\x1f\/\\]+$/))
@@ -20,15 +19,26 @@ export function register(server: McpServer, opts: ToolOptions) {
           .enum(["json", "markdown"])
           .default("json")
           .describe("Export format: json (structured) or markdown (human-readable)."),
+        project: z
+          .enum(["current", "all"])
+          .default("current")
+          .describe("'current' project only, or 'all' projects."),
       },
     },
     async (params) => {
-      const { memory_ids, format } = params;
+      const { memory_ids, format, project } = params;
+      const exportStore = project === "current" ? scopedStore : store;
       const memories = memory_ids
         ? memory_ids
-            .map((id) => store.get(id))
+            .map((id) => exportStore.get(id))
             .filter((m): m is NonNullable<typeof m> => m !== null)
-        : [...store.list({ limit: 10000, offset: 0 })];
+        : [
+            ...exportStore.list({
+              limit: 10000,
+              offset: 0,
+              includeAllProjects: project === "all",
+            } as any),
+          ];
 
       if (memories.length === 0) {
         return {

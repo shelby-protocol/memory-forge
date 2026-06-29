@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MemoryStore } from "../src/store.js";
 import { register as registerStore } from "../src/tools/store.js";
-import { makeMemory } from "./test-helpers.js";
+import { makeMemory, makeToolOpts } from "./test-helpers.js";
 import { autoMerge } from "../src/auto/index.js";
 
 const mockVec = vi.hoisted(() => new Float32Array([0.1, 0.2, 0.3]));
@@ -40,7 +40,7 @@ function captureStore(hasPro = false) {
     }),
   } as unknown as McpServer;
 
-  registerStore(mockServer, { store, version: "0.8.2", hasPro });
+  registerStore(mockServer, makeToolOpts(store, { version: "0.8.2", hasPro }));
   return { store, handler: captured! };
 }
 
@@ -48,7 +48,7 @@ describe("memory_store tool", () => {
   it("stores a new memory with auto-generated name", async () => {
     const { store, handler } = captureStore();
     const result = await handler({
-      content: "Use camelCase for all variables",
+      content: "Use camelCase for all variables in the project to maintain consistency",
       category: "user-preference",
       tags: ["coding-style"],
       priority: 7,
@@ -64,7 +64,7 @@ describe("memory_store tool", () => {
   it("uses custom name when provided", async () => {
     const { handler } = captureStore();
     const result = await handler({
-      content: "Use camelCase",
+      content: "Use camelCase naming convention for all JavaScript variables in the entire project",
       category: "user-preference",
       tags: [],
       priority: 5,
@@ -77,7 +77,8 @@ describe("memory_store tool", () => {
   it("auto-tags and infers category when auto_tag is true", async () => {
     const { handler } = captureStore();
     const result = await handler({
-      content: "React hooks should use useCallback for memoization",
+      content:
+        "React hooks should use useCallback for memoization and useMemo for expensive calculations",
       category: "general",
       tags: [],
       priority: 5,
@@ -91,7 +92,7 @@ describe("memory_store tool", () => {
   it("skips auto-tag when auto_tag is false", async () => {
     const { handler } = captureStore();
     const result = await handler({
-      content: "Some content",
+      content: "Some content that is long enough to pass the quality floor",
       category: "general",
       tags: [],
       priority: 5,
@@ -105,7 +106,7 @@ describe("memory_store tool", () => {
   it("merges user tags with auto-suggested tags", async () => {
     const { handler } = captureStore();
     const result = await handler({
-      content: "TypeScript types",
+      content: "TypeScript types provide better code safety and documentation for all projects",
       category: "general",
       tags: ["my-tag"],
       priority: 5,
@@ -118,7 +119,7 @@ describe("memory_store tool", () => {
   it("handles minimal valid input", async () => {
     const { store, handler } = captureStore();
     const result = await handler({
-      content: "Minimal content",
+      content: "Minimal content that is long enough to pass the quality floor check",
     });
     const body = JSON.parse(result.content[0].text);
     expect(body.success).toBe(true);
@@ -132,7 +133,7 @@ describe("memory_store tool", () => {
       store.add(makeMemory({ id: `pre-${i}` }));
     }
     const result = await handler({
-      content: "Memory number 20",
+      content: "Memory number twenty that is sufficiently long to pass the quality floor check",
       category: "general",
       tags: [],
       priority: 5,
@@ -145,7 +146,7 @@ describe("memory_store tool", () => {
     vi.mocked(autoMerge).mockResolvedValueOnce({
       id: "merged-id",
       name: "Merged Memory",
-      content: "Combined content",
+      content: "Combined content that is sufficiently long to pass quality check",
       category: "user-preference",
       tags: ["merged"],
       priority: 8,
@@ -156,7 +157,7 @@ describe("memory_store tool", () => {
     });
     const { handler } = captureStore();
     const result = await handler({
-      content: "Duplicate-like content",
+      content: "Duplicate-like content that is sufficiently long to pass quality check",
       category: "user-preference",
       tags: [],
       priority: 5,

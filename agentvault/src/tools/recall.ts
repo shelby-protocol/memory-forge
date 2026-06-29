@@ -43,6 +43,8 @@ export function register(server: McpServer, opts: ToolOptions) {
               priority: memory.priority,
               created_at: memory.created_at,
               access_count: memory.access_count,
+              project: memory.project_name || null,
+              scope: memory.scope || (memory.project_id ? "project" : "global"),
             }),
           },
         ],

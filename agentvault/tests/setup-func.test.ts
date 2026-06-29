@@ -43,6 +43,7 @@ vi.mock("../src/embedding.js", () => ({
 }));
 vi.mock("../src/storage/local.js", () => ({
   saveMemory: vi.fn(),
+  hasLegacyMemories: vi.fn().mockReturnValue(false),
 }));
 vi.mock("node:child_process", () => ({
   execSync: vi.fn(),

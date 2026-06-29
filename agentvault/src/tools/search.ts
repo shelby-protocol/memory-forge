@@ -7,14 +7,14 @@ import { expandQuery } from "../search/expand.js";
 import { redactSecrets } from "../auto/index.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
-  const { store } = opts;
+  const { store, scopedStore, projectName } = opts;
 
   server.registerTool(
     "memory_search",
     {
       title: "Search memories",
       description:
-        "Hybrid search — vector (70%) + BM25 keyword (30%). Auto-falls back to keyword-only when embedding model unavailable. Query expansion adds synonyms for broader recall.",
+        "Hybrid search — vector (70%) + BM25 keyword (30%). Auto-falls back to keyword-only when embedding model unavailable. Project-scoped by default.",
       inputSchema: {
         query: z.string().max(5000).describe("Natural language search query."),
         limit: z.number().min(1).max(20).default(5),
@@ -31,10 +31,15 @@ export function register(server: McpServer, opts: ToolOptions) {
           .max(1)
           .default(0.7)
           .describe("Hybrid weight: 1 = pure vector, 0 = pure BM25. Default 0.7."),
+        project: z
+          .enum(["current", "all"])
+          .default("current")
+          .describe("'current' project only, or 'all' projects."),
       },
     },
     async (params) => {
-      const { query, limit, min_similarity, category, tags, search_method, alpha } = params;
+      const { query, limit, min_similarity, category, tags, search_method, alpha, project } =
+        params;
 
       // Query expansion: broaden keywords for better recall
       const expanded = expandQuery(query);
@@ -56,14 +61,16 @@ export function register(server: McpServer, opts: ToolOptions) {
         }
       }
 
-      const results = store.search(searchQuery, {
+      const searchStore = project === "current" ? scopedStore : store;
+      const results = searchStore.search(searchQuery, {
         limit,
         minSimilarity: min_similarity,
         category: category ?? null,
         tags: tags ?? null,
         queryVec,
         alpha: effectiveAlpha,
-      });
+        includeAllProjects: project === "all",
+      } as any);
 
       for (const r of results) {
         store.touch(r.id);
@@ -85,11 +92,18 @@ export function register(server: McpServer, opts: ToolOptions) {
                 similarity: typeof r.similarity === "number" ? Number(r.similarity.toFixed(3)) : 0,
                 _score: r._score ?? null,
                 content: redactSecrets(r.content),
+                project: r.project_name || null,
+                scope: r.scope || (r.project_id ? "project" : "global"),
                 _method:
                   r._fallback ||
                   (effectiveAlpha === 0 ? "bm25" : effectiveAlpha === 1 ? "vector" : "hybrid"),
               })),
-              hint: results.length === 0 ? "No relevant memories found." : null,
+              hint:
+                results.length === 0
+                  ? project === "current"
+                    ? "No matches in current project. Try project: 'all' to search across all projects."
+                    : "No relevant memories found."
+                  : null,
             }),
           },
         ],

@@ -15,13 +15,23 @@ import * as fs from "node:fs";
 import { MemoryStore } from "./store.js";
 import { formatTimestamp, formatDateTime } from "./lib/timezone.js";
 import { preload, modelLabel } from "./embedding.js";
-import { loadAllMemories, cleanupTombstones, deleteMemoryFile } from "./storage/local.js";
+import {
+  loadAllMemories,
+  loadGlobalMemories,
+  loadProjectMemories,
+  hasLegacyMemories,
+  cleanupTombstones,
+  deleteMemoryFile,
+} from "./storage/local.js";
 import { deleteBlob, getBlobName, getShelbyConfig } from "./storage/shelby.js";
 import { autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
 import { pro, proStatus, proAutoActivate } from "./pro.js";
 import { captureTranscript, cliCaptureTranscript } from "./transcript.js";
 import { saveMemory } from "./storage/local.js";
+import { resolveProject, getGlobalModeHint } from "./project.js";
+import { migrateLegacyMemories } from "./migrate/legacy.js";
+import { ScopedMemoryStore } from "./scoped-store.js";
 
 // Tool modules
 import { register as registerStore } from "./tools/store.js";
@@ -160,8 +170,9 @@ if (cmd === "setup") {
   }
 } else if (cmd === "list") {
   const cat = process.argv[3];
+  const project = resolveProject(process.cwd());
   const s = new MemoryStore();
-  for (const m of loadAllMemories()) s.add(m);
+  for (const m of loadAllMemories(project?.hash ?? null)) s.add(m);
   let memories = s.list({ limit: 100, offset: 0 });
   if (cat) memories = memories.filter((m) => m.category === cat);
   if (memories.length === 0) {
@@ -184,8 +195,9 @@ if (cmd === "setup") {
     console.log("Usage: memory-forge search <query>");
     process.exit(1);
   }
+  const project = resolveProject(process.cwd());
   const s = new MemoryStore();
-  for (const m of loadAllMemories()) s.add(m);
+  for (const m of loadAllMemories(project?.hash ?? null)) s.add(m);
   const results = s.search(query, { limit: 10, minSimilarity: 0 });
   if (results.length === 0) {
     console.log(`No memories matching "${query}".`);
@@ -197,9 +209,58 @@ if (cmd === "setup") {
     }
   }
   process.exit(0);
+} else if (cmd === "migrate") {
+  // Parse flags
+  const args = process.argv.slice(3);
+  const dryRun = args.includes("--dry-run");
+  let projectArg: string | undefined;
+  let hashArg: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--project" && i + 1 < args.length) projectArg = args[++i];
+    if (args[i] === "--project-hash" && i + 1 < args.length) hashArg = args[++i];
+  }
+
+  if (!hasLegacyMemories()) {
+    console.log("No legacy memories to migrate.");
+    process.exit(0);
+  }
+
+  // Resolve target project
+  const project = resolveProject(process.cwd());
+  const targetHash = hashArg ?? project?.hash;
+  const targetName = projectArg ?? project?.name ?? "unknown";
+
+  if (!targetHash) {
+    console.log(
+      "No project detected. Run from a git repo or pass --project-hash <hash> --project <name>.",
+    );
+    console.log("  memory-forge migrate --project 'my-project' --project-hash abc123def456");
+    process.exit(1);
+  }
+
+  const result = migrateLegacyMemories({
+    projectHash: targetHash,
+    projectName: targetName,
+    dryRun,
+  });
+
+  if (dryRun) console.log("[DRY RUN] No files were actually moved.\n");
+
+  console.log(`Legacy memories found: ${result.total}`);
+  console.log(`  → project (${targetName}): ${result.movedToProject}`);
+  console.log(`  → global:              ${result.movedToGlobal}`);
+  if (result.skipped) console.log(`  → skipped (existing):  ${result.skipped}`);
+  if (result.errors) console.log(`  → errors:              ${result.errors}`);
+
+  if (!dryRun && result.movedToProject + result.movedToGlobal > 0) {
+    console.log("\nMigration complete. Legacy directory is now empty.");
+  }
+
+  process.exit(0);
 } else if (cmd === "stats") {
+  const project = resolveProject(process.cwd());
   const s = new MemoryStore();
-  for (const m of loadAllMemories()) s.add(m);
+  for (const m of loadAllMemories(project?.hash ?? null)) s.add(m);
   const st = s.stats();
   console.log(
     `Total: ${st.total}  |  Accesses: ${st.total_accesses}  |  Weekly new: ${st.weekly_new}  |  Oldest: ${st.oldest ?? "—"}  |  Newest: ${st.newest ?? "—"}`,
@@ -235,19 +296,33 @@ if (cmd === "setup") {
   if (hookType === "session-start") {
     let projectSlug = "";
     let projectContextNote = "";
+    let hookProjectHash: string | null = null;
+    let hookProjectName: string | null = null;
     try {
       const stdinData = readStdinSync();
       if (stdinData) {
         const hookInput = JSON.parse(stdinData);
         if (hookInput.cwd) {
+          const hookProject = resolveProject(hookInput.cwd);
           projectSlug = basename(hookInput.cwd);
-          projectContextNote = `\nCurrent project: ${projectSlug}`;
+          if (hookProject) {
+            hookProjectHash = hookProject.hash;
+            hookProjectName = hookProject.name;
+            projectContextNote = `\nCurrent project: ${hookProjectName}`;
+          } else {
+            projectContextNote = `\nCurrent project: ${projectSlug}`;
+          }
         }
       }
     } catch {}
     const s = new MemoryStore();
-    for (const m of loadAllMemories()) s.add(m);
-    const summary = generateContextSummary(s, 5);
+    if (hookProjectHash) {
+      for (const m of loadProjectMemories(hookProjectHash)) s.add(m);
+    } else {
+      for (const m of loadAllMemories(null)) s.add(m);
+    }
+    for (const m of loadGlobalMemories()) s.add(m);
+    const summary = generateContextSummary(s, 5, hookProjectHash, hookProjectName);
     const memoryCount = s.size();
     let proNote = "";
     const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
@@ -418,13 +493,36 @@ if (cmd === "setup") {
 //  MCP Server
 // ═══════════════════════════════════════════════════════════════
 function startMcpServer() {
+  // Resolve project identity
+  const project = resolveProject();
+  const projectHash = project?.hash ?? null;
+  const projectName = project?.name ?? null;
+
   const store = new MemoryStore();
-  for (const m of loadAllMemories()) store.add(m);
+
+  // Load memories: project-specific + global + legacy
+  if (projectHash) {
+    for (const m of loadProjectMemories(projectHash)) store.add(m);
+  } else {
+    for (const m of loadAllMemories(null)) store.add(m);
+  }
+  for (const m of loadGlobalMemories()) store.add(m);
+
   preload();
+
+  // Create scoped store for automatic project filtering
+  const scopedStore = new ScopedMemoryStore(store, projectHash, projectName);
 
   const server = new McpServer({ name: "memory-forge", version: pkg.version });
   const hasPro = !!(process.env.SHELBY_API_KEY || getShelbyConfig().apiKey);
-  const toolOpts = { store, version: pkg.version, hasPro };
+  const toolOpts = {
+    store,
+    version: pkg.version,
+    hasPro,
+    projectHash,
+    projectName,
+    scopedStore,
+  };
 
   registerStore(server, toolOpts);
   registerSearch(server, toolOpts);
@@ -438,23 +536,47 @@ function startMcpServer() {
   registerModelInfo(server, toolOpts);
 
   async function main() {
-    if (hasPro) {
-      try {
-        await proAutoActivate();
-        for (const m of loadAllMemories()) store.add(m);
-      } catch (err) {
-        console.error(
-          "[MemoryForge] Pro sync failed (server still available):",
-          (err as Error).message,
-        );
-      }
-    }
+    // Connect transport FIRST so MCP tools are available immediately.
+    // Pro sync runs in background afterward to avoid blocking tool registration.
     const transport = new StdioServerTransport();
     await server.connect(transport);
+
+    if (hasPro) {
+      proAutoActivate()
+        .then(() => {
+          // Reload after sync to pick up any new cloud memories
+          for (const m of loadAllMemories(projectHash)) store.add(m);
+          console.error("[MemoryForge] Pro sync complete — cross-device sync active");
+        })
+        .catch((err) => {
+          console.error(
+            "[MemoryForge] Pro sync failed (server still available):",
+            (err as Error).message,
+          );
+        });
+    }
+
+    const projLabel = projectName ? ` (${projectName})` : "";
+    const projNote = projectHash
+      ? ` | project: ${projectName ?? projectHash.slice(0, 8)}`
+      : " | global-only mode";
     console.error(
-      `[MemoryForge] MCP Server started — ${store.size()} memories loaded` +
-        (hasPro ? " (Pro: cross-device sync)" : " (Free: local storage)"),
+      `[MemoryForge] MCP Server started — ${store.size()} memories loaded${projLabel}` +
+        (hasPro ? " (Pro: cross-device sync)" : " (Free: local storage)") +
+        projNote,
     );
+
+    if (!projectHash) {
+      console.error(getGlobalModeHint());
+    }
+
+    if (hasLegacyMemories()) {
+      console.error(
+        "[MemoryForge] 📋 Legacy-format memories detected. They work as global memories.",
+      );
+      console.error("[MemoryForge]    Run `memory-forge migrate` to assign them to projects.");
+    }
+
     console.error(
       "[MemoryForge] 10 tools: store / search / recall / list / forget / context / export / share / update / model_info",
     );

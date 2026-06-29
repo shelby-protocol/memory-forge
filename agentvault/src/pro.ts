@@ -204,8 +204,10 @@ export async function pro(): Promise<void> {
 let lastSyncAll = 0;
 const SYNC_COOLDOWN_MS = 30_000; // avoid double-sync from PreCompact + Stop hooks firing back-to-back
 
-/** Sync: download from Shelby, merge with local */
-export async function syncAll(): Promise<void> {
+/** Sync: download from Shelby, merge with local.
+ *  When projectHash is provided, only sync that project + global.
+ *  When null, sync all projects (full sync). */
+export async function syncAll(projectHash?: string | null): Promise<void> {
   if (Date.now() - lastSyncAll < SYNC_COOLDOWN_MS) return;
   lastSyncAll = Date.now();
 

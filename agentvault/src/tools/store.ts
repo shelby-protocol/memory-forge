@@ -9,14 +9,14 @@ import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
-  const { store, hasPro } = opts;
+  const { store, hasPro, projectHash, projectName, scopedStore } = opts;
 
   server.registerTool(
     "memory_store",
     {
       title: "Store memory",
       description:
-        "Store a context, knowledge, or preference into persistent memory. Auto-embeds for semantic retrieval.",
+        "Store a context, knowledge, or preference into persistent memory. Auto-embeds for semantic retrieval. Project-scoped by default.",
       inputSchema: {
         content: z
           .string()
@@ -37,6 +37,13 @@ export function register(server: McpServer, opts: ToolOptions) {
           .max(120)
           .optional()
           .describe("Custom name (optional — auto-generated from content if not provided)."),
+        project: z
+          .string()
+          .max(120)
+          .optional()
+          .describe(
+            "Project name. Auto-detected from current workspace if omitted. Use 'global' for cross-project memories.",
+          ),
         branch: z
           .string()
           .max(120)
@@ -52,9 +59,36 @@ export function register(server: McpServer, opts: ToolOptions) {
       },
     },
     async (params) => {
-      const { content, category, tags, priority, name: customName, auto_tag } = params;
+      const { content, category, tags, priority, name: customName, project, auto_tag } = params;
       const vec = await embed(content);
       const name = customName || autoName(content);
+
+      // Quality floor: reject too-short memories (latentcontext-mcp pattern).
+      // Count both whitespace-delimited words AND individual CJK characters,
+      // since Chinese/Japanese/Korean text doesn't use spaces between words.
+      const cjkChars = (content.match(/[一-鿿㐀-䶿豈-﫿぀-ゟ゠-ヿ가-힯]/g) || []).length;
+      const nonCjkWords = content
+        .replace(/[一-鿿㐀-䶿豈-﫿぀-ゟ゠-ヿ가-힯]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length > 0).length;
+      const wordCount = cjkChars + nonCjkWords;
+      if (wordCount < 10) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                error: "Content too short",
+                message: `Memory content must be at least 10 words (got ${wordCount}).`,
+              }),
+            },
+          ],
+        };
+      }
+
+      // Resolve project: Agent-provided > server-detected
+      const effectiveProject = project === "global" ? null : project || projectName;
+      const effectiveProjectHash = effectiveProject ? projectHash : null;
 
       // Auto-tag: suggest tags and category when user hasn't explicitly set them
       let effectiveCategory = category;
@@ -85,6 +119,9 @@ export function register(server: McpServer, opts: ToolOptions) {
         created_at: new Date().toISOString(),
         access_count: 0,
         last_accessed: null as string | null,
+        project_id: effectiveProjectHash || undefined,
+        project_name: effectiveProject || undefined,
+        scope: effectiveProjectHash ? ("project" as const) : ("global" as const),
       };
 
       const merged = await autoMerge(store, memory);
@@ -102,6 +139,7 @@ export function register(server: McpServer, opts: ToolOptions) {
                 merged: true,
                 memory_id: merged.id,
                 name: merged.name,
+                project: merged.project_name || "global",
                 preview: safeTruncate(content, 200),
               }),
             },
@@ -110,7 +148,7 @@ export function register(server: McpServer, opts: ToolOptions) {
       }
 
       saveMemory(memory);
-      store.add(memory);
+      scopedStore.add(memory);
 
       if (hasPro)
         uploadMemory(memory).catch((err) =>
@@ -131,6 +169,8 @@ export function register(server: McpServer, opts: ToolOptions) {
               memory_id: memory.id,
               name: memory.name,
               preview: safeTruncate(content, 200),
+              project: memory.project_name || "global",
+              scope: memory.scope,
               inferred_category: effectiveCategory !== category ? effectiveCategory : undefined,
               suggested_tags: suggested_tags.length > 0 ? suggested_tags : undefined,
               ...(hint ? { hint } : {}),

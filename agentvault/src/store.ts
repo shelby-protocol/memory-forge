@@ -19,6 +19,18 @@ export interface Memory {
   branch?: string;
   /** IDs of related memories (e.g., \"depends on\", \"follows from\"). */
   related_to?: string[];
+  /** Project hash (SHA-256 of canonical project identity). null = global memory. */
+  project_id?: string;
+  /** Human-readable project name for cross-project search display. */
+  project_name?: string;
+  /** Memory scope: "project" or "global". Team/enterprise may extend with "shared" | "team". */
+  scope?: "project" | "global";
+  /** Reserved: user ID for team/enterprise multi-tenant isolation (v2.0). */
+  user_id?: string;
+  /** Reserved: team ID for enterprise team scoping (v3.0). */
+  team_id?: string;
+  /** Reserved: organization ID for enterprise org-level governance (v3.0). */
+  org_id?: string;
   similarity?: number;
   _score?: number;
   _fallback?: string;
@@ -32,6 +44,8 @@ interface SearchOptions {
   queryVec?: Float32Array;
   /** Hybrid search: alpha controls vector vs BM25 weight. 1 = pure vector, 0 = pure BM25. Default 0.7. */
   alpha?: number;
+  /** If set, only search memories matching this project (or global). null = all projects. */
+  projectHash?: string | null;
 }
 
 export class MemoryStore {
@@ -90,9 +104,13 @@ export class MemoryStore {
     tags?: string[] | null;
     limit: number;
     offset: number;
+    projectHash?: string | null;
   }): Memory[] {
     let results = [...this.memories.values()];
 
+    if (opts.projectHash) {
+      results = results.filter((m) => m.project_id === opts.projectHash || m.project_id == null);
+    }
     if (opts.category) {
       results = results.filter((m) => m.category === opts.category);
     }
@@ -127,10 +145,13 @@ export class MemoryStore {
   /** 混合搜索: alpha × cosine + (1-alpha) × BM25。
    *  alpha=1 → pure vector, alpha=0 → pure BM25. Default 0.7. */
   private hybridSearch(rawQuery: string, queryVec: Float32Array, options: SearchOptions): Memory[] {
-    const { limit, category, tags } = options;
+    const { limit, category, tags, projectHash } = options;
     const alpha = options.alpha ?? 0.7;
     let candidates = [...this.memories.values()];
 
+    if (projectHash) {
+      candidates = candidates.filter((m) => m.project_id === projectHash || m.project_id == null);
+    }
     if (category) candidates = candidates.filter((m) => m.category === category);
     if (tags?.length) candidates = candidates.filter((m) => tags.some((t) => m.tags.includes(t)));
 
@@ -183,9 +204,12 @@ export class MemoryStore {
 
   /** 余弦相似度检索 */
   private vectorSearch(queryVec: Float32Array, options: SearchOptions): Memory[] {
-    const { limit, category, tags, minSimilarity } = options;
+    const { limit, category, tags, minSimilarity, projectHash } = options;
     let candidates = [...this.memories.values()];
 
+    if (projectHash) {
+      candidates = candidates.filter((m) => m.project_id === projectHash || m.project_id == null);
+    }
     if (category) candidates = candidates.filter((m) => m.category === category);
     if (tags?.length) candidates = candidates.filter((m) => tags.some((t) => m.tags.includes(t)));
 
@@ -209,7 +233,12 @@ export class MemoryStore {
    *  >3 char tokens: word-boundary primary + substring fallback (postgres → PostgreSQL). */
   keywordSearch(
     query: string,
-    options: { limit: number; category?: string | null; tags?: string[] | null },
+    options: {
+      limit: number;
+      category?: string | null;
+      tags?: string[] | null;
+      projectHash?: string | null;
+    },
   ): Memory[] {
     const rawTokens = query
       .toLowerCase()
@@ -218,6 +247,11 @@ export class MemoryStore {
     if (rawTokens.length === 0) return [];
     let candidates = [...this.memories.values()];
 
+    if (options.projectHash) {
+      candidates = candidates.filter(
+        (m) => m.project_id === options.projectHash || m.project_id == null,
+      );
+    }
     if (options.category) {
       candidates = candidates.filter((m) => m.category === options.category);
     }

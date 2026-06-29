@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MemoryStore } from "../src/store.js";
 import { register as registerUpdate } from "../src/tools/update.js";
-import { makeMemory } from "./test-helpers.js";
+import { makeMemory, makeToolOpts } from "./test-helpers.js";
 
 const mockVec = vi.hoisted(() => new Float32Array([0.1, 0.2, 0.3]));
 
@@ -33,7 +33,7 @@ function captureUpdate() {
     }),
   } as unknown as McpServer;
 
-  registerUpdate(mockServer, { store, version: "0.8.2", hasPro: false });
+  registerUpdate(mockServer, makeToolOpts(store, { version: "0.8.2" }));
   return { store, handler: captured! };
 }
 

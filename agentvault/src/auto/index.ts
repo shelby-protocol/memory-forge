@@ -132,8 +132,14 @@ export function autoDecay(memory: Memory): number {
 
 /** Generate context summary for agent injection.
  *  Recency-first sort, category decay as tiebreaker, priority=10 evergreen protection.
- *  session-handoff memories are force-included at the very top. */
-export function generateContextSummary(store: MemoryStore, limit: number = 5): string {
+ *  session-handoff memories are force-included at the very top.
+ *  When projectHash is set, filters to current project + global only. */
+export function generateContextSummary(
+  store: MemoryStore,
+  limit: number = 5,
+  projectHash?: string | null,
+  projectName?: string | null,
+): string {
   // Category half-life (days). session-transcript excluded, session-handoff force-included.
   const CATEGORY_HALFLIFE: Record<string, number> = {
     "session-handoff": Infinity, // always force-included, top position
@@ -148,12 +154,19 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   const now = Date.now();
 
   // Widen pool (3× limit) so recency reordering has room
-  const pool = store.list({ limit: Math.max(limit * 3, 50), offset: 0 });
+  const pool = store.list({
+    limit: Math.max(limit * 3, 50),
+    offset: 0,
+    projectHash: projectHash || undefined,
+  });
 
-  // Filter out excluded categories
+  // Filter out excluded categories and non-current-project memories
   const eligible = pool.filter((m) => {
     const hl = CATEGORY_HALFLIFE[m.category];
-    return hl === undefined || hl > 0;
+    if (hl !== undefined && hl === 0) return false; // excluded category
+    // Exclude memories from other projects
+    if (projectHash && m.project_id && m.project_id !== projectHash) return false;
+    return true;
   });
 
   // Split: handoff (always first, most recent only) → evergreen (priority=10) → normal
@@ -211,8 +224,9 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
   }
 
   if (top.length === 0) {
+    const projNote = projectName ? ` for ${projectName}` : "";
     return (
-      "[MemoryForge] 👋 Welcome! No memories yet.\n\n" +
+      `[MemoryForge] 👋 Welcome${projNote}! No memories yet.\n\n` +
       "Store your first memory with memory_store to build context across sessions.\n" +
       "Tips:\n" +
       "  • Save project decisions as 'decision-log'\n" +
@@ -221,7 +235,8 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
     );
   }
 
-  const lines: string[] = ["[MemoryForge] 📋 Recent context from previous sessions:"];
+  const projLabel = projectName ? ` (${projectName})` : "";
+  const lines: string[] = [`[MemoryForge] 📋 Recent context from previous sessions${projLabel}:`];
   let hasHandoff = false;
   for (const m of top) {
     const time = m.last_accessed || m.created_at;
@@ -246,8 +261,9 @@ export function generateContextSummary(store: MemoryStore, limit: number = 5): s
       lines.push("", `## 📋 Last session (${dateStr})`, body, "---", "", "Other recent memories:");
     } else {
       const btag = m.branch ? " [" + m.branch + "]" : "";
+      const gtag = !m.project_id ? " (全局)" : "";
       const preview = smartPreview(redactSecrets(m.content) + staleNote, 300);
-      lines.push(`- [${m.name}] ${dateStr} | ${m.category}${btag}\n  ${preview}`);
+      lines.push(`- [${m.name}] ${dateStr} | ${m.category}${btag}${gtag}\n  ${preview}`);
     }
   }
 

@@ -5,7 +5,7 @@ import { deleteMemoryFile } from "../storage/local.js";
 import { deleteBlob, getBlobName } from "../storage/shelby.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
-  const { store } = opts;
+  const { store, projectHash } = opts;
 
   server.registerTool(
     "memory_forget",
@@ -21,11 +21,13 @@ export function register(server: McpServer, opts: ToolOptions) {
     },
     async (params) => {
       const { memory_id } = params;
+      const memory = store.get(memory_id);
       const existed = store.remove(memory_id);
       if (existed) {
         deleteMemoryFile(memory_id);
+        const memProjectHash = memory?.project_id || projectHash;
         if (process.env.SHELBY_API_KEY || opts.hasPro) {
-          deleteBlob(getBlobName(memory_id)).catch((err) =>
+          deleteBlob(getBlobName(memory_id, memProjectHash)).catch((err) =>
             console.error("[MemoryForge] Cloud tombstone failed:", (err as Error).message),
           );
         }

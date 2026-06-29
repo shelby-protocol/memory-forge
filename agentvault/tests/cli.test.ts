@@ -3,6 +3,12 @@ import { describe, it, expect, vi, afterAll } from "vitest";
 // Keep original exit
 const origExit = process.exit;
 
+// Mock project detection for CLI tests (no real git in test env)
+vi.mock("../src/project.js", () => ({
+  resolveProject: vi.fn().mockReturnValue(null),
+  getGlobalModeHint: vi.fn().mockReturnValue(""),
+}));
+
 // Mock process.exit to record code without throwing
 function mockExit() {
   process.exit = vi.fn((code?: number) => {
@@ -28,6 +34,9 @@ vi.mock("node:fs", async () => {
 vi.mock("../src/embedding.js", () => ({ preload: vi.fn() }));
 vi.mock("../src/storage/local.js", () => ({
   loadAllMemories: vi.fn().mockReturnValue([]),
+  loadGlobalMemories: vi.fn().mockReturnValue([]),
+  loadProjectMemories: vi.fn().mockReturnValue([]),
+  hasLegacyMemories: vi.fn().mockReturnValue(false),
   cleanupTombstones: vi.fn(),
   deleteMemoryFile: vi.fn(),
   saveMemory: vi.fn(),

@@ -131,11 +131,19 @@ export function getShelbyAccount(): Account | null {
   return account;
 }
 
-/** Build namespaced blob name: users/{namespace}/memories/{id}-{timestamp}.json
+/** Build namespaced blob name.
+ *
+ *  项目记忆: users/{namespace}/projects/{hash}/memories/{id}-{ts}.json
+ *  全局记忆: users/{namespace}/global/memories/{id}-{ts}.json
+ *  旧格式:   users/{namespace}/memories/{id}-{ts}.json (向后兼容)
+ *
  *  Timestamp enables versioning — Shelby blobs are immutable, so updates create new blobs. */
-function blobNameFor(memoryId: string): string {
+function blobNameFor(memoryId: string, projectHash?: string | null): string {
   const cfg = getShelbyConfig();
-  return `${cfg.namespace}/memories/${memoryId}-${Date.now()}.json`;
+  if (projectHash) {
+    return `${cfg.namespace}/projects/${projectHash}/memories/${memoryId}-${Date.now()}.json`;
+  }
+  return `${cfg.namespace}/global/memories/${memoryId}-${Date.now()}.json`;
 }
 
 // ShelbyUSD fungible asset address on Shelbynet testnet
@@ -278,17 +286,25 @@ export async function downloadMemory(blobName: string): Promise<Memory | null> {
   }
 }
 
-/** 列出 Shelby 上的所有记忆 */
-export async function listBlobs(): Promise<string[]> {
+/** 列出 Shelby 上的所有记忆（可选按项目过滤） */
+export async function listBlobs(projectHash?: string | null): Promise<string[]> {
   if (!client || !account) return [];
 
   try {
     const metadata = await client.coordination.getAccountBlobs({
       account: account.accountAddress,
     });
+    const prefix = projectHash ? `/projects/${projectHash}/memories/` : "/memories/";
+    const globalPrefix = "/global/memories/";
+
     return metadata
       .map((m) => m.name)
-      .filter((n) => n.includes("/memories/"))
+      .filter((n) => {
+        if (n.includes(".deleted")) return true; // tombstones always included
+        return (
+          n.includes(prefix) || n.includes(globalPrefix) || n.match(/\/memories\/[^/]+\.json$/)
+        );
+      })
       .map((n) => n.replace(/^@[^/]+\//, "")); // strip @address/ prefix for download
   } catch (err) {
     console.error(
@@ -318,8 +334,8 @@ export async function deleteBlob(blobName: string): Promise<void> {
 }
 
 /** 将本地记忆导出为 blob 名称（含命名空间） */
-export function getBlobName(memoryId: string): string {
-  return blobNameFor(memoryId);
+export function getBlobName(memoryId: string, projectHash?: string | null): string {
+  return blobNameFor(memoryId, projectHash);
 }
 
 /** 从 blob 名称解析 memory_id（兼容新旧格式 + 版本时间戳 + .deleted 后缀） */

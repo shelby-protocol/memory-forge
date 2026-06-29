@@ -1,4 +1,6 @@
 import { MemoryStore, type Memory } from "../src/store.js";
+import { ScopedMemoryStore } from "../src/scoped-store.js";
+import type { ToolOptions } from "../src/tools/types.js";
 
 export function makeMemory(overrides: Partial<Memory> = {}): Memory {
   return {
@@ -35,4 +37,27 @@ export function makeStore(
     );
   }
   return s;
+}
+
+/** Create ToolOptions with project isolation fields for tests */
+export function makeToolOpts(
+  store: MemoryStore,
+  overrides: Partial<{
+    version: string;
+    hasPro: boolean;
+    projectHash: string | null;
+    projectName: string | null;
+  }> = {},
+): ToolOptions {
+  const projectHash = overrides.projectHash ?? null;
+  const projectName = overrides.projectName ?? null;
+  const scopedStore = new ScopedMemoryStore(store, projectHash, projectName);
+  return {
+    store,
+    scopedStore,
+    version: overrides.version ?? "0.0.0-test",
+    hasPro: overrides.hasPro ?? false,
+    projectHash,
+    projectName,
+  };
 }

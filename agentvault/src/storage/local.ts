@@ -1,5 +1,12 @@
 /**
- * 本地 Markdown 存储: ~/.memory-forge/memories/{id}.md
+ * 本地 Markdown 存储。
+ *
+ * 新格式:
+ *   ~/.memory-forge/projects/{project_hash}/memories/{id}.md
+ *   ~/.memory-forge/global/memories/{id}.md
+ *
+ * 旧格式 (向后兼容):
+ *   ~/.memory-forge/memories/{id}.md
  */
 
 import * as fs from "node:fs";
@@ -9,10 +16,18 @@ import { randomUUID } from "node:crypto";
 import type { Memory } from "../store.js";
 
 const HOMEDIR = os.homedir();
-const BASEDIR = path.join(
-  process.env.MEMORYFORGE_HOME ?? path.join(HOMEDIR, ".memory-forge"),
-  "memories",
-);
+const MEMORYFORGE_ROOT = process.env.MEMORYFORGE_HOME ?? path.join(HOMEDIR, ".memory-forge");
+
+/** 旧格式目录（向后兼容） */
+export const LEGACY_BASEDIR = path.join(MEMORYFORGE_ROOT, "memories");
+
+/** 项目记忆目录: ~/.memory-forge/projects/{hash}/memories/ */
+export function projectBasedir(projectHash: string): string {
+  return path.join(MEMORYFORGE_ROOT, "projects", projectHash, "memories");
+}
+
+/** 全局记忆目录: ~/.memory-forge/global/memories/ */
+export const GLOBAL_BASEDIR = path.join(MEMORYFORGE_ROOT, "global", "memories");
 
 /** Atomic write: write to temp file, sync, rename (rename is atomic on all major FS). */
 function atomicWriteSync(filepath: string, content: string): void {
@@ -23,15 +38,19 @@ function atomicWriteSync(filepath: string, content: string): void {
   fs.renameSync(tmpPath, filepath);
 }
 
-function ensureDir(): void {
-  if (!fs.existsSync(BASEDIR)) {
-    fs.mkdirSync(BASEDIR, { recursive: true });
-  }
+/** Detect if legacy format memories exist (flat dir, no project layout). */
+export function hasLegacyMemories(): boolean {
+  return (
+    fs.existsSync(LEGACY_BASEDIR) && fs.readdirSync(LEGACY_BASEDIR).some((f) => f.endsWith(".md"))
+  );
 }
 
-export function saveMemory(memory: Memory): void {
-  ensureDir();
+/** Build markdown content for a memory file */
+function serializeMemory(memory: Memory): string {
   const vectorStr = memory.vector?.length ? `> vector: ${JSON.stringify(memory.vector)}` : null;
+  const projectLine = memory.project_id ? `> project_id: ${memory.project_id}` : null;
+  const projectNameLine = memory.project_name ? `> project_name: ${memory.project_name}` : null;
+  const scopeLine = memory.scope ? `> scope: ${memory.scope}` : null;
   const lines = [
     `# ${memory.name}`,
     `> category: ${memory.category}`,
@@ -40,23 +59,88 @@ export function saveMemory(memory: Memory): void {
     `> created: ${memory.created_at}`,
     `> access_count: ${memory.access_count}`,
     `> last_accessed: ${memory.last_accessed ?? ""}`,
+    ...(projectLine ? [projectLine] : []),
+    ...(projectNameLine ? [projectNameLine] : []),
+    ...(scopeLine ? [scopeLine] : []),
     ...(vectorStr ? [vectorStr] : []),
     ``,
     memory.content,
   ];
-  atomicWriteSync(path.join(BASEDIR, `${memory.id}.md`), lines.join("\n"));
+  return lines.join("\n");
 }
 
-export function loadAllMemories(): Memory[] {
-  if (!fs.existsSync(BASEDIR)) return [];
+/**
+ * Save a memory to the correct directory based on project_id.
+ * project_id set → projects/{hash}/memories/
+ * project_id null → global/memories/
+ * no project_id at all → legacy memeries/ (old format, backward compat)
+ */
+export function saveMemory(memory: Memory): void {
+  const content = serializeMemory(memory);
+  let targetDir: string;
+
+  if (memory.project_id) {
+    targetDir = projectBasedir(memory.project_id);
+  } else {
+    targetDir = GLOBAL_BASEDIR;
+  }
+
+  atomicWriteSync(path.join(targetDir, `${memory.id}.md`), content);
+}
+
+/** Load all memories from a single directory */
+function loadFromDir(dir: string): Memory[] {
+  if (!fs.existsSync(dir)) return [];
   return fs
-    .readdirSync(BASEDIR)
+    .readdirSync(dir)
     .filter((f) => f.endsWith(".md"))
-    .map((f) => parseMemoryFile(path.join(BASEDIR, f)))
+    .map((f) => parseMemoryFile(path.join(dir, f)))
     .filter((m): m is Memory => m !== null);
 }
 
-function parseMemoryFile(filepath: string): Memory | null {
+/**
+ * Load memories: project-specific + global.
+ * Also checks legacy dir for old-format memories.
+ */
+export function loadAllMemories(projectHash?: string | null): Memory[] {
+  const results: Memory[] = [];
+
+  // 1. Load global memories (always included)
+  results.push(...loadFromDir(GLOBAL_BASEDIR));
+
+  // 2. Load project-specific memories
+  if (projectHash) {
+    results.push(...loadFromDir(projectBasedir(projectHash)));
+  } else {
+    // Load all project dirs
+    const projectsRoot = path.join(MEMORYFORGE_ROOT, "projects");
+    if (fs.existsSync(projectsRoot)) {
+      for (const dir of fs.readdirSync(projectsRoot)) {
+        const memoriesDir = path.join(projectsRoot, dir, "memories");
+        results.push(...loadFromDir(memoriesDir));
+      }
+    }
+  }
+
+  // 3. Legacy: load old-format memories (no project_id)
+  if (fs.existsSync(LEGACY_BASEDIR)) {
+    results.push(...loadFromDir(LEGACY_BASEDIR));
+  }
+
+  return results;
+}
+
+/** Load only global memories */
+export function loadGlobalMemories(): Memory[] {
+  return loadFromDir(GLOBAL_BASEDIR);
+}
+
+/** Load only memories for a specific project */
+export function loadProjectMemories(projectHash: string): Memory[] {
+  return loadFromDir(projectBasedir(projectHash));
+}
+
+export function parseMemoryFile(filepath: string): Memory | null {
   try {
     const content = fs.readFileSync(filepath, "utf-8");
     const id = path.basename(filepath, ".md");
@@ -71,6 +155,9 @@ function parseMemoryFile(filepath: string): Memory | null {
     let accessCount = 0;
     let lastAccessed: string | null = null;
     let vector: number[] = [];
+    let projectId: string | undefined;
+    let projectName: string | undefined;
+    let scope: "project" | "global" | undefined;
     let bodyStart = 0;
 
     for (let i = 0; i < lines.length; i++) {
@@ -81,6 +168,19 @@ function parseMemoryFile(filepath: string): Memory | null {
       }
       if (line.startsWith("> category:")) {
         category = line.slice(12).trim();
+        continue;
+      }
+      if (line.startsWith("> project_id:")) {
+        projectId = line.slice(14).trim() || undefined;
+        continue;
+      }
+      if (line.startsWith("> project_name:")) {
+        projectName = line.slice(16).trim() || undefined;
+        continue;
+      }
+      if (line.startsWith("> scope:")) {
+        const rawScope = line.slice(8).trim();
+        if (rawScope === "project" || rawScope === "global") scope = rawScope;
         continue;
       }
       if (line.startsWith("> tags:")) {
@@ -143,6 +243,9 @@ function parseMemoryFile(filepath: string): Memory | null {
       created_at: created,
       access_count: accessCount,
       last_accessed: lastAccessed,
+      project_id: projectId,
+      project_name: projectName,
+      scope,
     };
   } catch {
     return null;
@@ -150,10 +253,22 @@ function parseMemoryFile(filepath: string): Memory | null {
 }
 
 export function deleteMemoryFile(id: string): void {
-  const filepath = path.join(BASEDIR, `${id}.md`);
-  if (fs.existsSync(filepath)) {
-    fs.unlinkSync(filepath);
-    addTombstone(id);
+  // Try legacy dir, global dir, and all project dirs
+  const candidates: string[] = [];
+  if (fs.existsSync(LEGACY_BASEDIR)) candidates.push(path.join(LEGACY_BASEDIR, `${id}.md`));
+  if (fs.existsSync(GLOBAL_BASEDIR)) candidates.push(path.join(GLOBAL_BASEDIR, `${id}.md`));
+  const projectsRoot = path.join(MEMORYFORGE_ROOT, "projects");
+  if (fs.existsSync(projectsRoot)) {
+    for (const dir of fs.readdirSync(projectsRoot)) {
+      candidates.push(path.join(projectsRoot, dir, "memories", `${id}.md`));
+    }
+  }
+  for (const filepath of candidates) {
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+      addTombstone(id);
+      return;
+    }
   }
 }
 
@@ -175,7 +290,7 @@ function addTombstone(id: string): void {
   // Dedup: skip if already tombstoned
   if (tombstones.some((t) => t.id === id)) return;
   tombstones.push({ id, deleted_at: new Date().toISOString() });
-  ensureDir();
+  if (!fs.existsSync(MEMORYFORGE_ROOT)) fs.mkdirSync(MEMORYFORGE_ROOT, { recursive: true });
   try {
     fs.writeFileSync(TOMBSTONE_PATH, JSON.stringify(tombstones, null, 2));
   } catch {

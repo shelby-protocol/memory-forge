@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.12.0 (2026-06-29)
+
+### Features
+- **Project isolation**: physical directory separation (`projects/{hash}/memories/` + `global/memories/`) for hard per-project memory isolation
+- **Agent-driven project detection**: `project` parameter on `memory_store`/`memory_search`/`memory_list`/`memory_export`/`memory_context` — Agent declares the project, server auto-detects as fallback
+- **11-layer fallback chain**: Claude Code (`CLAUDE_PROJECT_DIR`), Codex (`CODEX_WORKSPACE_ROOT`), Cursor (`WORKSPACE_FOLDER_PATHS`), Windsurf (`PWD`), VS Code (`VSCODE_CWD`), git remote, git root, cwd, `.project-id` marker file, plus user overrides (`MF_PROJECT`/`MF_PROJECT_HASH`)
+- **ScopedMemoryStore**: decorator pattern wrapping `MemoryStore` with automatic project scope injection — all operations default to current project + global fallback
+- **Mem0-style dual retrieval**: `memory_search` searches current project → falls back to global memories → hints about other-project matches
+- **Quality floor**: `memory_store` rejects content shorter than 10 words (prevents low-signal noise)
+- **`hasLegacyMemories()`**: auto-detects old flat-directory memories and prints migration hint
+- **Global memories**: cross-project preferences survive project isolation, injected when project-specific memories are insufficient
+
+### Changed
+- **Memory interface**: added `project_id`, `project_name`, `scope`, `user_id` (reserved), `team_id` (reserved), `org_id` (reserved) fields
+- **`generateContextSummary`**: accepts `projectHash`/`projectName` params; filters context to current project only
+- **Shelby cloud storage**: blob namespace now `projects/{hash}/memories/` and `global/memories/` (old paths continue to work)
+- **`syncAll`**: accepts optional `projectHash` for scoped sync
+- **Tools**: `memory_store`, `memory_search`, `memory_list`, `memory_context`, `memory_export` accept `project` param (default: `"current"`)
+- **Results**: all tool responses now include `project` and `scope` fields
+
+### Added
+- `src/project.ts` — project identity engine with `normalizeGitUrl`, `resolveProject`, `getGlobalModeHint`
+- `src/scoped-store.ts` — `ScopedMemoryStore` decorator
+- `tests/project.test.ts` — 12 tests for URL normalization + project detection
+- `tests/scoped-store.test.ts` — 8 tests for scope filtering + delegation
+- `makeToolOpts()` test helper for project-aware tool options
+
+### Backward Compatible
+- Old memories (no `project_id`) remain in legacy `~/.memory-forge/memories/` directory, treated as global
+- All new MCP tool parameters are `.optional()` — existing calls continue to work
+- `project` parameter auto-detected when not provided by the Agent
+
+---
+
 ## v0.8.0 (2026-06-27)
 
 ### Features

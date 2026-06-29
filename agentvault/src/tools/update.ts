@@ -8,7 +8,7 @@ import { saveMemory } from "../storage/local.js";
 import { uploadMemory } from "../storage/shelby.js";
 
 export function register(server: McpServer, opts: ToolOptions) {
-  const { store } = opts;
+  const { store, scopedStore, projectHash } = opts;
 
   server.registerTool(
     "memory_update",
@@ -131,7 +131,7 @@ export function register(server: McpServer, opts: ToolOptions) {
       memory.last_accessed = new Date().toISOString();
 
       saveMemory(memory);
-      store.add(memory);
+      scopedStore.add(memory);
 
       if (process.env.SHELBY_API_KEY)
         uploadMemory(memory).catch((err) =>
