@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.13.6 (2026-06-30)
+
+### Fixes — Stop Hook Visibility
+- **Stop hook output**: Messages now use `console.log` with `systemMessage` JSON field instead of `console.error`, making them visible to the user on exit (stderr was captured for debug logs only)
+
 ## v0.13.5 (2026-06-30)
 
 ### Fixes — Stop Hook Output Noise

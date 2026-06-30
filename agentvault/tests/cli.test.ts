@@ -175,7 +175,8 @@ describe("CLI — hooks (async)", () => {
 
   it("stop hook runs maintenance", async () => {
     const logs: string[] = [];
-    vi.spyOn(console, "error").mockImplementation((s: string) => logs.push(s));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation((s: string) => logs.push(s));
     await run(["hook", "stop"]);
     expect(logs.some((l) => l.includes("memories maintained"))).toBe(true);
   });

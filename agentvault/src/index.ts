@@ -419,13 +419,14 @@ if (cmd === "setup") {
         }
       }
     }
-    console.error(
+    const lines: string[] = [];
+    lines.push(
       `[MemoryForge] ${all.length} memories maintained, ${updated} saved, ${archived} archived`,
     );
     try {
-      console.error(`[MemoryForge] ${captureTranscript(true)}`);
+      lines.push(`[MemoryForge] ${captureTranscript(true)}`);
     } catch (err) {
-      console.error(`[MemoryForge] transcript capture failed: ${(err as Error).message}`);
+      lines.push(`[MemoryForge] transcript capture failed: ${(err as Error).message}`);
     }
     try {
       cleanupTombstones();
@@ -433,11 +434,18 @@ if (cmd === "setup") {
     if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
       try {
         await proAutoActivate();
-        console.error("[MemoryForge] All memories synced to cloud. Safe to close.");
+        lines.push("[MemoryForge] All memories synced to cloud. Safe to close.");
       } catch {
-        console.error("[MemoryForge] Cloud sync skipped — will retry next session.");
+        lines.push("[MemoryForge] Cloud sync skipped — will retry next session.");
       }
     }
+    // systemMessage via stdout is displayed to the user on exit;
+    // console.error goes to debug logs only and is not user-visible.
+    console.log(
+      JSON.stringify({
+        systemMessage: lines.join("\n"),
+      }),
+    );
   } else if (hookType === "post-tool-use") {
     // Sync to cloud on tool use — catches Stop hook miss by VSCode (#2)
     if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
