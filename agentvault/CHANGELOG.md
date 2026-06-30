@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.13.3 (2026-06-30)
+
+### Fixes — Pro Sync Reliability (28 issues)
+- **Hook execution**: Remove Stop hook output redirect black hole, add timeout to all hooks
+- **Cross-process cooldown**: Replace in-memory cooldown with file-based persistence (fixes PreCompact/Stop race)
+- **Graceful shutdown**: SIGTERM/SIGINT handlers sync before exit (10s timeout)
+- **VSCode fallback**: PostToolUse hook triggers sync as Stop hook substitute for VSCode/subagent sessions
+- **Mid-session pull**: 5-minute periodic cloud sync keeps long sessions up-to-date
+- **Retry queue**: Failed uploads and tombstones enqueued to `~/.memory-forge/sync-queue.json` for retry
+- **Conflict visibility**: Merge conflicts persisted to `~/.memory-forge/conflicts.json` (50-record cap)
+- **Profile validation**: Corrupted `pro.json` detected on startup with repair instructions
+- **Key backup warning**: Prominent warning when new private key is generated
+- **Sync checkpoint**: Atomic checkpoint saved before sync for crash recovery
+- **Hybrid Logical Clock**: Monotonic timestamps across processes (replaces bare `Date.now()`)
+- **Balance monitoring**: 30-minute periodic APT/ShelbyUSD balance check with low-balance warnings
+- **Orphan cleanup**: Stale lock files from crashed processes cleaned on startup
+
+### Added
+- `memory_health` MCP tool — Pro sync health, queue depth, profile validity, balances
+- `src/clock.ts` — Hybrid Logical Clock with file persistence
+- `src/sync-queue.ts` — File-backed retry queue (48h TTL, 1000-entry cap)
+- `src/tools/health.ts` — Health check MCP tool
+
+### Changed
+- `memory_store`, `memory_update`, `memory_forget` — Failed cloud ops enqueue for retry instead of fire-and-forget
+- Stop hook output now visible in Claude Code UI (was redirected to `hook.log`)
+- PreCompact sync errors now logged (was silently swallowed)
+
 ## v0.12.0 (2026-06-29)
 
 ### Features
