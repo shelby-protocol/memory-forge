@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.5 (2026-06-30)
+
+### Fixes — Stop Hook Output Noise
+- **Download error suppression**: 404 errors during sync download phase are now silently skipped (blob not existing in cloud is expected during bidirectional sync), eliminating 60+ lines of noise in Stop hook output
+- **Download summary**: Sync summary now includes skipped download count (⊘) for full visibility
+
 ## v0.13.4 (2026-06-30)
 
 ### Fixes — Exit Safety & Upload Observability

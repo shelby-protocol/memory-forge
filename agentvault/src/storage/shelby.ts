@@ -299,7 +299,11 @@ export async function downloadMemory(blobName: string): Promise<Memory | null> {
 
     return JSON.parse(data) as Memory;
   } catch (err) {
-    console.error("[MemoryForge] Shelby download failed:", (err as Error).message);
+    // 404 = blob doesn't exist in cloud (expected during bidirectional sync). Suppress.
+    const msg = (err as Error).message;
+    if (!msg.includes("404") && !msg.includes("Not Found")) {
+      console.error("[MemoryForge] Shelby download failed:", msg);
+    }
     return null;
   }
 }

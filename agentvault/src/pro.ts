@@ -365,13 +365,17 @@ export async function syncAll(_projectHash?: string | null): Promise<void> {
 
     // Download and merge blob memories (skip tombstoned, prefer newer remote)
     let downloaded = 0;
+    let skipped = 0;
     let mergeConflicts = 0;
     for (const [memoryId, blobName] of latestBlobs) {
       if (tombstoned.has(memoryId)) continue;
 
       const local = store.get(memoryId);
       const remote = await downloadMemory(blobName);
-      if (!remote) continue;
+      if (!remote) {
+        skipped++;
+        continue;
+      }
 
       // Advance local clock past remote timestamp (#24)
       clockTick(new Date(remote.created_at).getTime());
@@ -469,10 +473,11 @@ export async function syncAll(_projectHash?: string | null): Promise<void> {
       }
     }
 
-    if (downloaded > 0 || uploaded > 0 || uploadFailed > 0) {
+    if (downloaded > 0 || uploaded > 0 || uploadFailed > 0 || skipped > 0) {
       const parts: string[] = [];
       if (uploaded > 0) parts.push(`↑${uploaded}`);
       if (downloaded > 0) parts.push(`↓${downloaded}`);
+      if (skipped > 0) parts.push(`⊘${skipped}`);
       if (uploadFailed > 0) parts.push(`✗${uploadFailed}`);
       console.error(`[MemoryForge] Sync: ${parts.join(" ")}`);
     }
