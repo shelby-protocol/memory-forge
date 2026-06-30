@@ -196,7 +196,27 @@ export interface HookHealth {
 }
 
 /**
+ * Detect stale hook commands: black hole redirect (old Stop hook), missing
+ * timeout, or timeout mismatch. Returns true if the hook should be updated.
+ */
+function isHookStale(hooks: any[], expectedTimeout: number): boolean {
+  for (const h of hooks) {
+    const inner = h?.hooks?.find(
+      (ih: any) =>
+        (ih.command || "").includes("memory-forge") ||
+        /node\s+.*[/\\](?:memory-forge|agentvault)[/\\]/.test(ih.command || ""),
+    );
+    if (!inner) return true; // not found — needs to be added
+    if (inner.command?.includes(">>")) return true; // old black hole redirect
+    if (!inner.timeout || inner.timeout <= 0) return true; // missing timeout
+    if (inner.timeout !== expectedTimeout) return true; // timeout mismatch
+  }
+  return false;
+}
+
+/**
  * Check and auto-repair hooks on startup.
+ * Detects stale/outdated hook commands and updates them to the latest format.
  * Returns what was repaired so the caller can log a summary.
  */
 export function ensureHooks(): HookHealth {
@@ -236,18 +256,19 @@ export function ensureHooks(): HookHealth {
     for (const [hookName, def] of Object.entries(required)) {
       config.hooks[hookName] = config.hooks[hookName] || [];
 
-      if (!hasHook(config.hooks[hookName], "memory-forge")) {
+      const expectedTimeout = hookTimeouts[hookName] ?? 30_000;
+      if (isHookStale(config.hooks[hookName], expectedTimeout)) {
         const entry: any = {
           hooks: [
             {
               type: "command",
               command: `${mfCmd} hook ${def.type}`,
-              timeout: hookTimeouts[hookName] ?? 30_000,
+              timeout: expectedTimeout,
             },
           ],
         };
         if (def.matcher !== undefined) entry.matcher = def.matcher;
-        config.hooks[hookName].push(entry);
+        setHook(config.hooks[hookName], "memory-forge", entry);
         repaired.push(hookName);
       }
     }
