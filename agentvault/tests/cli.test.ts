@@ -181,6 +181,33 @@ describe("CLI — hooks (async)", () => {
     expect(logs.some((l) => l.includes("memories maintained"))).toBe(true);
   });
 
+  it("stop hook saves exit status for next SessionStart", async () => {
+    const logs: string[] = [];
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation((s: string) => logs.push(s));
+    await run(["hook", "stop"]);
+
+    // Verify last-exit.json was created
+    const home = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+    const exitPath = `${home}/.memory-forge/last-exit.json`;
+    const fs = await import("node:fs");
+    expect(fs.existsSync(exitPath)).toBe(true);
+    const data = JSON.parse(fs.readFileSync(exitPath, "utf-8"));
+    expect(data).toHaveProperty("timestamp");
+    expect(data).toHaveProperty("lines");
+    expect(data.lines.some((l: string) => l.includes("memories maintained"))).toBe(true);
+  });
+
+  it("session-start hook includes last exit status", async () => {
+    const logs: string[] = [];
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation((s: string) => logs.push(s));
+    await run(["hook", "session-start"]);
+    const output = logs.join("");
+    expect(output).toContain("SessionStart");
+    expect(output).toContain("Last exit");
+  });
+
   it("pre-compact hook preserves context", async () => {
     const logs: string[] = [];
     vi.spyOn(console, "error").mockImplementation((s: string) => logs.push(s));

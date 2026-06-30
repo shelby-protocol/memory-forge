@@ -63,6 +63,42 @@ function readStdinSync(): string | null {
   }
 }
 
+// ═══ Last exit status (persists across sessions) ══════════════
+const HOME_DIR = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
+const LAST_EXIT_PATH = join(HOME_DIR, ".memory-forge", "last-exit.json");
+const EXIT_MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+interface ExitStatus {
+  timestamp: string;
+  lines: string[];
+}
+
+function saveExitStatus(lines: string[]): void {
+  try {
+    const dir = join(HOME_DIR, ".memory-forge");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      LAST_EXIT_PATH,
+      JSON.stringify({ timestamp: new Date().toISOString(), lines }),
+    );
+  } catch {
+    /* best-effort — don't block exit on file write failure */
+  }
+}
+
+function loadExitStatus(): ExitStatus | null {
+  try {
+    if (!fs.existsSync(LAST_EXIT_PATH)) return null;
+    const raw = fs.readFileSync(LAST_EXIT_PATH, "utf-8");
+    const data = JSON.parse(raw) as ExitStatus;
+    const age = Date.now() - new Date(data.timestamp).getTime();
+    if (age > EXIT_MAX_AGE_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 // ─── CLI command routing ────────────────────────────────────
 const cmd = process.argv[2];
 
@@ -373,6 +409,24 @@ if (cmd === "setup") {
       memoryCount > 0
         ? `MemoryForge: ${memoryCount} memories loaded from previous sessions`
         : "MemoryForge: No memories yet. Run `memory-forge setup` to get started.";
+
+    // Include last exit status so user can confirm previous session ended cleanly.
+    // Stop hook messages flash too briefly to read, so we surface them here.
+    let exitNote = "";
+    const lastExit = loadExitStatus();
+    if (lastExit && lastExit.lines.length > 0) {
+      const exitAge = Math.round((Date.now() - new Date(lastExit.timestamp).getTime()) / 60000);
+      const exitAgeStr =
+        exitAge < 1
+          ? "just now"
+          : exitAge < 60
+            ? `${exitAge}m ago`
+            : `${Math.round(exitAge / 60)}h ago`;
+      // Extract key info: maintenance count + sync/final status
+      const statusSummary = lastExit.lines.map((l) => l.replace("[MemoryForge] ", "")).join(" | ");
+      exitNote = `\nLast exit (${exitAgeStr}): ${statusSummary}`;
+    }
+
     console.log(
       JSON.stringify({
         hookSpecificOutput: {
@@ -380,7 +434,7 @@ if (cmd === "setup") {
           additionalContext: (summary || "[MemoryForge] No memories yet.") + projectContextNote,
           sessionTitle: sessionTitle + proNote,
         },
-        systemMessage: systemMsgBase + proNote,
+        systemMessage: systemMsgBase + proNote + exitNote,
       }),
     );
   } else if (hookType === "stop") {
@@ -446,6 +500,9 @@ if (cmd === "setup") {
         systemMessage: lines.join("\n"),
       }),
     );
+    // Persist exit status so the NEXT session's SessionStart can show it.
+    // systemMessage on Stop hooks flashes too briefly for users to read.
+    saveExitStatus(lines);
   } else if (hookType === "post-tool-use") {
     // Sync to cloud on tool use — catches Stop hook miss by VSCode (#2)
     if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
@@ -625,22 +682,26 @@ function startMcpServer() {
       shuttingDown = true;
       console.error(`[MemoryForge] ${signal} received — syncing before exit...`);
 
+      const exitLines: string[] = [];
       const syncPromise = (async () => {
         try {
           if (hasPro) {
             await proAutoActivate();
+            exitLines.push("[MemoryForge] All memories synced to cloud. Safe to close.");
             console.error("[MemoryForge] All memories synced to cloud. Safe to close.");
           }
           // Flush clock state
           const { sync: clockSync } = await import("./clock.js");
           clockSync();
         } catch {
+          exitLines.push("[MemoryForge] Cloud sync skipped — will retry next session.");
           console.error("[MemoryForge] Cloud sync skipped — will retry next session.");
         }
       })();
 
       // Force exit after 10s regardless
       await Promise.race([syncPromise, new Promise((r) => setTimeout(r, 10_000))]);
+      if (exitLines.length > 0) saveExitStatus(exitLines);
       process.exit(0);
     };
 

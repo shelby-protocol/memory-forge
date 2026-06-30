@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.13.7 (2026-06-30)
+
+### Fixes — Exit Status Visibility (for real this time)
+- **Last exit status**: Stop hook now persists exit status to `~/.memory-forge/last-exit.json` (maintenance count, transcript status, sync result)
+- **SessionStart displays previous exit**: SessionStart hook reads `last-exit.json` and surfaces the previous session's exit status in the system message (e.g. "Last exit (13m ago): 111 maintained, 4 saved, synced ✓")
+- **MCP graceful shutdown**: SIGTERM/SIGINT handler also saves exit status for consistency
+- **Root cause**: v0.13.6 correctly reformatted Stop hook output as `systemMessage` JSON, but Stop hook messages flash too briefly at session end for users to read. The fix persists the status so it's visible in the *next* SessionStart hook.
+
 ## v0.13.6 (2026-06-30)
 
 ### Fixes — Stop Hook Visibility
