@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.13.4 (2026-06-30)
+
+### Fixes — Exit Safety & Upload Observability
+- **Stop hook timeout**: Increased from 60s to 180s to accommodate slow sync operations
+- **Graceful shutdown message**: MCP server SIGTERM/SIGINT path now prints "Safe to close" confirmation
+- **Upload error logging**: Replaced single-shot `uploadWarned` flag with per-failure diagnostics (first 3 errors logged with memory ID + error message, then summary suppression)
+- **Rate limit handling**: Explicit 429 detection with deferred-upload message instead of generic failure
+- **Retry queue integration**: Failed uploads in main sync loop now enqueued to `SyncQueue` for automatic retry, preventing permanent failures due to transient network issues
+
 ## v0.13.3 (2026-06-30)
 
 ### Fixes — Pro Sync Reliability (28 issues)
