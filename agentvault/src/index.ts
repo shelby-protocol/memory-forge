@@ -28,6 +28,7 @@ import { autoPriority, autoDecay, generateContextSummary } from "./auto/index.js
 import { setup } from "./setup.js";
 import { pro, proStatus, proAutoActivate } from "./pro.js";
 import { captureTranscript, cliCaptureTranscript } from "./transcript.js";
+import { ensureHooks } from "./hooks/install.js";
 import { saveMemory } from "./storage/local.js";
 import { resolveProject, getGlobalModeHint } from "./project.js";
 import { migrateLegacyMemories } from "./migrate/legacy.js";
@@ -554,6 +555,15 @@ function startMcpServer() {
             (err as Error).message,
           );
         });
+    }
+
+    // Auto-repair hooks on every startup (settings.json may be wiped by upgrades/resets)
+    const hookHealth = ensureHooks();
+    if (hookHealth.repaired.length > 0) {
+      console.error(`[MemoryForge] 🔧 Auto-repaired hooks: ${hookHealth.repaired.join(", ")}`);
+    }
+    if (hookHealth.missing.length > 0) {
+      console.error(`[MemoryForge] ⚠️  Hook check failed: ${hookHealth.missing.join("; ")}`);
     }
 
     const projLabel = projectName ? ` (${projectName})` : "";

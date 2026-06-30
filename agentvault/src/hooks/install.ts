@@ -115,9 +115,20 @@ export function installHooks(): boolean {
   }
 }
 
-/** Check if a hook exists for this name (any command). */
+/** Check if a hook exists for this name (any command).
+ *  Matches: "memory-forge", "npx memory-forge", or local dev paths like
+ *  "node .../memory-forge/dist/index.js" or "node .../agentvault/dist/index.js". */
 function hasHook(hooks: any[], name: string): boolean {
-  return hooks.some((h: any) => h.hooks?.some((inner: any) => inner.command?.includes(name)));
+  return hooks.some((h: any) =>
+    h.hooks?.some((inner: any) => {
+      const cmd = inner.command || "";
+      return (
+        cmd.includes(name) ||
+        // Local dev paths: node /path/to/memory-forge/..., node /path/to/agentvault/...
+        /node\s+.*[/\\](?:memory-forge|agentvault)[/\\]/.test(cmd)
+      );
+    }),
+  );
 }
 
 /**
@@ -126,7 +137,10 @@ function hasHook(hooks: any[], name: string): boolean {
  */
 function setHook(hooks: any[], name: string, entry: any): void {
   const idx = hooks.findIndex((h: any) =>
-    h.hooks?.some((inner: any) => inner.command?.includes(name)),
+    h.hooks?.some((inner: any) => {
+      const cmd = inner.command || "";
+      return cmd.includes(name) || /node\s+.*[/\\](?:memory-forge|agentvault)[/\\]/.test(cmd);
+    }),
   );
   if (idx >= 0) hooks[idx] = entry;
   else hooks.push(entry);
@@ -153,6 +167,90 @@ export function getHooksStatus(): {
   } catch {
     return { sessionStart: false, stop: false, preCompact: false, postToolUse: false };
   }
+}
+
+// ═══ Auto-Repair on Startup ═════════════════════════════════
+
+/**
+ * Detect the command to use for hooks based on how memory-forge is being run.
+ * Uses the same argv pattern as the MCP server so hooks stay in sync.
+ */
+function detectHookCommand(): string {
+  const argv1 = (process.argv[1] || "").replace(/\\/g, "/");
+  // Running from local build: "node dist/index.js" or "node D:/shelby-ai/agentvault/dist/index.js"
+  if (argv1.endsWith(".js") || argv1.endsWith(".ts")) {
+    return `node ${argv1}`;
+  }
+  // Running as global binary: "memory-forge"
+  if (argv1.includes("memory-forge")) {
+    return argv1;
+  }
+  // Fallback: npx works everywhere
+  return "npx memory-forge";
+}
+
+export interface HookHealth {
+  healthy: boolean;
+  repaired: string[];
+  missing: string[];
+}
+
+/**
+ * Check and auto-repair hooks on startup.
+ * Returns what was repaired so the caller can log a summary.
+ */
+export function ensureHooks(): HookHealth {
+  const repaired: string[] = [];
+  const missing: string[] = [];
+
+  try {
+    const settingsPath = path.join(HOME, ".claude", "settings.json");
+    const dir = path.dirname(settingsPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    let config: any = {};
+    if (fs.existsSync(settingsPath)) {
+      config = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+    }
+
+    if (!config.hooks) config.hooks = {};
+
+    const mfCmd = detectHookCommand();
+
+    const required: Record<string, { matcher?: string; type: string }> = {
+      SessionStart: { matcher: "startup", type: "session-start" },
+      Stop: { type: "stop" },
+      PostToolUse: { matcher: "", type: "post-tool-use" },
+      PreCompact: { type: "pre-compact" },
+    };
+
+    for (const [hookName, def] of Object.entries(required)) {
+      config.hooks[hookName] = config.hooks[hookName] || [];
+
+      if (!hasHook(config.hooks[hookName], "memory-forge")) {
+        const entry: any = {
+          hooks: [{ type: "command", command: `${mfCmd} hook ${def.type}` }],
+        };
+        if (def.matcher !== undefined) entry.matcher = def.matcher;
+        config.hooks[hookName].push(entry);
+        repaired.push(hookName);
+      }
+    }
+
+    if (repaired.length > 0) {
+      fs.writeFileSync(settingsPath, JSON.stringify(config, null, 2));
+    }
+  } catch (err) {
+    missing.push((err as Error).message);
+  }
+
+  return {
+    healthy: repaired.length === 0 && missing.length === 0,
+    repaired,
+    missing,
+  };
 }
 
 export function getMcpStatus(): { tool: string; configured: boolean }[] {
