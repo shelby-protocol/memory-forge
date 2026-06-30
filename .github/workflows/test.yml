@@ -55,6 +55,13 @@ jobs:
           cache: "npm"
           cache-dependency-path: agentvault/package-lock.json
       - run: npm ci
-      - run: npm publish --access public
+      - name: Publish to npm (idempotent)
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version)")
+          if npm view "memory-forge@$VERSION" version &>/dev/null; then
+            echo "memory-forge@$VERSION already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
