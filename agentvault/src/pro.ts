@@ -30,7 +30,7 @@ import {
   getBalances,
 } from "./storage/shelby.js";
 import { MemoryStore } from "./store.js";
-import { now as clockNow, nowISO, tick as clockTick } from "./clock.js";
+import { nowISO, tick as clockTick } from "./clock.js";
 import { SyncQueue } from "./sync-queue.js";
 
 const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
@@ -372,6 +372,9 @@ export async function syncAll(_projectHash?: string | null): Promise<void> {
       const remote = await downloadMemory(blobName);
       if (!remote) continue;
 
+      // Advance local clock past remote timestamp (#24)
+      clockTick(new Date(remote.created_at).getTime());
+
       if (local) {
         const localTime = new Date(local.created_at).getTime();
         const remoteTime = new Date(remote.created_at).getTime();
@@ -410,7 +413,7 @@ export async function syncAll(_projectHash?: string | null): Promise<void> {
             fields: fieldConflicts,
             localPreview: local.content.slice(0, 200),
             remotePreview: remote.content.slice(0, 200),
-            timestamp: new Date().toISOString(),
+            timestamp: nowISO(),
           });
           console.error(
             `[MemoryForge] ⚡ Merge conflict on "${merged.name}": ${fieldConflicts.join(", ")} — remote won`,
