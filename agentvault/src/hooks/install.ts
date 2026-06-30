@@ -88,23 +88,23 @@ export function installHooks(): boolean {
     config.hooks.SessionStart = config.hooks.SessionStart || [];
     setHook(config.hooks.SessionStart, "memory-forge", {
       matcher: "startup",
-      hooks: [{ type: "command", command: `${mfCmd} hook session-start` }],
+      hooks: [{ type: "command", command: `${mfCmd} hook session-start`, timeout: 30_000 }],
     });
 
     config.hooks.Stop = config.hooks.Stop || [];
     setHook(config.hooks.Stop, "memory-forge", {
-      hooks: [{ type: "command", command: `${mfCmd} hook stop >> ~/.memory-forge/hook.log 2>&1` }],
+      hooks: [{ type: "command", command: `${mfCmd} hook stop`, timeout: 60_000 }],
     });
 
     config.hooks.PostToolUse = config.hooks.PostToolUse || [];
     setHook(config.hooks.PostToolUse, "memory-forge", {
       matcher: "",
-      hooks: [{ type: "command", command: `${mfCmd} hook post-tool-use` }],
+      hooks: [{ type: "command", command: `${mfCmd} hook post-tool-use`, timeout: 15_000 }],
     });
 
     config.hooks.PreCompact = config.hooks.PreCompact || [];
     setHook(config.hooks.PreCompact, "memory-forge", {
-      hooks: [{ type: "command", command: `${mfCmd} hook pre-compact` }],
+      hooks: [{ type: "command", command: `${mfCmd} hook pre-compact`, timeout: 60_000 }],
     });
 
     fs.writeFileSync(CLAUDE_SETTINGS, JSON.stringify(config, null, 2));
@@ -226,12 +226,25 @@ export function ensureHooks(): HookHealth {
       PreCompact: { type: "pre-compact" },
     };
 
+    const hookTimeouts: Record<string, number> = {
+      SessionStart: 30_000,
+      Stop: 60_000,
+      PostToolUse: 15_000,
+      PreCompact: 60_000,
+    };
+
     for (const [hookName, def] of Object.entries(required)) {
       config.hooks[hookName] = config.hooks[hookName] || [];
 
       if (!hasHook(config.hooks[hookName], "memory-forge")) {
         const entry: any = {
-          hooks: [{ type: "command", command: `${mfCmd} hook ${def.type}` }],
+          hooks: [
+            {
+              type: "command",
+              command: `${mfCmd} hook ${def.type}`,
+              timeout: hookTimeouts[hookName] ?? 30_000,
+            },
+          ],
         };
         if (def.matcher !== undefined) entry.matcher = def.matcher;
         config.hooks[hookName].push(entry);

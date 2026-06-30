@@ -27,9 +27,20 @@ export function register(server: McpServer, opts: ToolOptions) {
         deleteMemoryFile(memory_id);
         const memProjectHash = memory?.project_id || projectHash;
         if (process.env.SHELBY_API_KEY || opts.hasPro) {
-          deleteBlob(getBlobName(memory_id, memProjectHash)).catch((err) =>
-            console.error("[MemoryForge] Cloud tombstone failed:", (err as Error).message),
-          );
+          deleteBlob(getBlobName(memory_id, memProjectHash)).catch(async (err) => {
+            console.error(
+              "[MemoryForge] Cloud tombstone failed, queued for retry:",
+              (err as Error).message,
+            );
+            const { SyncQueue } = await import("../sync-queue.js");
+            const queue = new SyncQueue();
+            queue.enqueue({
+              id: memory_id,
+              type: "tombstone",
+              memoryId: memory_id,
+              projectHash: memProjectHash ?? undefined,
+            });
+          });
         }
       }
       return {

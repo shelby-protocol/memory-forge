@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join } from "node:path";
 import * as fs from "node:fs";
+import * as os from "node:os";
 
 import { MemoryStore } from "./store.js";
 import { formatTimestamp, formatDateTime } from "./lib/timezone.js";
@@ -26,7 +27,7 @@ import {
 import { deleteBlob, getBlobName, getShelbyConfig } from "./storage/shelby.js";
 import { autoPriority, autoDecay, generateContextSummary } from "./auto/index.js";
 import { setup } from "./setup.js";
-import { pro, proStatus, proAutoActivate } from "./pro.js";
+import { pro, proStatus, proAutoActivate, syncAll } from "./pro.js";
 import { captureTranscript, cliCaptureTranscript } from "./transcript.js";
 import { ensureHooks } from "./hooks/install.js";
 import { saveMemory } from "./storage/local.js";
@@ -45,6 +46,7 @@ import { register as registerExport } from "./tools/export.js";
 import { register as registerShare } from "./tools/share.js";
 import { register as registerUpdate } from "./tools/update.js";
 import { register as registerModelInfo } from "./tools/model-info.js";
+import { register as registerHealth } from "./tools/health.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -146,7 +148,16 @@ if (cmd === "setup") {
         console.log(`  Total downloaded:   ${s.totalDownloaded}`);
         console.log(`  Total failed:       ${s.totalFailed || "—"}`);
         console.log(`  Total conflicts:    ${s.totalConflicts || "—"}`);
+        console.log(`  Conflict records:   ${s.conflictCount || "—"}`);
+        console.log(`  Queue pending:      ${s.queueSize || "—"}`);
         console.log(`  Last sync:          ${s.lastSync || "never"}`);
+        console.log(`  Key backed up:      ${s.keyBackedUp ? "✅" : "⚠️  not backed up"}`);
+        if (!s.profileValid) {
+          console.log(`  Profile:            ❌ invalid — run \`memory-forge pro\` to repair`);
+          if (s.profileErrors) {
+            for (const err of s.profileErrors) console.log(`    - ${err}`);
+          }
+        }
         if (s.syncHistory?.length) {
           console.log(`  Recent syncs:`);
           for (const entry of s.syncHistory.slice(-5).reverse()) {
@@ -295,6 +306,13 @@ if (cmd === "setup") {
 } else if (cmd === "hook") {
   const hookType = process.argv[3];
   if (hookType === "session-start") {
+    // Pull latest memories from cloud before loading context (#11)
+    if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
+      syncAll().catch((err) =>
+        console.error("[MemoryForge] Background sync failed:", (err as Error).message),
+      ); // file-based cooldown prevents rapid re-syncs
+    }
+
     let projectSlug = "";
     let projectContextNote = "";
     let hookProjectHash: string | null = null;
@@ -377,7 +395,15 @@ if (cmd === "setup") {
           deleteMemoryFile(m.id);
         } catch {}
         if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey)
-          deleteBlob(getBlobName(m.id)).catch(() => {});
+          deleteBlob(getBlobName(m.id)).catch(async () => {
+            const { SyncQueue } = await import("./sync-queue.js");
+            const queue = new SyncQueue();
+            queue.enqueue({
+              id: m.id,
+              type: "tombstone",
+              memoryId: m.id,
+            });
+          });
         archived++;
       } else {
         let changed = false;
@@ -413,6 +439,11 @@ if (cmd === "setup") {
       }
     }
   } else if (hookType === "post-tool-use") {
+    // Sync to cloud on tool use — catches Stop hook miss by VSCode (#2)
+    if (process.env.SHELBY_API_KEY || getShelbyConfig().apiKey) {
+      syncAll().catch(() => {}); // file-based cooldown prevents rapid syncs
+    }
+
     console.log(
       JSON.stringify({
         hookSpecificOutput: {
@@ -461,7 +492,12 @@ if (cmd === "setup") {
       try {
         await proAutoActivate();
         console.error("[MemoryForge] Pre-compact sync complete — memories safe on cloud.");
-      } catch {}
+      } catch (err) {
+        console.error(
+          "[MemoryForge] Pre-compact sync failed — will retry at Stop hook:",
+          (err as Error).message,
+        );
+      }
     }
   } else if (hookType === "capture-transcript") {
     try {
@@ -535,8 +571,77 @@ function startMcpServer() {
   registerShare(server, toolOpts);
   registerUpdate(server, toolOpts);
   registerModelInfo(server, toolOpts);
+  registerHealth(server, toolOpts);
 
   async function main() {
+    // ─── Orphan cleanup (#6) ──────────────────────────────────
+    // Clean up stale lock files from crashed processes on startup.
+    try {
+      const locksDir = join(os.homedir(), ".memory-forge", ".locks");
+      if (fs.existsSync(locksDir)) {
+        for (const lockName of fs.readdirSync(locksDir)) {
+          const lockPath = join(locksDir, lockName);
+          try {
+            if (!fs.statSync(lockPath).isDirectory()) continue;
+          } catch {
+            continue;
+          }
+          const pidFile = join(lockPath, "pid");
+          try {
+            const pid = parseInt(fs.readFileSync(pidFile, "utf-8"), 10);
+            if (pid && !isNaN(pid)) {
+              try {
+                process.kill(pid, 0);
+              } catch {
+                // Stale lock — PID is dead
+                fs.rmSync(lockPath, { recursive: true, force: true });
+                console.error(`[MemoryForge] Cleaned stale lock: ${lockName} (PID ${pid})`);
+              }
+            }
+          } catch {
+            // Corrupted lock — remove
+            try {
+              fs.rmSync(lockPath, { recursive: true, force: true });
+            } catch {}
+          }
+        }
+      }
+    } catch {
+      /* best-effort */
+    }
+
+    // ─── SIGTERM / SIGINT graceful shutdown (#1) ──────────────
+    let shuttingDown = false;
+    const gracefulShutdown = async (signal: string) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      console.error(`[MemoryForge] ${signal} received — syncing before exit...`);
+
+      const syncPromise = (async () => {
+        try {
+          if (hasPro) {
+            await proAutoActivate();
+          }
+          // Flush clock state
+          const { sync: clockSync } = await import("./clock.js");
+          clockSync();
+        } catch {
+          /* best-effort on shutdown */
+        }
+      })();
+
+      // Force exit after 10s regardless
+      await Promise.race([syncPromise, new Promise((r) => setTimeout(r, 10_000))]);
+      process.exit(0);
+    };
+
+    process.on("SIGTERM", () => {
+      gracefulShutdown("SIGTERM");
+    });
+    process.on("SIGINT", () => {
+      gracefulShutdown("SIGINT");
+    });
+
     // Connect transport FIRST so MCP tools are available immediately.
     // Pro sync runs in background afterward to avoid blocking tool registration.
     const transport = new StdioServerTransport();
@@ -576,6 +681,49 @@ function startMcpServer() {
         projNote,
     );
 
+    // ─── Periodic cloud pull (#12) — every 5 min ──────────────
+    if (hasPro) {
+      const SYNC_INTERVAL_MS = 5 * 60 * 1000;
+      const syncTimer = setInterval(async () => {
+        try {
+          await syncAll();
+        } catch (err) {
+          console.error("[MemoryForge] Periodic sync failed:", (err as Error).message);
+        }
+      }, SYNC_INTERVAL_MS);
+
+      // Allow timer cleanup on shutdown
+      process.on("cleanup", () => clearInterval(syncTimer));
+    }
+
+    // ─── Periodic balance check (#29) — every 30 min ──────────
+    if (hasPro) {
+      const BALANCE_INTERVAL_MS = 30 * 60 * 1000;
+      const balanceTimer = setInterval(async () => {
+        try {
+          const { getBalances: checkBalances } = await import("./storage/shelby.js");
+          const b = await checkBalances();
+          if (b) {
+            const apt = parseFloat(b.apt);
+            const usd = parseFloat(b.shelbyUsd);
+            if (apt < 0.01) {
+              console.error(
+                "[MemoryForge] ⚠️  APT balance low — sync may fail. Faucet: https://docs.shelby.xyz/apis/faucet/aptos",
+              );
+            }
+            if (usd < 1.0) {
+              console.error(
+                "[MemoryForge] ⚠️  ShelbyUSD balance low — sync may fail. Faucet: https://docs.shelby.xyz/apis/faucet/shelbyusd",
+              );
+            }
+          }
+        } catch {
+          /* network issue — retry next cycle */
+        }
+      }, BALANCE_INTERVAL_MS);
+      process.on("cleanup", () => clearInterval(balanceTimer));
+    }
+
     if (!projectHash) {
       console.error(getGlobalModeHint());
     }
@@ -588,7 +736,7 @@ function startMcpServer() {
     }
 
     console.error(
-      "[MemoryForge] 10 tools: store / search / recall / list / forget / context / export / share / update / model_info",
+      "[MemoryForge] 11 tools: store / search / recall / list / forget / context / export / share / update / model_info / health",
     );
     console.error(`[MemoryForge] Embedding model: ${modelLabel() ?? "loading…"}`);
   }

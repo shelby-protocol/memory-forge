@@ -322,6 +322,172 @@ export function getTombstonedIds(): Set<string> {
 }
 
 /** Purge expired tombstones (called from Stop hook / Pro sync) */
+// ─── Cross-Process File Locking ─────────────────────────────────
+// Uses mkdir atomicity (works on all major FS: NTFS, APFS, ext4).
+// Locks protect syncAll() and saveMemory() from concurrent writes
+// by separate processes (e.g., PreCompact hook + Stop hook).
+
+const LOCKS_DIR = path.join(MEMORYFORGE_ROOT, ".locks");
+const SYNC_LOCK = "sync.lock";
+
+/**
+ * Acquire an advisory lock. Returns true if lock was acquired, false if
+ * another process holds it (after waiting up to timeoutMs).
+ *
+ * Uses mkdir which is atomic on all major file systems.
+ * Stale lock detection: if the owning PID is dead, the lock is removed.
+ */
+export function acquireSyncLock(timeoutMs: number = 10_000): boolean {
+  const lockDir = path.join(LOCKS_DIR, SYNC_LOCK);
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      if (!fs.existsSync(LOCKS_DIR)) fs.mkdirSync(LOCKS_DIR, { recursive: true });
+      fs.mkdirSync(lockDir);
+      // Write PID to help stale detection
+      fs.writeFileSync(path.join(lockDir, "pid"), String(process.pid));
+      fs.writeFileSync(path.join(lockDir, "hostname"), os.hostname());
+      fs.writeFileSync(path.join(lockDir, "timestamp"), new Date().toISOString());
+      return true;
+    } catch (err: any) {
+      if (err?.code === "EEXIST" || err?.code === "EPERM") {
+        // Lock exists — check if stale
+        if (_isLockStale(lockDir)) {
+          try {
+            fs.rmSync(lockDir, { recursive: true, force: true });
+          } catch {
+            /* retry */
+          }
+          continue;
+        }
+        // Lock is active — wait and retry
+        const wait = Math.min(200, deadline - Date.now());
+        if (wait > 0) _sleep(wait);
+      } else {
+        // Unexpected error — assume we can't lock
+        return false;
+      }
+    }
+  }
+
+  return false; // timeout
+}
+
+function _sleep(ms: number): void {
+  // Busy-wait is acceptable here — max wait is 200ms and this
+  // only runs during lock contention (PreCompact/Stop race).
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    /* spin */
+  }
+}
+
+function _isLockStale(lockDir: string): boolean {
+  try {
+    const pidFile = path.join(lockDir, "pid");
+    if (!fs.existsSync(pidFile)) return true;
+    const pid = parseInt(fs.readFileSync(pidFile, "utf-8"), 10);
+    if (!pid || isNaN(pid)) return true;
+    try {
+      process.kill(pid, 0); // signal 0 just checks existence
+      return false; // process is alive
+    } catch (e: any) {
+      // ESRCH on Unix, or general error on Windows for dead PID
+      return e?.code === "ESRCH" || !_isPidAlive(pid);
+    }
+  } catch {
+    return true; // corrupted lock — safe to remove
+  }
+}
+
+function _isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Release a previously acquired lock. */
+export function releaseSyncLock(): void {
+  const lockDir = path.join(LOCKS_DIR, SYNC_LOCK);
+  try {
+    if (fs.existsSync(lockDir)) {
+      fs.rmSync(lockDir, { recursive: true, force: true });
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+// ─── Sync Checkpoint ────────────────────────────────────────────
+
+const CHECKPOINT_PATH = path.join(MEMORYFORGE_ROOT, ".sync-checkpoint.json");
+
+interface CheckpointEntry {
+  path: string;
+  mtimeMs: number;
+}
+
+/** Save a checkpoint of all current memory files before sync. */
+export function saveSyncCheckpoint(): void {
+  try {
+    const entries: CheckpointEntry[] = [];
+    for (const dir of [GLOBAL_BASEDIR]) {
+      if (fs.existsSync(dir)) {
+        for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".md"))) {
+          const fp = path.join(dir, f);
+          entries.push({ path: fp, mtimeMs: fs.statSync(fp).mtimeMs });
+        }
+      }
+    }
+    const projectsRoot = path.join(MEMORYFORGE_ROOT, "projects");
+    if (fs.existsSync(projectsRoot)) {
+      for (const projectDir of fs.readdirSync(projectsRoot)) {
+        const memDir = path.join(projectsRoot, projectDir, "memories");
+        if (fs.existsSync(memDir)) {
+          for (const f of fs.readdirSync(memDir).filter((f) => f.endsWith(".md"))) {
+            const fp = path.join(memDir, f);
+            entries.push({ path: fp, mtimeMs: fs.statSync(fp).mtimeMs });
+          }
+        }
+      }
+    }
+    if (!fs.existsSync(MEMORYFORGE_ROOT)) fs.mkdirSync(MEMORYFORGE_ROOT, { recursive: true });
+    const tmpPath = path.join(os.tmpdir(), `.mf-checkpoint-${process.pid}`);
+    fs.writeFileSync(tmpPath, JSON.stringify(entries, null, 2));
+    fs.renameSync(tmpPath, CHECKPOINT_PATH);
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Clear the sync checkpoint after successful sync. */
+export function clearSyncCheckpoint(): void {
+  try {
+    if (fs.existsSync(CHECKPOINT_PATH)) fs.unlinkSync(CHECKPOINT_PATH);
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Check if a sync checkpoint exists (indicating a crashed sync). */
+export function hasSyncCheckpoint(): boolean {
+  return fs.existsSync(CHECKPOINT_PATH);
+}
+
+/** Load checkpoint entries for manual recovery. */
+export function loadSyncCheckpoint(): CheckpointEntry[] {
+  try {
+    if (!fs.existsSync(CHECKPOINT_PATH)) return [];
+    return JSON.parse(fs.readFileSync(CHECKPOINT_PATH, "utf-8"));
+  } catch {
+    return [];
+  }
+}
+
 export function cleanupTombstones(): number {
   const cutoff = new Date(Date.now() - TOMBSTONE_TTL_DAYS * 86400000);
   const all = loadTombstonesRaw();

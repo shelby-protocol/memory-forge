@@ -151,9 +151,21 @@ export function register(server: McpServer, opts: ToolOptions) {
       scopedStore.add(memory);
 
       if (hasPro)
-        uploadMemory(memory).catch((err) =>
-          console.error("[MemoryForge] Pro upload failed:", (err as Error).message),
-        );
+        uploadMemory(memory).catch(async (err) => {
+          console.error(
+            "[MemoryForge] Pro upload failed, queued for retry:",
+            (err as Error).message,
+          );
+          const { SyncQueue } = await import("../sync-queue.js");
+          const queue = new SyncQueue();
+          queue.enqueue({
+            id: memory.id,
+            type: "upload",
+            memory,
+            memoryId: memory.id,
+            projectHash: effectiveProjectHash ?? undefined,
+          });
+        });
 
       const hint =
         !hasPro && store.size() >= 20

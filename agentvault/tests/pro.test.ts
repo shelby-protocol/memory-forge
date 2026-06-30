@@ -36,6 +36,8 @@ vi.mock("../src/storage/local.js", () => ({
   deleteMemoryFile: vi.fn(),
   getTombstonedIds: vi.fn().mockReturnValue(new Set<string>()),
   cleanupTombstones: vi.fn(),
+  saveSyncCheckpoint: vi.fn(),
+  clearSyncCheckpoint: vi.fn(),
 }));
 vi.mock("../src/storage/shelby.js", () => ({
   initShelby: vi.fn().mockResolvedValue({ address: "0xe1c47", generatedKey: "0xabc123" }),
@@ -48,6 +50,35 @@ vi.mock("../src/storage/shelby.js", () => ({
   deleteBlob: vi.fn().mockResolvedValue(undefined),
   getBlobName: vi.fn((id: string) => `blob-${id}`),
   getCloudTombstones: vi.fn().mockReturnValue([]),
+  getBalances: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("../src/sync-queue.js", () => {
+  const mockInstance = {
+    enqueue: vi.fn(),
+    drain: vi.fn().mockReturnValue([]),
+    confirm: vi.fn(),
+    reEnqueue: vi.fn(),
+    size: vi.fn().mockReturnValue(0),
+    peek: vi.fn().mockReturnValue([]),
+    remove: vi.fn(),
+  };
+  return {
+    SyncQueue: class {
+      enqueue = mockInstance.enqueue;
+      drain = mockInstance.drain;
+      confirm = mockInstance.confirm;
+      reEnqueue = mockInstance.reEnqueue;
+      size = mockInstance.size;
+      peek = mockInstance.peek;
+      remove = mockInstance.remove;
+    },
+  };
+});
+vi.mock("../src/clock.js", () => ({
+  now: vi.fn(() => Date.now()),
+  nowISO: vi.fn(() => new Date().toISOString()),
+  tick: vi.fn(),
+  sync: vi.fn(),
 }));
 
 import { proStatus, proAutoActivate } from "../src/pro.js";

@@ -13,6 +13,8 @@ import {
   deleteMemoryFile,
   getTombstonedIds,
   cleanupTombstones,
+  saveSyncCheckpoint,
+  clearSyncCheckpoint,
 } from "./storage/local.js";
 import {
   initShelby,
@@ -28,6 +30,8 @@ import {
   getBalances,
 } from "./storage/shelby.js";
 import { MemoryStore } from "./store.js";
+import { now as clockNow, nowISO, tick as clockTick } from "./clock.js";
+import { SyncQueue } from "./sync-queue.js";
 
 const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
 const MEMORYFORGE_DIR = path.join(HOME, ".memory-forge");
@@ -128,8 +132,19 @@ export async function pro(): Promise<void> {
   if (generatedKey) {
     // Save generated key for future runs
     privateKey = generatedKey;
-    console.log("   ℹ️  Auto-generated Shelbynet account");
-    console.log(`   ℹ️  Address: ${address}`);
+    console.log("");
+    console.log("  ┌──────────────────────────────────────────────────────────┐");
+    console.log("  │  ⚠️  IMPORTANT: Back up your private key!                 │");
+    console.log("  │                                                          │");
+    console.log("  │  This key controls your Shelby cloud storage account.    │");
+    console.log("  │  If you lose it, ALL cloud memories become inaccessible. │");
+    console.log(`  │  Address: ${address.slice(0, 10)}…                                  │`);
+    console.log("  │                                                          │");
+    console.log("  │  Key saved to: ~/.memory-forge/pro.json                 │");
+    console.log("  │  Copy this file to a safe location (password manager,    │");
+    console.log("  │  encrypted backup, etc.)                                 │");
+    console.log("  └──────────────────────────────────────────────────────────┘");
+    console.log("");
   } else {
     console.log(`   ℹ️  Using account: ${address}`);
   }
@@ -201,15 +216,94 @@ export async function pro(): Promise<void> {
   `);
 }
 
-let lastSyncAll = 0;
-const SYNC_COOLDOWN_MS = 30_000; // avoid double-sync from PreCompact + Stop hooks firing back-to-back
+// ─── File-based sync cooldown (cross-process) ──────────────────
+// Previously in-memory `lastSyncAll` failed across separate CLI hook
+// processes. File-based cooldown persists across invocations so
+// PreCompact → Stop back-to-back hooks don't double-sync.
+
+const COOLDOWN_FILE = path.join(MEMORYFORGE_DIR, "last-sync-time");
+const SYNC_COOLDOWN_MS = 30_000;
+
+function isCooldownActive(): boolean {
+  try {
+    if (fs.existsSync(COOLDOWN_FILE)) {
+      const val = parseInt(fs.readFileSync(COOLDOWN_FILE, "utf-8"), 10);
+      if (!isNaN(val) && Date.now() - val < SYNC_COOLDOWN_MS) return true;
+    }
+  } catch {
+    /* corrupted — proceed */
+  }
+  return false;
+}
+
+function touchCooldown(): void {
+  try {
+    if (!fs.existsSync(MEMORYFORGE_DIR)) fs.mkdirSync(MEMORYFORGE_DIR, { recursive: true });
+    fs.writeFileSync(COOLDOWN_FILE, String(Date.now()));
+  } catch {
+    /* best-effort */
+  }
+}
+
+// ─── Profile Validation ────────────────────────────────────────
+
+const PROFILE_REQUIRED_FIELDS: Record<string, string> = {
+  version: "number",
+  activatedAt: "string",
+  privateKey: "string",
+  address: "string",
+  apiKey: "string",
+};
+
+function validateProfile(data: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  if (!data || typeof data !== "object") {
+    return { valid: false, errors: ["Profile is not a valid object"] };
+  }
+  for (const [key, type] of Object.entries(PROFILE_REQUIRED_FIELDS)) {
+    if (typeof data[key] !== type) {
+      errors.push(`Missing or invalid field '${key}' (expected ${type})`);
+    }
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+// ─── Conflict Persistence ──────────────────────────────────────
+
+const CONFLICTS_PATH = path.join(MEMORYFORGE_DIR, "conflicts.json");
+const MAX_CONFLICT_RECORDS = 50;
+
+interface ConflictRecord {
+  memoryId: string;
+  memoryName: string;
+  fields: string[];
+  localPreview: string;
+  remotePreview: string;
+  timestamp: string;
+}
+
+function persistConflict(record: ConflictRecord): void {
+  try {
+    const existing: ConflictRecord[] = fs.existsSync(CONFLICTS_PATH)
+      ? JSON.parse(fs.readFileSync(CONFLICTS_PATH, "utf-8"))
+      : [];
+    existing.push(record);
+    if (existing.length > MAX_CONFLICT_RECORDS) {
+      existing.splice(0, existing.length - MAX_CONFLICT_RECORDS);
+    }
+    if (!fs.existsSync(MEMORYFORGE_DIR)) fs.mkdirSync(MEMORYFORGE_DIR, { recursive: true });
+    fs.writeFileSync(CONFLICTS_PATH, JSON.stringify(existing, null, 2));
+  } catch {
+    /* best-effort */
+  }
+}
 
 /** Sync: download from Shelby, merge with local.
  *  When projectHash is provided, only sync that project + global.
  *  When null, sync all projects (full sync). */
 export async function syncAll(_projectHash?: string | null): Promise<void> {
-  if (Date.now() - lastSyncAll < SYNC_COOLDOWN_MS) return;
-  lastSyncAll = Date.now();
+  if (isCooldownActive()) return;
+  touchCooldown();
 
   if (!fs.existsSync(PROFILE_PATH)) return;
 
@@ -228,146 +322,223 @@ export async function syncAll(_projectHash?: string | null): Promise<void> {
     );
     return;
   }
+
+  // Validate profile fields
+  const validation = validateProfile(profile);
+  if (!validation.valid) {
+    console.error(`[MemoryForge] ❌ pro.json validation failed: ${validation.errors.join("; ")}`);
+    console.error("[MemoryForge]    Run `memory-forge pro` to repair your profile.");
+    return;
+  }
   const privateKey = process.env.APTOS_PRIVATE_KEY || profile.privateKey;
 
   await initShelby(apiKey, privateKey);
 
-  const blobs = await listBlobs();
-  const store = new MemoryStore();
+  // Save checkpoint before modifying local state
+  saveSyncCheckpoint();
 
-  // Load existing local memories
-  for (const m of loadAllMemories()) {
-    store.add(m);
-  }
+  try {
+    const blobs = await listBlobs();
+    const store = new MemoryStore();
 
-  // Load tombstones: local + cloud (cross-device delete propagation)
-  const tombstoned = getTombstonedIds();
-  for (const id of getCloudTombstones(blobs)) tombstoned.add(id);
-
-  // Deduplicate blobs by memoryId — keep latest version (timestamp in blob name)
-  const latestBlobs = new Map<string, string>(); // memoryId → blobName
-  for (const blobName of blobs) {
-    const memoryId = getMemoryId(blobName);
-    if (!memoryId) continue;
-    if (blobName.endsWith(".deleted")) continue;
-    const existing = latestBlobs.get(memoryId);
-    if (!existing || blobName > existing) {
-      latestBlobs.set(memoryId, blobName);
+    // Load existing local memories
+    for (const m of loadAllMemories()) {
+      store.add(m);
     }
-  }
 
-  // Download and merge blob memories (skip tombstoned, prefer newer remote)
-  let downloaded = 0;
-  let mergeConflicts = 0;
-  for (const [memoryId, blobName] of latestBlobs) {
-    if (tombstoned.has(memoryId)) continue;
+    // Load tombstones: local + cloud (cross-device delete propagation)
+    const tombstoned = getTombstonedIds();
+    for (const id of getCloudTombstones(blobs)) tombstoned.add(id);
 
-    const local = store.get(memoryId);
-    const remote = await downloadMemory(blobName);
-    if (!remote) continue;
-
-    if (local) {
-      const localTime = new Date(local.created_at).getTime();
-      const remoteTime = new Date(remote.created_at).getTime();
-
-      if (remoteTime < localTime) continue;
-
-      // Field-level merge: track which fields conflict (both sides changed)
-      const fieldConflicts: string[] = [];
-      const merged = { ...local };
-      merged.last_accessed = remote.last_accessed ?? local.last_accessed;
-      if (remote.vector?.length) merged.vector = remote.vector; // restore vector for search
-
-      if (remote.content !== local.content) {
-        merged.content = remote.content;
-        fieldConflicts.push("content");
+    // Deduplicate blobs by memoryId — keep latest version (timestamp in blob name)
+    const latestBlobs = new Map<string, string>(); // memoryId → blobName
+    for (const blobName of blobs) {
+      const memoryId = getMemoryId(blobName);
+      if (!memoryId) continue;
+      if (blobName.endsWith(".deleted")) continue;
+      const existing = latestBlobs.get(memoryId);
+      if (!existing || blobName > existing) {
+        latestBlobs.set(memoryId, blobName);
       }
-      if (remote.category !== local.category) {
-        merged.category = remote.category;
-        fieldConflicts.push("category");
-      }
-      if (JSON.stringify(remote.tags) !== JSON.stringify(local.tags)) {
-        merged.tags = remote.tags;
-        fieldConflicts.push("tags");
-      }
-      if (remote.priority !== local.priority) {
-        merged.priority = remote.priority;
-        fieldConflicts.push("priority");
-      }
-      merged.access_count = Math.max(local.access_count, remote.access_count);
+    }
 
-      if (fieldConflicts.length > 0) {
-        mergeConflicts++;
-        console.error(
-          `[MemoryForge] Merge conflict on "${merged.name}": ${fieldConflicts.join(", ")} — remote won`,
+    // Download and merge blob memories (skip tombstoned, prefer newer remote)
+    let downloaded = 0;
+    let mergeConflicts = 0;
+    for (const [memoryId, blobName] of latestBlobs) {
+      if (tombstoned.has(memoryId)) continue;
+
+      const local = store.get(memoryId);
+      const remote = await downloadMemory(blobName);
+      if (!remote) continue;
+
+      if (local) {
+        const localTime = new Date(local.created_at).getTime();
+        const remoteTime = new Date(remote.created_at).getTime();
+
+        if (remoteTime < localTime) continue;
+
+        // Field-level merge: track which fields conflict (both sides changed)
+        const fieldConflicts: string[] = [];
+        const merged = { ...local };
+        merged.last_accessed = remote.last_accessed ?? local.last_accessed;
+        if (remote.vector?.length) merged.vector = remote.vector; // restore vector for search
+
+        if (remote.content !== local.content) {
+          merged.content = remote.content;
+          fieldConflicts.push("content");
+        }
+        if (remote.category !== local.category) {
+          merged.category = remote.category;
+          fieldConflicts.push("category");
+        }
+        if (JSON.stringify(remote.tags) !== JSON.stringify(local.tags)) {
+          merged.tags = remote.tags;
+          fieldConflicts.push("tags");
+        }
+        if (remote.priority !== local.priority) {
+          merged.priority = remote.priority;
+          fieldConflicts.push("priority");
+        }
+        merged.access_count = Math.max(local.access_count, remote.access_count);
+
+        if (fieldConflicts.length > 0) {
+          mergeConflicts++;
+          persistConflict({
+            memoryId: merged.id,
+            memoryName: merged.name || "unnamed",
+            fields: fieldConflicts,
+            localPreview: local.content.slice(0, 200),
+            remotePreview: remote.content.slice(0, 200),
+            timestamp: new Date().toISOString(),
+          });
+          console.error(
+            `[MemoryForge] ⚡ Merge conflict on "${merged.name}": ${fieldConflicts.join(", ")} — remote won`,
+          );
+          console.error(`[MemoryForge]    See ~/.memory-forge/conflicts.json for details`);
+        }
+
+        store.add(merged);
+        saveMemory(merged);
+      } else {
+        store.add(remote);
+        saveMemory(remote);
+      }
+      downloaded++;
+    }
+
+    // Cross-device deletion: remove local files tombstoned on cloud
+    for (const id of tombstoned) {
+      if (store.get(id)) {
+        store.remove(id);
+        try {
+          deleteMemoryFile(id);
+        } catch {}
+      }
+    }
+
+    // Build set of memory IDs already on cloud (versioned blobs — not exact name match)
+    const existingIds = new Set<string>();
+    for (const blobName of blobs) {
+      const id = getMemoryId(blobName);
+      if (id) existingIds.add(id);
+    }
+
+    // Upload any local-only memories (batch: log summary, not per-memory spam)
+    let uploaded = 0;
+    let uploadFailed = 0;
+    for (const m of loadAllMemories()) {
+      if (existingIds.has(m.id)) continue;
+      const result = await uploadMemory(m);
+      if (result) uploaded++;
+      else uploadFailed++;
+    }
+
+    if (downloaded > 0 || uploaded > 0 || uploadFailed > 0) {
+      const parts: string[] = [];
+      if (uploaded > 0) parts.push(`↑${uploaded}`);
+      if (downloaded > 0) parts.push(`↓${downloaded}`);
+      if (uploadFailed > 0) parts.push(`✗${uploadFailed}`);
+      console.error(`[MemoryForge] Sync: ${parts.join(" ")}`);
+    }
+
+    // Cleanup: tombstone remote blobs that no longer exist locally
+    let cleanedBlobs = 0;
+    const localIds = new Set(loadAllMemories().map((m) => m.id));
+    for (const blobName of blobs) {
+      const id = getMemoryId(blobName);
+      if (!id) continue;
+      if (blobName.endsWith(".deleted")) continue;
+      if (!localIds.has(id)) {
+        deleteBlob(getBlobName(id)).catch((err) =>
+          console.error("[MemoryForge] Cleanup tombstone failed:", (err as Error).message),
         );
+        cleanedBlobs++;
       }
-
-      store.add(merged);
-      saveMemory(merged);
-    } else {
-      store.add(remote);
-      saveMemory(remote);
     }
-    downloaded++;
-  }
-
-  // Cross-device deletion: remove local files tombstoned on cloud
-  for (const id of tombstoned) {
-    if (store.get(id)) {
-      store.remove(id);
-      try {
-        deleteMemoryFile(id);
-      } catch {}
+    if (cleanedBlobs > 0) {
+      console.error(`[MemoryForge] Cleanup: tombstoned ${cleanedBlobs} stale cloud blobs`);
     }
-  }
 
-  // Build set of memory IDs already on cloud (versioned blobs — not exact name match)
-  const existingIds = new Set<string>();
-  for (const blobName of blobs) {
-    const id = getMemoryId(blobName);
-    if (id) existingIds.add(id);
-  }
+    // Drain pending queue (retry failed uploads/tombstones)
+    const queue = new SyncQueue();
+    const pending = queue.drain();
+    let queuedUploaded = 0;
+    let queuedFailed = 0;
+    const confirmedOps: typeof pending = [];
+    const retryOps: typeof pending = [];
 
-  // Upload any local-only memories (batch: log summary, not per-memory spam)
-  let uploaded = 0;
-  let uploadFailed = 0;
-  for (const m of loadAllMemories()) {
-    if (existingIds.has(m.id)) continue;
-    const result = await uploadMemory(m);
-    if (result) uploaded++;
-    else uploadFailed++;
-  }
-
-  if (downloaded > 0 || uploaded > 0 || uploadFailed > 0) {
-    const parts: string[] = [];
-    if (uploaded > 0) parts.push(`↑${uploaded}`);
-    if (downloaded > 0) parts.push(`↓${downloaded}`);
-    if (uploadFailed > 0) parts.push(`✗${uploadFailed}`);
-    console.error(`[MemoryForge] Sync: ${parts.join(" ")}`);
-  }
-
-  // Cleanup: tombstone remote blobs that no longer exist locally
-  let cleanedBlobs = 0;
-  const localIds = new Set(loadAllMemories().map((m) => m.id));
-  for (const blobName of blobs) {
-    const id = getMemoryId(blobName);
-    if (!id) continue;
-    if (blobName.endsWith(".deleted")) continue;
-    if (!localIds.has(id)) {
-      deleteBlob(getBlobName(id)).catch(() => {});
-      cleanedBlobs++;
+    for (const op of pending) {
+      if (op.type === "upload" && op.memory) {
+        const result = await uploadMemory(op.memory);
+        if (result) {
+          queuedUploaded++;
+          confirmedOps.push(op);
+        } else {
+          queuedFailed++;
+          retryOps.push(op);
+        }
+      } else if (op.type === "tombstone") {
+        try {
+          await deleteBlob(getBlobName(op.memoryId, op.projectHash));
+          confirmedOps.push(op);
+        } catch {
+          retryOps.push(op);
+        }
+      }
     }
-  }
-  if (cleanedBlobs > 0) {
-    console.error(`[MemoryForge] Cleanup: tombstoned ${cleanedBlobs} stale cloud blobs`);
-  }
 
-  // Touch last-sync timestamp with stats
-  updateSyncStamp(uploaded, downloaded, uploadFailed, mergeConflicts);
+    queue.confirm(confirmedOps);
+    if (retryOps.length > 0) {
+      queue.reEnqueue(retryOps);
+    }
 
-  // Purge expired tombstones
-  cleanupTombstones();
+    if (queuedUploaded > 0 || queuedFailed > 0) {
+      console.error(
+        `[MemoryForge] Queue: ↑${queuedUploaded} retried, ✗${queuedFailed} still pending`,
+      );
+    }
+
+    // User-visible error summary
+    if (uploadFailed > 0 || mergeConflicts > 0 || queuedFailed > 0) {
+      const parts: string[] = [];
+      if (uploadFailed > 0) parts.push(`${uploadFailed} uploads failed (queued for retry)`);
+      if (queuedFailed > 0) parts.push(`${queuedFailed} queue items still pending`);
+      if (mergeConflicts > 0)
+        parts.push(`${mergeConflicts} merge conflicts (see ~/.memory-forge/conflicts.json)`);
+      console.error(`[MemoryForge] ℹ️  ${parts.join("; ")}`);
+      console.error(`[MemoryForge] ℹ️  Run \`memory-forge pro status\` for full sync health.`);
+    }
+
+    // Touch last-sync timestamp with stats
+    updateSyncStamp(uploaded, downloaded, uploadFailed, mergeConflicts);
+
+    // Purge expired tombstones
+    cleanupTombstones();
+  } finally {
+    // Always clear checkpoint, even on error
+    clearSyncCheckpoint();
+  }
 }
 
 interface SyncEntry {
@@ -477,13 +648,31 @@ export function proStatus(): {
   syncHistory?: SyncEntry[];
   localCount?: number;
   apiKeyValid?: boolean;
+  profileValid?: boolean;
+  profileErrors?: string[];
+  keyBackedUp?: boolean;
+  conflictCount?: number;
+  queueSize?: number;
   balances?: { apt: string; shelbyUsd: string } | null;
   storage?: { blobCount: number; totalBytes: number } | null;
 } {
   if (!fs.existsSync(PROFILE_PATH)) return { active: false };
   try {
     const profile = JSON.parse(fs.readFileSync(PROFILE_PATH, "utf-8"));
+    const validation = validateProfile(profile);
     const cfg = getShelbyConfig();
+
+    // Load conflict count
+    let conflictCount = 0;
+    try {
+      if (fs.existsSync(CONFLICTS_PATH)) {
+        const conflicts: ConflictRecord[] = JSON.parse(fs.readFileSync(CONFLICTS_PATH, "utf-8"));
+        conflictCount = conflicts.length;
+      }
+    } catch {
+      /* ignore */
+    }
+
     return {
       active: true,
       address: profile.address,
@@ -495,6 +684,11 @@ export function proStatus(): {
       syncHistory: profile.syncHistory ?? [],
       localCount: loadAllMemories().length,
       apiKeyValid: cfg.apiKey ? !isAuthFailed() : undefined,
+      profileValid: validation.valid,
+      profileErrors: validation.errors.length > 0 ? validation.errors : undefined,
+      keyBackedUp: profile.keyBackedUp ?? false,
+      conflictCount,
+      queueSize: new SyncQueue().size(),
       balances: null, // filled async by CLI
       storage: null, // filled async by CLI
     };
