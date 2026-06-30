@@ -147,7 +147,7 @@ export function generateContextSummary(
     "project-context": 30,
     "user-preference": 24,
     "code-pattern": 20,
-    "session-transcript": 0, // excluded from context injection
+    "session-transcript": 1, // recent transcripts help resume context, age out fast
     general: 14,
   };
 
@@ -231,7 +231,7 @@ export function generateContextSummary(
       "Tips:\n" +
       "  • Save project decisions as 'decision-log'\n" +
       "  • Save user preferences as 'user-preference'\n" +
-      "  • Session transcripts are auto-captured (excluded from context, searchable via memory_search)"
+      "  • Session transcripts are auto-captured and shown in context for 1 day"
     );
   }
 

@@ -397,7 +397,7 @@ if (cmd === "setup") {
       `[MemoryForge] ${all.length} memories maintained, ${updated} saved, ${archived} archived`,
     );
     try {
-      console.error(`[MemoryForge] ${captureTranscript()}`);
+      console.error(`[MemoryForge] ${captureTranscript(true)}`);
     } catch (err) {
       console.error(`[MemoryForge] transcript capture failed: ${(err as Error).message}`);
     }

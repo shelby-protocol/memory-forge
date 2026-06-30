@@ -32,14 +32,15 @@ function currentProjectSlug(): string {
   return normalized.replace(/^-+/, ""); // trim leading dashes
 }
 
-export function captureTranscript(): string {
+export function captureTranscript(force: boolean = false): string {
   const filePath = findRecentTranscript();
   if (!filePath) return "No recent transcript found.";
 
   const sessionId = path.basename(filePath, ".jsonl");
 
-  // Skip if we already captured THIS session's transcript recently
-  if (alreadyCaptured(sessionId)) return "Transcript already captured (dedup same session).";
+  // Skip if we already captured THIS session's transcript recently (unless forced — Stop hook)
+  if (!force && alreadyCaptured(sessionId))
+    return "Transcript already captured (dedup same session).";
 
   const messages = readTranscript(filePath);
   if (messages.length === 0) return "Transcript empty.";

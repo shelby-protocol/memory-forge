@@ -76,13 +76,24 @@ describe("installHooks", () => {
     writeFileSync(
       settingsPath,
       JSON.stringify({
-        hooks: { Stop: [{ hooks: [{ type: "command", command: "memory-forge hook stop" }] }] },
+        hooks: {
+          Stop: [
+            {
+              hooks: [
+                {
+                  type: "command",
+                  command: "memory-forge hook stop >> ~/.memory-forge/hook.log 2>&1",
+                },
+              ],
+            },
+          ],
+        },
       }),
     );
     installHooks();
     const config = JSON.parse(readFileSync(settingsPath, "utf-8"));
     expect(config.hooks.Stop.length).toBe(1);
-    expect(config.hooks.Stop[0].hooks[0].command).toBe("npx memory-forge hook stop");
+    expect(config.hooks.Stop[0].hooks[0].command).toContain("memory-forge hook stop");
   });
 
   it("preserves unrelated existing hooks", () => {

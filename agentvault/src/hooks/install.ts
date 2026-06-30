@@ -93,7 +93,7 @@ export function installHooks(): boolean {
 
     config.hooks.Stop = config.hooks.Stop || [];
     setHook(config.hooks.Stop, "memory-forge", {
-      hooks: [{ type: "command", command: `${mfCmd} hook stop` }],
+      hooks: [{ type: "command", command: `${mfCmd} hook stop >> ~/.memory-forge/hook.log 2>&1` }],
     });
 
     config.hooks.PostToolUse = config.hooks.PostToolUse || [];

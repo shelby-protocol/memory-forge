@@ -141,7 +141,7 @@ describe("generateContextSummary", () => {
     expect(generateContextSummary(s, 2)).toContain("Evergreen");
   });
 
-  it("session-transcript excluded from context", () => {
+  it("session-transcript included in context (1-day half-life)", () => {
     const s = new MemoryStore();
     s.add({
       ...mem,
@@ -165,10 +165,10 @@ describe("generateContextSummary", () => {
     });
     const summary = generateContextSummary(s, 2);
     expect(summary).toContain("Decision log");
-    expect(summary).not.toContain("Transcript");
+    expect(summary).toContain("Transcript");
   });
 
-  it("all-transcript store shows welcome", () => {
+  it("all-transcript store shows transcript (not welcome)", () => {
     const s = new MemoryStore();
     s.add({
       ...mem,
@@ -180,7 +180,7 @@ describe("generateContextSummary", () => {
       access_count: 100,
       created_at: now,
     });
-    expect(generateContextSummary(s, 5)).toContain("Welcome");
+    expect(generateContextSummary(s, 5)).toContain("Transcript");
   });
 
   it("redacts private keys", () => {
