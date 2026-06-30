@@ -30,6 +30,7 @@ import {
   getBalances,
 } from "./storage/shelby.js";
 import { MemoryStore } from "./store.js";
+import type { Memory } from "./store.js";
 import { nowISO, tick as clockTick } from "./clock.js";
 import { SyncQueue } from "./sync-queue.js";
 
@@ -450,11 +451,22 @@ export async function syncAll(_projectHash?: string | null): Promise<void> {
     // Upload any local-only memories (batch: log summary, not per-memory spam)
     let uploaded = 0;
     let uploadFailed = 0;
+    const failedMemories: Memory[] = [];
     for (const m of loadAllMemories()) {
       if (existingIds.has(m.id)) continue;
       const result = await uploadMemory(m);
       if (result) uploaded++;
-      else uploadFailed++;
+      else {
+        uploadFailed++;
+        failedMemories.push(m);
+      }
+    }
+    // Queue failed uploads for retry so they don't just become permanent failures
+    if (failedMemories.length > 0) {
+      const queue = new SyncQueue();
+      for (const m of failedMemories) {
+        queue.enqueue({ id: m.id, type: "upload" as const, memoryId: m.id, memory: m });
+      }
     }
 
     if (downloaded > 0 || uploaded > 0 || uploadFailed > 0) {

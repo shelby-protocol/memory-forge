@@ -26,7 +26,7 @@ let sdkLoadFailed = false;
 let client: ShelbyNodeClient | null = null;
 let account: Account | null = null;
 let authFailed = false;
-let uploadWarned = false;
+let uploadFailCount = 0;
 
 async function loadShelbySdk(): Promise<boolean> {
   if (sdkLoadAttempted) return !sdkLoadFailed;
@@ -99,7 +99,7 @@ export async function initShelby(
   if (!ok) return null;
 
   authFailed = false;
-  uploadWarned = false;
+  uploadFailCount = 0;
   client = new ShelbyNCtor({
     network: NetworkEnum.SHELBYNET,
     apiKey,
@@ -201,6 +201,9 @@ export async function getStorageUsage(): Promise<{ blobCount: number; totalBytes
   }
 }
 
+// Track upload failures for diagnostics (#3)
+const MAX_VERBOSE_FAILURES = 3;
+
 /** 上传记忆到 Shelby */
 export async function uploadMemory(memory: Memory): Promise<string | null> {
   if (!client || !account) return null;
@@ -216,6 +219,8 @@ export async function uploadMemory(memory: Memory): Promise<string | null> {
       blobName,
       expirationMicros: (Date.now() + 365 * 86400000) * 1000, // 1 year
     });
+    // Reset fail counter on any success — failures may be transient
+    uploadFailCount = 0;
     return blobName;
   } catch (err) {
     const msg = (err as Error).message;
@@ -229,10 +234,23 @@ export async function uploadMemory(memory: Memory): Promise<string | null> {
       console.error("[MemoryForge] Pro sync: authentication failed. Check SHELBY_API_KEY.");
       return null;
     }
-    if (!uploadWarned) {
-      uploadWarned = true;
+    // 429 = rate limited — stop trying this session, retry next
+    if (msg.includes("429") || msg.includes("rate") || msg.includes("Rate")) {
       console.error(
-        "[MemoryForge] Pro sync: upload failed (network/storage issue). Will retry next sync.",
+        `[MemoryForge] Pro sync: rate limited by Shelby cloud. ${uploadFailCount} uploads deferred.`,
+      );
+      return null;
+    }
+    uploadFailCount++;
+    if (uploadFailCount <= MAX_VERBOSE_FAILURES) {
+      const shortId = memory.id.slice(0, 8);
+      const errPreview = msg.length > 120 ? msg.slice(0, 120) + "..." : msg;
+      console.error(
+        `[MemoryForge] Upload failed [${shortId}…] (${uploadFailCount}): ${errPreview}`,
+      );
+    } else if (uploadFailCount === MAX_VERBOSE_FAILURES + 1) {
+      console.error(
+        `[MemoryForge] Suppressing further upload error details (${uploadFailCount} failures so far). See \`memory-forge pro status\`.`,
       );
     }
     return null;

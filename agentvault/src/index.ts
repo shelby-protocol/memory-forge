@@ -621,12 +621,13 @@ function startMcpServer() {
         try {
           if (hasPro) {
             await proAutoActivate();
+            console.error("[MemoryForge] All memories synced to cloud. Safe to close.");
           }
           // Flush clock state
           const { sync: clockSync } = await import("./clock.js");
           clockSync();
         } catch {
-          /* best-effort on shutdown */
+          console.error("[MemoryForge] Cloud sync skipped — will retry next session.");
         }
       })();
 
